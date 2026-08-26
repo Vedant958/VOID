@@ -1,0 +1,26 @@
+﻿employee_id,name,department,role,join_date,leave_date,salary,is_active,location
+1,Alice Chen,Engineering,Senior Engineer,2020-03-15,,95000,true,San Francisco
+2,Bob Smith,Marketing,Marketing Manager,2019-07-01,2023-04-30,72000,false,New York
+3,Carol Williams,Engineering,Junior Engineer,2022-01-10,,65000,true,Austin
+4,David Lee,Sales,Account Executive,2018-11-20,,80000,true,Chicago
+5,Eva Martinez,HR,HR Specialist,2021-06-05,2024-01-15,58000,false,Remote
+6,Frank Brown,Engineering,Tech Lead,2017-04-12,,115000,true,San Francisco
+7,Grace Kim,Marketing,Content Writer,2023-02-28,,55000,true,New York
+8,Henry Liu,Sales,Sales Director,2016-09-01,2022-12-31,130000,false,Chicago
+9,Iris Patel,Engineering,DevOps Engineer,2021-10-15,,88000,true,Austin
+10,James Wilson,Finance,Financial Analyst,2020-05-22,,70000,true,New York
+11,Karen Davis,Engineering,Senior Engineer,2019-03-07,2023-11-30,98000,false,San Francisco
+12,Liam Johnson,Sales,Account Executive,2022-08-14,,75000,true,Chicago
+13,Maya Thompson,Marketing,Marketing Director,2015-12-01,,145000,true,New York
+14,Noah Anderson,Engineering,Junior Engineer,2023-07-03,,62000,true,Austin
+15,Olivia Taylor,HR,HR Manager,2018-02-19,,82000,true,Remote
+16,Paul Jackson,Finance,CFO,2014-06-30,,200000,true,New York
+17,Quinn White,Engineering,Backend Engineer,2020-11-01,2024-03-15,90000,false,Austin
+18,Rachel Harris,Sales,Account Executive,2021-04-18,,76000,true,Chicago
+19,Sam Clark,Marketing,SEO Specialist,2022-03-25,,60000,true,Remote
+20,Tina Lewis,Engineering,Frontend Engineer,2019-09-12,,87000,true,San Francisco
+21,Uma Robinson,Engineering,Tech Lead,2016-01-15,,118000,true,San Francisco
+22,Victor Walker,Sales,Sales Manager,2017-08-22,,105000,true,Chicago
+23,Wendy Hall,HR,HR Coordinator,2023-04-01,,50000,true,Remote
+24,Xavier Young,Finance,Accountant,2021-01-12,,65000,true,New York
+25,Yara Allen,Engineering,Senior Engineer,2018-07-30,2022-09-20,96000,false,Austin

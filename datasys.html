@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VOID // DATA.SYS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-secondary":"#ffffff","background":"#f8f9fa","on-tertiary-fixed-variant":"#38485d","secondary-fixed":"#dae2fd","on-tertiary-fixed":"#0b1c30","on-surface-variant":"#3b4b3a","on-secondary-container":"#5c647a","primary-container":"#00ff66","on-primary-container":"#007128","on-primary-fixed-variant":"#00531b","secondary-fixed-dim":"#bec6e0","surface-dim":"#d9dadb","surface-container":"#edeeef","outline-variant":"#b9ccb5","primary-fixed-dim":"#00e55b","on-background":"#191c1d","tertiary-container":"#cedff9","inverse-primary":"#00e55b","surface-container-high":"#e7e8e9","on-surface":"#191c1d","on-primary-fixed":"#002107","secondary-container":"#dae2fd","outline":"#6b7c68","inverse-surface":"#2e3132","inverse-on-surface":"#f0f1f2","on-error-container":"#93000a","surface-container-lowest":"#ffffff","error-container":"#ffdad6","surface-variant":"#e1e3e4","primary-fixed":"#6bff83","tertiary":"#505f76","surface-tint":"#006e27","surface-bright":"#f8f9fa","error":"#ba1a1a","surface-container-highest":"#e1e3e4","on-error":"#ffffff","on-secondary-fixed-variant":"#3f465c","primary":"#006e27","on-tertiary-container":"#536279","tertiary-fixed":"#d3e4fe","surface-container-low":"#f3f4f5","on-primary":"#ffffff","on-tertiary":"#ffffff","tertiary-fixed-dim":"#b7c8e1","on-secondary-fixed":"#131b2e","surface":"#f8f9fa","secondary":"#565e74"},borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"},spacing:{"container-max":"1440px","table-row-height":"32px","margin-page":"32px",unit:"4px",gutter:"16px"},fontFamily:{"label-caps":["JetBrains Mono"],"display-lg":["Hanken Grotesk"],"headline-md":["Hanken Grotesk"],"headline-md-mobile":["Hanken Grotesk"],"body-base":["Hanken Grotesk"],"data-mono":["JetBrains Mono"],"headline-sm":["Hanken Grotesk"]},fontSize:{"label-caps":["11px",{lineHeight:"1",letterSpacing:"0.08em",fontWeight:"700"}],"display-lg":["48px",{lineHeight:"1.1",letterSpacing:"-0.02em",fontWeight:"800"}],"headline-md":["24px",{lineHeight:"1.2",fontWeight:"600"}],"headline-md-mobile":["20px",{lineHeight:"1.2",fontWeight:"600"}],"body-base":["15px",{lineHeight:"1.6",fontWeight:"400"}],"data-mono":["14px",{lineHeight:"1.5",letterSpacing:"-0.01em",fontWeight:"500"}],"headline-sm":["18px",{lineHeight:"1.4",fontWeight:"600"}]},backgroundImage:{"grid-pattern":"url(\"data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M32 0H0v32h32V0zM1 1h30v30H1V1z' fill='%23E5E7EB' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E\")"}}}}
+</script>
+<style>
+.hud-bracket-tl{position:absolute;top:0;left:0;width:8px;height:8px;border-top:2px solid #6b7c68;border-left:2px solid #6b7c68;transition:all 0.2s cubic-bezier(0.16,1,0.3,1);will-change:transform}
+.hud-bracket-tr{position:absolute;top:0;right:0;width:8px;height:8px;border-top:2px solid #6b7c68;border-right:2px solid #6b7c68;transition:all 0.2s cubic-bezier(0.16,1,0.3,1);will-change:transform}
+.hud-bracket-bl{position:absolute;bottom:0;left:0;width:8px;height:8px;border-bottom:2px solid #6b7c68;border-left:2px solid #6b7c68;transition:all 0.2s cubic-bezier(0.16,1,0.3,1);will-change:transform}
+.hud-bracket-br{position:absolute;bottom:0;right:0;width:8px;height:8px;border-bottom:2px solid #6b7c68;border-right:2px solid #6b7c68;transition:all 0.2s cubic-bezier(0.16,1,0.3,1);will-change:transform}
+.neon-glow{box-shadow:0 0 10px rgba(0,255,102,0.3)}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:#f8f9fa}
+::-webkit-scrollbar-thumb{background:#b9ccb5}
+::-webkit-scrollbar-thumb:hover{background:#00ff66}
+
+/* Upload overlay */
+#upl-overlay{position:fixed;inset:0;z-index:999;background:#f8f9fa url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M32 0H0v32h32V0zM1 1h30v30H1V1z' fill='%23E5E7EB' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px}
+#upl-overlay.hidden{display:none}
+#upl-box{position:relative;border:1px dashed #b9ccb5;padding:52px 40px;text-align:center;cursor:pointer;background:#fff;transition:all .25s;max-width:500px;width:90%}
+#upl-box:hover,#upl-box.drag{border-color:#00ff66;box-shadow:0 0 20px rgba(0,255,102,.2);transform:translateY(-2px)}
+#upl-box input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:5}
+.upl-t{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:4px;color:#191c1d;margin:12px 0 6px;text-transform:uppercase}
+.upl-s{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;color:#6b7c68;margin-bottom:16px}
+.fmt{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;border:1px solid #b9ccb5;padding:3px 10px;color:#6b7c68;margin:2px}
+#upl-err{font-family:'JetBrains Mono',monospace;font-size:11px;color:#ba1a1a;margin-top:10px;display:none}
+.demo-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.dbtn{border:1px solid #b9ccb5;padding:6px 14px;background:#fff;cursor:pointer;color:#6b7c68;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;transition:all .2s}
+.dbtn:hover{border-color:#00ff66;color:#006e27}
+
+/* Loading bar */
+#ldbar{position:fixed;top:0;left:0;height:2px;background:#00ff66;box-shadow:0 0 6px rgba(0,255,102,.6);width:0;z-index:9999;transition:width .3s}
+
+/* Chart containers */
+.ch-rel{position:relative;width:100%;height:100%}
+.ch-rel canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+
+/* Chart Mini Controls */
+.chart-ctrl-group{display:inline-flex;align-items:center;gap:4px;background:#f3f4f5;border:1px solid #b9ccb5;padding:2px;border-radius:4px}
+.chart-btn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:3px;cursor:pointer;color:#6b7c68;transition:all .15s;font-size:16px}
+.chart-btn:hover,.chart-btn.active{background:#fff;color:#006e27;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.axes-select{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 4px;border:1px solid #b9ccb5;background:#fff;color:#191c1d;border-radius:3px;cursor:pointer}
+.color-picker-btn{width:20px;height:20px;padding:0;border:1px solid #b9ccb5;border-radius:3px;cursor:pointer;overflow:hidden;background:transparent;display:inline-block;vertical-align:middle}
+.color-picker-btn input[type=color]{opacity:0;width:100%;height:100%;cursor:pointer}
+
+/* Table Chart View */
+.hud-table-wrap{width:100%;height:100%;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:11px}
+.hud-table{width:100%;border-collapse:collapse;text-align:left}
+.hud-table th{background:#edeeef;color:#3b4b3a;padding:6px 10px;font-weight:700;border-bottom:2px solid #b9ccb5;position:sticky;top:0;z-index:2}
+.hud-table td{padding:6px 10px;border-bottom:1px solid #e1e3e4;color:#191c1d}
+.hud-table tr:hover td{background:rgba(0,255,102,0.06)}
+
+/* FUTURISTIC CYBER ANIMATIONS & MICRO-INTERACTIONS */
+@keyframes cyberCascade {
+  0% { opacity: 0; transform: translateY(15px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.stagger-in {
+  animation: cyberCascade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Solid Non-Transparent Background for All Cards */
+.hud-card {
+  position: relative;
+  background: #ffffff !important;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+  overflow: hidden;
+}
+.hud-card::after {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, transparent, rgba(0, 255, 102, 0.08), transparent);
+  pointer-events: none;
+  opacity: 0;
+  will-change: top, opacity;
+}
+.hud-card:hover::after {
+  animation: scanlineSweep 1.2s ease-in-out infinite;
+  opacity: 1;
+}
+@keyframes scanlineSweep {
+  0% { top: -100%; }
+  100% { top: 100%; }
+}
+.hud-card:hover {
+  border-color: #00ff66 !important;
+  box-shadow: 0 0 15px rgba(0, 255, 102, 0.25);
+}
+.hud-card:hover .hud-bracket-tl { transform: translate(-2px, -2px) scale(1.15); border-color: #00ff66 !important; }
+.hud-card:hover .hud-bracket-tr { transform: translate(2px, -2px) scale(1.15); border-color: #00ff66 !important; }
+.hud-card:hover .hud-bracket-bl { transform: translate(-2px, 2px) scale(1.15); border-color: #00ff66 !important; }
+.hud-card:hover .hud-bracket-br { transform: translate(2px, 2px) scale(1.15); border-color: #00ff66 !important; }
+
+/* Neon Button Shockwave Pulse */
+.neon-pulse-active {
+  animation: neonPulseWave 0.4s ease-out;
+}
+@keyframes neonPulseWave {
+  0% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0.7); }
+  100% { box-shadow: 0 0 0 12px rgba(0, 255, 102, 0); }
+}
+
+/* Sparkline Container Styling */
+.sparkline-box {
+  width: 100%;
+  height: 20px;
+  overflow: hidden;
+  opacity: 0.35;
+  margin-top: 4px;
+}
+.sparkline-box:hover {
+  opacity: 1;
+}
+</style>
+</head>
+<body class="bg-background text-on-background font-body-base h-screen overflow-hidden flex selection:bg-primary-container selection:text-on-primary-container bg-grid-pattern relative">
+
+<div id="ldbar"></div>
+
+<!-- UPLOAD OVERLAY -->
+<div id="upl-overlay">
+  <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:4px;color:#6b7c68;display:flex;align-items:center;gap:8px">
+    <span style="color:#006e27">&#9632;</span> VOID // DATA.SYS
+  </div>
+  <div id="upl-box">
+    <input type="file" id="file-in" accept=".csv,.json"/>
+    <div style="font-size:36px;opacity:.4">&#128194;</div>
+    <div class="upl-t">Awaiting Dataset</div>
+    <div class="upl-s">Drag &amp; drop or click to select</div>
+    <div><span class="fmt">CSV</span><span class="fmt">JSON</span></div>
+    <div id="upl-err"></div>
+  </div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:#b9ccb5">// OR LOAD A DEMO DATASET</div>
+  <div class="demo-row">
+    <button class="dbtn" id="d-sales">E-Commerce Sales</button>
+    <button class="dbtn" id="d-hr">HR Workforce</button>
+    <button class="dbtn" id="d-crypto">Crypto Txns</button>
+  </div>
+</div>
+
+<!-- MAIN DASHBOARD VIEW -->
+<main id="dashboard-main" class="flex-1 flex flex-col h-full overflow-hidden relative w-full">
+
+  <!-- Top App Bar / Header -->
+  <header class="h-16 border-b border-outline-variant bg-surface-bright/80 backdrop-blur-md flex items-center justify-between px-margin-page sticky top-0 z-20 shrink-0">
+    <div class="flex items-center gap-4 md:gap-6">
+      <div class="flex items-center gap-2 border-r border-outline-variant pr-4 md:pr-6">
+        <div class="flex items-center gap-2 font-mono text-sm tracking-wider font-bold text-zinc-900">
+          <span class="inline-block w-2.5 h-2.5 bg-[#00FF66] rounded-xs animate-pulse"></span>
+          <span>VOID // DATA.SYS</span>
+        </div>
+      </div>
+      <h1 class="font-data-mono text-headline-sm md:text-headline-md font-bold tracking-tight text-on-background uppercase flex items-center gap-2">
+        <span id="hdr-title-text">SALES_ANALYTICS</span> <span class="text-primary-container animate-pulse">_</span>
+      </h1>
+    </div>
+    <div class="flex items-center gap-2 md:gap-3">
+      <!-- Theme Switcher & Color Engine -->
+      <div class="hidden sm:flex items-center gap-2 border border-outline-variant bg-surface-container-lowest px-2 py-1 rounded">
+        <span class="material-symbols-outlined text-sm text-primary">palette</span>
+        <select id="theme-select" class="font-data-mono text-xs bg-transparent border-none text-on-surface focus:ring-0 cursor-pointer">
+          <option value="cyber">Cyber Matrix</option>
+          <option value="sunset">Sunset Retail</option>
+          <option value="enterprise">Enterprise Blue</option>
+          <option value="vibrant">Vibrant Multi</option>
+          <option value="custom">Custom // Shuffled</option>
+        </select>
+        <button id="btn-shuffle" class="text-xs font-data-mono px-2 py-1 bg-surface-container hover:bg-primary-container/20 text-on-surface border border-outline-variant rounded flex items-center gap-1 transition-colors" title="Shuffle Palette Colors">
+          <span class="material-symbols-outlined text-xs">casino</span>
+          <span class="hidden md:inline">SHUFFLE</span>
+        </button>
+      </div>
+
+      <span id="hdr-fn" class="font-label-caps text-label-caps text-outline hidden lg:inline-block truncate max-w-[150px]"></span>
+      <button id="btn-rf" class="text-outline hover:text-primary transition-colors p-1" title="Reset filters"><span class="material-symbols-outlined">refresh</span></button>
+      
+      <!-- Export Dropdown Button Group -->
+      <div class="relative inline-block text-left">
+        <button id="btn-dl-menu" class="text-outline hover:text-primary transition-colors p-1 flex items-center gap-0.5" title="Export Options">
+          <span class="material-symbols-outlined">download</span>
+          <span class="material-symbols-outlined text-xs">expand_more</span>
+        </button>
+        <div id="dl-popover" class="hidden absolute right-0 mt-2 w-48 bg-white border border-outline-variant rounded shadow-lg z-50 py-1 font-data-mono text-xs">
+          <button id="btn-export-png" class="w-full text-left px-4 py-2 hover:bg-surface-container flex items-center gap-2 text-on-surface">
+            <span class="material-symbols-outlined text-sm text-primary">image</span>
+            <span>PNG Snapshot</span>
+          </button>
+          <button id="btn-export-csv" class="w-full text-left px-4 py-2 hover:bg-surface-container flex items-center gap-2 text-on-surface">
+            <span class="material-symbols-outlined text-sm text-primary">table_chart</span>
+            <span>CSV Dataset</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Horizontal Filters Bar with Mobile Collapsible Drawer -->
+  <div class="border-b border-outline-variant bg-surface-container-lowest px-margin-page py-3 flex flex-col md:flex-row md:items-center gap-3 overflow-x-auto whitespace-nowrap z-10 shrink-0">
+    <div class="flex items-center justify-between w-full md:w-auto">
+      <div class="font-label-caps text-label-caps text-outline flex items-center gap-2 shrink-0">
+        <span class="material-symbols-outlined text-sm">filter_alt</span>
+        GLOBAL_FILTERS
+      </div>
+      <!-- Mobile Filter Drawer Toggle Button -->
+      <button id="btn-toggle-filters" class="md:hidden font-data-mono text-xs px-2.5 py-1 bg-surface-container border border-outline-variant rounded text-on-surface flex items-center gap-1">
+        <span class="material-symbols-outlined text-sm">tune</span>
+        <span>FILTER DATA</span>
+      </button>
+    </div>
+
+    <!-- Dynamic Distinct Select Dropdowns Container -->
+    <div id="dynamic-filters-wrap" class="hidden md:flex flex-wrap md:flex-nowrap items-center gap-3 overflow-x-auto w-full md:w-auto"></div>
+
+    <button id="btn-clr" class="font-label-caps text-label-caps text-outline hover:text-primary transition-colors ml-auto flex-shrink-0" style="display:none">&#10005; RESET</button>
+  </div>
+
+  <!-- Scrollable Canvas -->
+  <div class="flex-1 overflow-y-auto p-margin-page flex flex-col gap-6">
+
+    <!-- System Insight Banner (Dismissible) -->
+    <div id="insight-banner" class="hud-card relative border border-primary-container bg-surface-bright p-4 neon-glow w-full flex items-start gap-4">
+      <div class="hud-bracket-tl border-primary-container"></div>
+      <div class="hud-bracket-tr border-primary-container"></div>
+      <div class="hud-bracket-bl border-primary-container"></div>
+      <div class="hud-bracket-br border-primary-container"></div>
+      <div class="flex items-center gap-2 mt-1 shrink-0">
+        <span class="material-symbols-outlined text-primary-container text-lg" style="font-variation-settings:'FILL' 1">lightbulb</span>
+        <span class="font-label-caps text-label-caps text-primary hidden md:inline-block">SYSTEM_INSIGHT</span>
+      </div>
+      <p id="insight" class="font-data-mono text-data-mono text-on-surface text-sm leading-relaxed flex-1">
+        Upload a CSV or JSON dataset to begin. Use the demo buttons above to load sample data instantly.
+      </p>
+      <button id="btn-close-insight" class="text-outline hover:text-primary transition-colors text-sm ml-auto p-1 font-bold" title="Dismiss Insight">&#10005;</button>
+    </div>
+
+    <!-- KPI Grid (Mobile 2x3 Grid -> Desktop 6 Columns) -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+
+      <div class="hud-card relative bg-white border border-outline-variant p-4 flex flex-col justify-between h-28 group">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div>
+          <div id="k1l" class="font-label-caps text-label-caps text-outline uppercase truncate">Total Revenue</div>
+          <div id="k1v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
+        </div>
+        <div id="k1-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
+          <span id="k1-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> ▲ +5.2%</span>
+        </div>
+        <div class="sparkline-box">
+          <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
+            <path id="k1sf" d="M0 20 L100 20 Z" fill="currentColor" fill-opacity="0.25"></path>
+            <path id="k1sl" d="M0 10 L100 10" fill="none" stroke="currentColor" stroke-width="2"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="hud-card relative bg-white border border-outline-variant p-4 flex flex-col justify-between h-28 group">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div>
+          <div id="k2l" class="font-label-caps text-label-caps text-outline uppercase truncate">Total Customers</div>
+          <div id="k2v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
+        </div>
+        <div id="k2-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
+          <span id="k2-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> ▲ +3.8%</span>
+        </div>
+        <div class="sparkline-box">
+          <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
+            <path id="k2sf" d="M0 20 L100 20 Z" fill="currentColor" fill-opacity="0.25"></path>
+            <path id="k2sl" d="M0 10 L100 10" fill="none" stroke="currentColor" stroke-width="2"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="hud-card relative bg-white border border-outline-variant p-4 flex flex-col justify-between h-28 group">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div>
+          <div id="k3l" class="font-label-caps text-label-caps text-outline uppercase truncate">Avg Rating</div>
+          <div id="k3v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
+        </div>
+        <div id="k3-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
+          <span id="k3-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">star</span> High Score</span>
+        </div>
+        <div class="sparkline-box">
+          <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
+            <path id="k3sf" d="M0 20 L100 20 Z" fill="currentColor" fill-opacity="0.25"></path>
+            <path id="k3sl" d="M0 10 L100 10" fill="none" stroke="currentColor" stroke-width="2"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="hud-card relative bg-white border border-outline-variant p-4 flex flex-col justify-between h-28 group">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div>
+          <div id="k4l" class="font-label-caps text-label-caps text-outline uppercase truncate">Total Orders</div>
+          <div id="k4v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
+        </div>
+        <div id="k4-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
+          <span id="k4-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> ▲ +8.1%</span>
+        </div>
+        <div class="sparkline-box">
+          <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
+            <path id="k4sf" d="M0 20 L100 20 Z" fill="currentColor" fill-opacity="0.25"></path>
+            <path id="k4sl" d="M0 10 L100 10" fill="none" stroke="currentColor" stroke-width="2"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="hud-card relative bg-white border border-outline-variant p-4 flex flex-col justify-between h-28 group">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div>
+          <div id="k5l" class="font-label-caps text-label-caps text-outline uppercase truncate">Satisfaction Index</div>
+          <div id="k5v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
+        </div>
+        <div id="k5-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
+          <span id="k5-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">check_circle</span> Optimal</span>
+        </div>
+        <div class="sparkline-box">
+          <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
+            <path id="k5sf" d="M0 20 L100 20 Z" fill="currentColor" fill-opacity="0.25"></path>
+            <path id="k5sl" d="M0 10 L100 10" fill="none" stroke="currentColor" stroke-width="2"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="hud-card relative bg-white border border-outline-variant p-4 flex flex-col justify-between h-28 group">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div>
+          <div id="k6l" class="font-label-caps text-label-caps text-outline uppercase truncate">Avg Order Value</div>
+          <div id="k6v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
+        </div>
+        <div id="k6-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
+          <span id="k6-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> ▲ +4.5%</span>
+        </div>
+        <div class="sparkline-box">
+          <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
+            <path id="k6sf" d="M0 20 L100 20 Z" fill="currentColor" fill-opacity="0.25"></path>
+            <path id="k6sl" d="M0 10 L100 10" fill="none" stroke="currentColor" stroke-width="2"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Central Chart Grid (2x3) Stacked Vertically on Mobile -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Slot 1: Revenue Timeline (lg:col-span-2) -->
+      <div class="hud-card relative bg-white border border-outline-variant p-4 min-h-[320px] flex flex-col lg:col-span-2">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+          <h3 id="ct-ttl" class="font-data-mono text-data-mono font-bold uppercase">Revenue_Timeline</h3>
+          
+          <!-- Slot 1 Controls -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <select id="ax-x-s1" class="axes-select" title="X-Axis (Dimension)"></select>
+            <select id="ax-y-s1" class="axes-select" title="Y-Axis (Measure)"></select>
+            <div class="chart-ctrl-group">
+              <span class="chart-btn" data-slot="s1" data-type="line" title="Line Chart"><span class="material-symbols-outlined text-sm">show_chart</span></span>
+              <span class="chart-btn" data-slot="s1" data-type="area" title="Area Chart"><span class="material-symbols-outlined text-sm">area_chart</span></span>
+              <span class="chart-btn" data-slot="s1" data-type="bar" title="Bar Chart"><span class="material-symbols-outlined text-sm">bar_chart</span></span>
+              <span class="chart-btn" data-slot="s1" data-type="donut" title="Donut Chart"><span class="material-symbols-outlined text-sm">donut_large</span></span>
+              <span class="chart-btn" data-slot="s1" data-type="table" title="Table View"><span class="material-symbols-outlined text-sm">table_chart</span></span>
+            </div>
+            <div class="color-picker-btn" title="Custom Slot Color">
+              <input type="color" id="cp-s1" value="#00FF66"/>
+            </div>
+          </div>
+        </div>
+
+        <div id="wrap-s1" class="flex-1 w-full bg-white relative ch-rel" style="min-height:220px">
+          <canvas id="ch1"></canvas>
+          <div id="tbl-s1" class="hud-table-wrap hidden"></div>
+        </div>
+        <div id="ct-xlbls" class="flex justify-between font-label-caps text-label-caps text-outline mt-2 px-2"></div>
+      </div>
+
+      <!-- Slot 2: Category Split -->
+      <div class="hud-card relative bg-white border border-outline-variant p-4 min-h-[320px] flex flex-col">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+          <h3 id="cd-ttl" class="font-data-mono text-data-mono font-bold uppercase truncate max-w-[120px]">Category_Split</h3>
+          
+          <!-- Slot 2 Controls -->
+          <div class="flex items-center gap-1 flex-wrap">
+            <select id="ax-x-s2" class="axes-select max-w-[70px]" title="X-Axis"></select>
+            <select id="ax-y-s2" class="axes-select max-w-[70px]" title="Y-Axis"></select>
+            <div class="chart-ctrl-group">
+              <span class="chart-btn" data-slot="s2" data-type="donut" title="Donut Chart"><span class="material-symbols-outlined text-sm">donut_large</span></span>
+              <span class="chart-btn" data-slot="s2" data-type="bar" title="Bar Chart"><span class="material-symbols-outlined text-sm">bar_chart</span></span>
+              <span class="chart-btn" data-slot="s2" data-type="line" title="Line Chart"><span class="material-symbols-outlined text-sm">show_chart</span></span>
+              <span class="chart-btn" data-slot="s2" data-type="table" title="Table View"><span class="material-symbols-outlined text-sm">table_chart</span></span>
+            </div>
+            <div class="color-picker-btn" title="Custom Slot Color">
+              <input type="color" id="cp-s2" value="#00CC52"/>
+            </div>
+          </div>
+        </div>
+
+        <div id="wrap-s2" class="flex-1 flex items-center justify-center relative ch-rel bg-white" style="min-height:220px">
+          <canvas id="ch2"></canvas>
+          <div id="tbl-s2" class="hud-table-wrap hidden"></div>
+        </div>
+      </div>
+
+      <!-- Slot 3: Distribution (lg:col-span-2) -->
+      <div class="hud-card relative bg-white border border-outline-variant p-4 min-h-[300px] flex flex-col lg:col-span-2">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+          <h3 id="cb-ttl" class="font-data-mono text-data-mono font-bold uppercase">Distribution</h3>
+          
+          <!-- Slot 3 Controls -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <select id="ax-x-s3" class="axes-select" title="X-Axis"></select>
+            <select id="ax-y-s3" class="axes-select" title="Y-Axis"></select>
+            <div class="chart-ctrl-group">
+              <span class="chart-btn" data-slot="s3" data-type="bar" title="Bar Chart"><span class="material-symbols-outlined text-sm">bar_chart</span></span>
+              <span class="chart-btn" data-slot="s3" data-type="line" title="Line Chart"><span class="material-symbols-outlined text-sm">show_chart</span></span>
+              <span class="chart-btn" data-slot="s3" data-type="area" title="Area Chart"><span class="material-symbols-outlined text-sm">area_chart</span></span>
+              <span class="chart-btn" data-slot="s3" data-type="donut" title="Donut Chart"><span class="material-symbols-outlined text-sm">donut_large</span></span>
+              <span class="chart-btn" data-slot="s3" data-type="table" title="Table View"><span class="material-symbols-outlined text-sm">table_chart</span></span>
+            </div>
+            <div class="color-picker-btn" title="Custom Slot Color">
+              <input type="color" id="cp-s3" value="#00993D"/>
+            </div>
+          </div>
+        </div>
+
+        <div id="wrap-s3" class="flex-1 w-full bg-white relative ch-rel" style="min-height:180px">
+          <canvas id="ch3"></canvas>
+          <div id="tbl-s3" class="hud-table-wrap hidden"></div>
+        </div>
+      </div>
+
+      <!-- Slot 4: Secondary Split -->
+      <div class="hud-card relative bg-white border border-outline-variant p-4 min-h-[300px] flex flex-col">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+          <h3 id="cp-ttl" class="font-data-mono text-data-mono font-bold uppercase truncate max-w-[120px]">Secondary_Split</h3>
+          
+          <!-- Slot 4 Controls -->
+          <div class="flex items-center gap-1 flex-wrap">
+            <select id="ax-x-s4" class="axes-select max-w-[70px]" title="X-Axis"></select>
+            <select id="ax-y-s4" class="axes-select max-w-[70px]" title="Y-Axis"></select>
+            <div class="chart-ctrl-group">
+              <span class="chart-btn" data-slot="s4" data-type="donut" title="Donut Chart"><span class="material-symbols-outlined text-sm">donut_large</span></span>
+              <span class="chart-btn" data-slot="s4" data-type="bar" title="Bar Chart"><span class="material-symbols-outlined text-sm">bar_chart</span></span>
+              <span class="chart-btn" data-slot="s4" data-type="line" title="Line Chart"><span class="material-symbols-outlined text-sm">show_chart</span></span>
+              <span class="chart-btn" data-slot="s4" data-type="table" title="Table View"><span class="material-symbols-outlined text-sm">table_chart</span></span>
+            </div>
+            <div class="color-picker-btn" title="Custom Slot Color">
+              <input type="color" id="cp-s4" value="#006E27"/>
+            </div>
+          </div>
+        </div>
+
+        <div id="wrap-s4" class="flex-1 flex items-center justify-center relative ch-rel bg-white" style="min-height:180px">
+          <canvas id="ch4"></canvas>
+          <div id="tbl-s4" class="hud-table-wrap hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Ribbon: Leaderboards -->
+    <div class="mt-4 border-t border-outline-variant pt-6">
+      <h3 class="font-data-mono text-data-mono font-bold uppercase mb-4 flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm">emoji_events</span>
+        System_Leaderboards
+      </h3>
+      <div class="flex flex-wrap gap-4">
+
+        <div class="hud-card relative bg-white border border-outline-variant px-4 py-3 flex-1 min-w-[200px]">
+          <div class="hud-bracket-tl"></div><div class="hud-bracket-br"></div>
+          <div id="lb1l" class="font-label-caps text-label-caps text-outline mb-1">&#127942; Top Product</div>
+          <div id="lb1n" class="font-data-mono text-data-mono text-on-surface font-bold truncate">&#8212;</div>
+          <div class="text-xs text-primary mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">trending_up</span><span id="lb1v">&#8212;</span></div>
+        </div>
+
+        <div class="hud-card relative bg-white border border-outline-variant px-4 py-3 flex-1 min-w-[200px]">
+          <div class="hud-bracket-tl"></div><div class="hud-bracket-br"></div>
+          <div id="lb2l" class="font-label-caps text-label-caps text-outline mb-1">&#128241; Best Channel</div>
+          <div id="lb2n" class="font-data-mono text-data-mono text-on-surface font-bold truncate">&#8212;</div>
+          <div class="text-xs text-primary mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">trending_up</span><span id="lb2v">&#8212;</span></div>
+        </div>
+
+        <div class="hud-card relative bg-white border border-outline-variant px-4 py-3 flex-1 min-w-[200px]">
+          <div class="hud-bracket-tl"></div><div class="hud-bracket-br"></div>
+          <div id="lb3l" class="font-label-caps text-label-caps text-outline mb-1">&#11088; Top Brand</div>
+          <div id="lb3n" class="font-data-mono text-data-mono text-on-surface font-bold truncate">&#8212;</div>
+          <div class="text-xs text-primary mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">trending_up</span><span id="lb3v">&#8212;</span></div>
+        </div>
+
+        <div class="hud-card relative bg-white border border-outline-variant px-4 py-3 flex-1 min-w-[200px]">
+          <div class="hud-bracket-tl"></div><div class="hud-bracket-br"></div>
+          <div id="lb4l" class="font-label-caps text-label-caps text-outline mb-1">&#128205; Best City</div>
+          <div id="lb4n" class="font-data-mono text-data-mono text-on-surface font-bold truncate">&#8212;</div>
+          <div class="text-xs text-primary mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">trending_up</span><span id="lb4v">&#8212;</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FEATURE 3: Collapsible Raw Matrix Table Inspector -->
+    <div class="mt-6 border-t border-outline-variant pt-6 mb-8">
+      <button id="btn-toggle-matrix" class="hud-card relative w-full border border-outline-variant bg-white p-3.5 font-data-mono text-xs font-bold text-on-surface flex items-center justify-between hover:border-primary-container transition-colors">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-br"></div>
+        <span class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm text-primary">grid_on</span>
+          <span>[ ⊞ VIEW RAW MATRIX ]</span>
+        </span>
+        <span id="matrix-arrow" class="material-symbols-outlined text-sm transition-transform">expand_more</span>
+      </button>
+
+      <div id="raw-matrix-container" class="hidden mt-4 hud-card relative border border-outline-variant bg-white p-4 flex flex-col gap-4">
+        <div class="hud-bracket-tl"></div><div class="hud-bracket-tr"></div><div class="hud-bracket-bl"></div><div class="hud-bracket-br"></div>
+        
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="font-data-mono text-xs font-bold text-on-surface flex items-center gap-2">
+            <span>RAW_DATA_INSPECTOR</span>
+            <span id="matrix-count-badge" class="px-2 py-0.5 bg-surface-container border border-outline-variant rounded text-[10px] text-outline">0 rows</span>
+          </div>
+          <input type="text" id="matrix-search" placeholder="Search rows..." class="font-data-mono text-xs px-3 py-1.5 border border-outline-variant rounded bg-surface-bright text-on-surface w-full sm:w-64 focus:outline-none focus:border-primary"/>
+        </div>
+
+        <div class="hud-table-wrap max-h-96 border border-outline-variant rounded">
+          <table class="hud-table" id="raw-matrix-table">
+            <thead id="raw-matrix-thead"></thead>
+            <tbody id="raw-matrix-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-between font-data-mono text-xs text-outline flex-wrap gap-2">
+          <span id="matrix-page-info">Page 1 of 1</span>
+          <div class="flex items-center gap-2">
+            <button id="matrix-prev" class="px-3 py-1 border border-outline-variant bg-surface-bright hover:bg-surface-container rounded transition-colors disabled:opacity-40">PREV</button>
+            <button id="matrix-next" class="px-3 py-1 border border-outline-variant bg-surface-bright hover:bg-surface-container rounded transition-colors disabled:opacity-40">NEXT</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+(function(){
+var DS={raw:[],cols:[],fn:''};
+var PROF={},CM={},FIL={},CHS={};
+var ENABLE_INSIGHT_BANNER = true;
+var COUNT_METRIC_KEY = 'COUNT(*)';
+
+/* Raw Matrix State */
+var matrixPageState = { page: 1, pageSize: 10, search: '' };
+
+/* Color Palette Engine */
+var PALETTES={
+  cyber: ['#00FF66','#00E5FF','#FF007F','#FFB800','#A855F7','#00CC52','#00993D'],
+  sunset: ['#E11D48','#FB7185','#F59E0B','#6366F1','#10B981','#EC4899','#8B5CF6'],
+  enterprise: ['#2563EB','#06B6D4','#10B981','#8B5CF6','#F97316','#3B82F6','#14B8A6'],
+  vibrant: ['#FF0055','#7000FF','#00E5FF','#00FF66','#FFB800','#FF6600','#E0115F']
+};
+var activeTheme = 'cyber';
+var activePalette = PALETTES.cyber.slice();
+
+/* Per-Slot Configuration */
+var SLOTS = {
+  s1: { canvasId:'ch1', tblId:'tbl-s1', type:'line', xCol:null, yCol:null, customColor:null },
+  s2: { canvasId:'ch2', tblId:'tbl-s2', type:'donut', xCol:null, yCol:null, customColor:null },
+  s3: { canvasId:'ch3', tblId:'tbl-s3', type:'bar', xCol:null, yCol:null, customColor:null },
+  s4: { canvasId:'ch4', tblId:'tbl-s4', type:'donut', xCol:null, yCol:null, customColor:null }
+};
+
+var MN="'JetBrains Mono',monospace";
+var TT={backgroundColor:'#fff',titleColor:'#191c1d',bodyColor:'#6b7c68',borderColor:'#b9ccb5',borderWidth:1,titleFont:{family:MN,size:11},bodyFont:{family:MN,size:10}};
+
+function g(id){return document.getElementById(id);}
+function setLd(p){g('ldbar').style.width=p+'%';}
+
+function getSlotPalette(slotId, customColor){
+  if(customColor) return [customColor].concat(activePalette);
+  return activePalette;
+}
+
+function fmtN(n){
+  if(!isFinite(n))return '—';
+  var a=Math.abs(n),s=n<0?'-':'';
+  if(a>=1e9)return s+(a/1e9).toFixed(1)+'B';
+  if(a>=1e6)return s+(a/1e6).toFixed(1)+'M';
+  if(a>=1e3)return s+(a/1e3).toFixed(1)+'K';
+  return s+(Number.isInteger(n)?n.toLocaleString():n.toFixed(2));
+}
+
+/* KPI Count-Up / Odometer Effect */
+function animateCountUp(element, targetFormatted){
+  if(!element) return;
+  var str = String(targetFormatted);
+  var numMatch = str.match(/[\d\.]+/);
+  if(!numMatch){
+    element.textContent = str;
+    return;
+  }
+  var targetNum = parseFloat(numMatch[0]);
+  var prefix = str.slice(0, str.indexOf(numMatch[0]));
+  var suffix = str.slice(str.indexOf(numMatch[0]) + numMatch[0].length);
+  var decimals = (numMatch[0].split('.')[1] || '').length;
+
+  var startTime = null;
+  var duration = 800;
+
+  function step(timestamp){
+    if(!startTime) startTime = timestamp;
+    var progress = Math.min((timestamp - startTime) / duration, 1);
+    var easeProgress = 1 - Math.pow(1 - progress, 3);
+    var currentNum = targetNum * easeProgress;
+    var formattedNum = decimals > 0 ? currentNum.toFixed(decimals) : Math.floor(currentNum).toLocaleString();
+    element.textContent = prefix + formattedNum + suffix;
+    if(progress < 1){
+      requestAnimationFrame(step);
+    } else {
+      element.textContent = targetFormatted;
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+/* Real Dynamic Sparkline Renderer */
+function renderSparkline(svgIdPath, svgIdLine, values, h){
+  h = h || 20;
+  var sf = g(svgIdPath), sl = g(svgIdLine);
+  if(!sf || !sl) return;
+  if(!values || values.length <= 1){
+    sf.setAttribute('d', '');
+    sl.setAttribute('d', 'M0 ' + (h/2) + ' L100 ' + (h/2));
+    return;
+  }
+  var min = Math.min.apply(null, values);
+  var max = Math.max.apply(null, values);
+  if(min === max){
+    sf.setAttribute('d', '');
+    sl.setAttribute('d', 'M0 ' + (h/2) + ' L100 ' + (h/2));
+    return;
+  }
+  var rng = max - min;
+  var pts = values.map(function(v, i){
+    var x = (i / (values.length - 1)) * 100;
+    var y = h - ((v - min) / rng) * (h * 0.8) - 2;
+    return x.toFixed(1) + ' ' + y.toFixed(1);
+  });
+  var pLine = 'M' + pts.join(' L');
+  var pFill = pLine + ' L100 ' + h + ' L0 ' + h + ' Z';
+  sf.setAttribute('d', pFill);
+  sl.setAttribute('d', pLine);
+}
+
+/* Staggered Entrance Animation */
+function triggerStaggeredEntrance(){
+  var cards = document.querySelectorAll('.hud-card, #insight-banner, .filter-box');
+  cards.forEach(function(el, idx){
+    el.classList.remove('stagger-in');
+    void el.offsetWidth;
+    el.style.animationDelay = (idx * 0.04) + 's';
+    el.classList.add('stagger-in');
+  });
+}
+
+/* Shockwave Pulse Effect */
+function triggerNeonShockwave(el){
+  if(!el) return;
+  el.classList.remove('neon-pulse-active');
+  void el.offsetWidth;
+  el.classList.add('neon-pulse-active');
+}
+
+function detectType(vals, colName){
+  var colLower = String(colName||'').toLowerCase();
+  var isIdCol = /id$|_id$|^id$/i.test(colLower);
+  var isFlagCol = /^(is_|has_|flag_|can_)/i.test(colLower);
+
+  var nn=vals.filter(function(v){return v!==null&&v!==''&&v!==undefined;});
+  if(!nn.length)return 'EMPTY';
+  
+  var bools=['true','false','yes','no','1','0',1,0,true,false];
+  var isAllBools = nn.every(function(v){ return bools.indexOf(typeof v==='string'?v.toLowerCase():v) >= 0; });
+  if(isFlagCol || (isAllBools && nn.length > 0)){
+    return 'FLAG_BOOLEAN';
+  }
+
+  var num=nn.filter(function(v){return !isNaN(parseFloat(v))&&isFinite(+v);});
+  if(num.length/nn.length>0.8){
+    if(isIdCol) return 'ID_NUMERIC';
+    return 'NUMERIC';
+  }
+
+  var dr=/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}|^\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}/;
+  var dk=nn.filter(function(v){return dr.test(String(v))&&!isNaN(Date.parse(String(v)));});
+  if(dk.length/nn.length>0.7)return 'DATE';
+  
+  var uq={};nn.forEach(function(v){uq[String(v).trim()]=1;});
+  var us=Object.keys(uq).length;
+  
+  if(!isIdCol && us/nn.length<0.5 && us<=100) return 'CATEGORICAL';
+  return 'TEXT';
+}
+
+function profCols(rows,cols){
+  var p={};
+  cols.forEach(function(c){
+    var vals=rows.map(function(r){return r[c];});
+    var t=detectType(vals, c);
+    var nn=vals.filter(function(v){return v!==null&&v!==''&&v!==undefined;});
+    var uq={};nn.forEach(function(v){uq[String(v).trim()]=1;});
+    p[c]={type:t,uq:Object.keys(uq).length,nn:nn.length,total:vals.length};
+  });
+  return p;
+}
+
+function findCol(type,pats,prof,cols){
+  var typed=cols.filter(function(c){return prof[c]&&prof[c].type===type;});
+  for(var i=0;i<pats.length;i++){var f=typed.filter(function(c){return pats[i].test(c);})[0];if(f)return f;}
+  return typed[0]||null;
+}
+
+function inferCM(cols,prof){
+  var m={};
+  m.rev=findCol('NUMERIC',[/revenue|sales|amount|total|price|value|gmv|gross|net|income|profit/i],prof,cols);
+  m.ord=findCol('NUMERIC',[/order|qty|quantity|count|volume|units|transactions/i],prof,cols);
+  m.rat=findCol('NUMERIC',[/rating|score|stars|satisfaction|nps|review/i],prof,cols);
+  m.flagCol=cols.find(function(c){return prof[c] && prof[c].type === 'FLAG_BOOLEAN';}) || null;
+  m.dat=findCol('DATE',[/date|time|period|month|day|created|joined/i],prof,cols);
+  m.cat=findCol('CATEGORICAL',[/category|cat|type|segment|sector|class/i],prof,cols);
+  m.cam=findCol('CATEGORICAL',[/campaign|channel|source|promo|medium/i],prof,cols);
+  m.brd=findCol('CATEGORICAL',[/brand|company|vendor|supplier/i],prof,cols);
+  m.yr=findCol('CATEGORICAL',[/year|yr|fy|fiscal/i],prof,cols);
+  m.sta=findCol('CATEGORICAL',[/state|region|province|area|zone/i],prof,cols);
+  m.prd=findCol('CATEGORICAL',[/product|item|sku|name|title/i],prof,cols);
+  m.cty=findCol('CATEGORICAL',[/city|town|location|metro/i],prof,cols);
+  
+  var cats=cols.filter(function(c){return prof[c]&&prof[c].type==='CATEGORICAL';});
+  var used={};
+  [m.cat,m.cam,m.brd,m.yr,m.sta,m.prd,m.cty].forEach(function(v){if(v)used[v]=1;});
+  var rem=cats.filter(function(c){return !used[c];});
+  if(!m.cat&&rem[0])m.cat=rem[0];
+  if(!m.cam&&rem[1])m.cam=rem[1];
+  if(!m.brd&&rem[2])m.brd=rem[2];
+  
+  var nums=cols.filter(function(c){return prof[c]&&prof[c].type==='NUMERIC';});
+  var usedN={};[m.rev,m.ord,m.rat].forEach(function(v){if(v)usedN[v]=1;});
+  var remN=nums.filter(function(c){return !usedN[c];});
+  if(!m.rev&&remN[0])m.rev=remN[0];
+  if(!m.ord&&remN[1])m.ord=remN[1];
+  return m;
+}
+
+function sumC(rows,col){
+  if(!col || col === COUNT_METRIC_KEY) return rows.length;
+  return rows.reduce(function(s,r){var v=parseFloat(r[col]);return s+(isFinite(v)?v:0);},0);
+}
+function avgC(rows,col){
+  if(!col || col === COUNT_METRIC_KEY) return 1;
+  var vs=rows.map(function(r){return parseFloat(r[col]);}).filter(isFinite);
+  return vs.length?vs.reduce(function(a,b){return a+b;},0)/vs.length:0;
+}
+
+function topCntWithOther(rows,col,n){
+  n = n || 6;
+  var f={};rows.forEach(function(r){var k=String(r[col]||'').trim();if(k)f[k]=(f[k]||0)+1;});
+  var sorted = Object.entries(f).sort(function(a,b){return b[1]-a[1];});
+  if(sorted.length <= n) return sorted;
+  var top = sorted.slice(0, n);
+  var otherSum = sorted.slice(n).reduce(function(acc,e){return acc + e[1];}, 0);
+  if(otherSum > 0) top.push(['Other', otherSum]);
+  return top;
+}
+
+function topSumWithOther(rows,cc,nc,n){
+  n = n || 6;
+  if(!nc || nc === COUNT_METRIC_KEY) return topCntWithOther(rows, cc, n);
+  var a={};rows.forEach(function(r){var k=String(r[cc]||'').trim();var v=parseFloat(r[nc]);if(k&&isFinite(v))a[k]=(a[k]||0)+v;});
+  var sorted = Object.entries(a).sort(function(a,b){return b[1]-a[1];});
+  if(sorted.length <= n) return sorted;
+  var top = sorted.slice(0, n);
+  var otherSum = sorted.slice(n).reduce(function(acc,e){return acc + e[1];}, 0);
+  if(otherSum > 0) top.push(['Other', otherSum]);
+  return top;
+}
+
+function topCnt(rows,col,n){
+  var f={};rows.forEach(function(r){var k=String(r[col]||'').trim();if(k)f[k]=(f[k]||0)+1;});
+  return Object.entries(f).sort(function(a,b){return b[1]-a[1];}).slice(0,n);
+}
+function topSum(rows,cc,nc,n){
+  if(!nc || nc === COUNT_METRIC_KEY) return topCnt(rows, cc, n);
+  var a={};rows.forEach(function(r){var k=String(r[cc]||'').trim();var v=parseFloat(r[nc]);if(k&&isFinite(v))a[k]=(a[k]||0)+v;});
+  return Object.entries(a).sort(function(a,b){return b[1]-a[1];}).slice(0,n);
+}
+
+function grpPeriod(rows,dc,vc){
+  var a={};
+  rows.forEach(function(r){
+    var raw=r[dc];if(!raw)return;
+    var d=new Date(raw),key;
+    if(!isNaN(d))key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    else key=String(raw).trim();
+    var v=(!vc || vc === COUNT_METRIC_KEY) ? 1 : parseFloat(r[vc]);
+    if(!a[key])a[key]=0;
+    if(isFinite(v))a[key]+=v;
+  });
+  var s=Object.entries(a).sort(function(a,b){return a[0].localeCompare(b[0]);});
+  return{labels:s.map(function(e){return e[0];}),values:s.map(function(e){return e[1];})};
+}
+
+function killCh(id){if(CHS[id]){try{CHS[id].destroy();}catch(e){}delete CHS[id];}}
+
+function renderChartSlot(slotKey, rows){
+  var cfg = SLOTS[slotKey];
+  var pal = getSlotPalette(slotKey, cfg.customColor);
+  var cvs = g(cfg.canvasId);
+  var tbl = g(cfg.tblId);
+  if(!cvs || !tbl) return;
+
+  killCh(cfg.canvasId);
+
+  if(cfg.type === 'table'){
+    cvs.classList.add('hidden');
+    tbl.classList.remove('hidden');
+    renderTableSlot(tbl, cfg, rows);
+    return;
+  } else {
+    cvs.classList.remove('hidden');
+    tbl.classList.add('hidden');
+  }
+
+  var xCol = cfg.xCol, yCol = cfg.yCol;
+  if(!xCol || !yCol) return;
+
+  var dataObj;
+  var isYNumeric = yCol !== COUNT_METRIC_KEY && PROF[yCol] && PROF[yCol].type === 'NUMERIC';
+
+  if(PROF[xCol] && PROF[xCol].type === 'DATE'){
+    dataObj = grpPeriod(rows, xCol, yCol);
+  } else if(cfg.type === 'donut'){
+    var topD = isYNumeric ? topSumWithOther(rows, xCol, yCol, 6) : topCntWithOther(rows, xCol, 6);
+    dataObj = { labels: topD.map(function(e){return e[0];}), values: topD.map(function(e){return e[1];}) };
+  } else if(isYNumeric){
+    var top = topSum(rows, xCol, yCol, 12);
+    dataObj = { labels: top.map(function(e){return e[0];}), values: top.map(function(e){return e[1];}) };
+  } else {
+    var topC = topCnt(rows, xCol, 12);
+    dataObj = { labels: topC.map(function(e){return e[0];}), values: topC.map(function(e){return e[1];}) };
+  }
+
+  var ctx = cvs.getContext('2d');
+  var gridOpts = { color: '#F1F5F9' };
+
+  if(cfg.type === 'line' || cfg.type === 'area'){
+    var isArea = cfg.type === 'area';
+    var grad = ctx.createLinearGradient(0, 0, 0, cvs.height || 220);
+    grad.addColorStop(0, pal[0] + (isArea ? '66' : '33'));
+    grad.addColorStop(1, pal[0] + '00');
+
+    CHS[cfg.canvasId] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: dataObj.labels,
+        datasets: [{
+          label: yCol.toUpperCase(),
+          data: dataObj.values,
+          borderColor: pal[0],
+          backgroundColor: grad,
+          borderWidth: 2,
+          pointRadius: dataObj.labels.length === 1 ? 6 : 3,
+          pointBackgroundColor: pal[0],
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 600, easing: 'easeOutQuart' },
+        plugins: { legend: { display: false }, tooltip: TT },
+        scales: {
+          x: { grid: gridOpts, ticks: { font: { family: MN, size: 9 }, color: '#6b7c68', maxTicksLimit: 8 } },
+          y: { grid: gridOpts, ticks: { font: { family: MN, size: 9 }, color: '#6b7c68', callback: function(v){ return fmtN(v); } } }
+        }
+      }
+    });
+  } else if(cfg.type === 'bar'){
+    CHS[cfg.canvasId] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: dataObj.labels,
+        datasets: [{
+          label: yCol.toUpperCase(),
+          data: dataObj.values,
+          maxBarThickness: 45,
+          backgroundColor: dataObj.labels.map(function(_, i){ return pal[i % pal.length] + 'CC'; }),
+          borderColor: dataObj.labels.map(function(_, i){ return pal[i % pal.length]; }),
+          borderWidth: 1, borderRadius: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 600, easing: 'easeOutQuart' },
+        plugins: { legend: { display: false }, tooltip: TT },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { family: MN, size: 9 }, color: '#6b7c68', maxTicksLimit: 10, maxRotation: 40 } },
+          y: { grid: gridOpts, ticks: { font: { family: MN, size: 9 }, color: '#6b7c68', callback: function(v){ return fmtN(v); } } }
+        }
+      }
+    });
+  } else if(cfg.type === 'donut'){
+    var isSingleCat = dataObj.labels.length === 1;
+    CHS[cfg.canvasId] = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: isSingleCat ? [dataObj.labels[0] + ' (100%)'] : dataObj.labels,
+        datasets: [{
+          data: dataObj.values,
+          backgroundColor: dataObj.labels.map(function(_, i){ return pal[i % pal.length] + 'DD'; }),
+          borderColor: '#fff', borderWidth: 2, hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '62%',
+        animation: { duration: 600, easing: 'easeOutQuart' },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: MN, size: 9 }, color: '#6b7c68', boxWidth: 8, padding: 6 } },
+          tooltip: Object.assign({}, TT, { callbacks: { label: function(c){
+            var t = c.dataset.data.reduce(function(a,b){return a+b;},0);
+            return ' ' + fmtN(c.parsed) + ' (' + (t?((c.parsed/t)*100).toFixed(1):0) + '%)';
+          }}})
+        }
+      }
+    });
+  }
+}
+
+function renderTableSlot(tblContainer, cfg, rows){
+  var xCol = cfg.xCol, yCol = cfg.yCol;
+  var isYNumeric = yCol !== COUNT_METRIC_KEY && PROF[yCol] && PROF[yCol].type === 'NUMERIC';
+  var top = isYNumeric ? topSum(rows, xCol, yCol, 15) : topCnt(rows, xCol, 15);
+  var html = '<table class="hud-table"><thead><tr><th>' + (xCol||'Dimension').toUpperCase() + '</th><th>' + (yCol||'Measure').toUpperCase() + '</th></tr></thead><tbody>';
+  top.forEach(function(row){
+    html += '<tr><td>' + row[0] + '</td><td>' + fmtN(row[1]) + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  tblContainer.innerHTML = html;
+}
+
+function updateAxesDropdowns(){
+  var validMeasures = [COUNT_METRIC_KEY].concat(DS.cols);
+
+  ['s1','s2','s3','s4'].forEach(function(sKey){
+    var xSelect = g('ax-x-' + sKey), ySelect = g('ax-y-' + sKey);
+    if(!xSelect || !ySelect) return;
+    xSelect.innerHTML = ''; ySelect.innerHTML = '';
+
+    DS.cols.forEach(function(c){
+      var optX = document.createElement('option'); optX.value = c; optX.textContent = c;
+      if(c === SLOTS[sKey].xCol) optX.selected = true;
+      xSelect.appendChild(optX);
+    });
+
+    validMeasures.forEach(function(c){
+      var optY = document.createElement('option'); optY.value = c; optY.textContent = c;
+      if(c === SLOTS[sKey].yCol) optY.selected = true;
+      ySelect.appendChild(optY);
+    });
+  });
+}
+
+function updateKPIs(rows){
+  var total=rows.length,cols=DS.cols;
+
+  function getSparkValues(metricCol){
+    if(total <= 1) return [];
+    var step = Math.ceil(total / 8) || 1;
+    var slices = [];
+    for(var i = 0; i < 8; i++){
+      var sliceRows = rows.slice(i * step, (i + 1) * step);
+      if(!sliceRows.length) break;
+      var val = metricCol ? sumC(sliceRows, metricCol) : sliceRows.length;
+      slices.push(val);
+    }
+    return slices;
+  }
+  
+  if(CM.rev){
+    var s=sumC(rows,CM.rev);
+    g('k1l').textContent=CM.rev.toUpperCase(); animateCountUp(g('k1v'), fmtN(s));
+    renderSparkline('k1sf', 'k1sl', getSparkValues(CM.rev));
+    g('k1-delta').innerHTML = total > 1 ? '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Live' : '● CONSTANT';
+  }else{
+    g('k1l').textContent='TOTAL RECORDS'; animateCountUp(g('k1v'), fmtN(total));
+    renderSparkline('k1sf', 'k1sl', getSparkValues(null));
+    g('k1-delta').innerHTML = total > 1 ? '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Active' : '● 1 RECORD';
+  }
+  
+  g('k2l').textContent='TOTAL RECORDS'; animateCountUp(g('k2v'), fmtN(total));
+  renderSparkline('k2sf', 'k2sl', getSparkValues(null));
+  g('k2-delta').innerHTML = total > 1 ? '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Filtered' : '● 1 RECORD';
+  
+  if(CM.flagCol){
+    var trueCnt = rows.filter(function(r){
+      var v = r[CM.flagCol];
+      return String(v).toLowerCase()==='true'||v==='1'||v===1||String(v).toLowerCase()==='yes';
+    }).length;
+    var rate = total ? (trueCnt/total*100).toFixed(1)+'%' : '0%';
+    g('k3l').textContent=(CM.flagCol+' RATE').toUpperCase().slice(0,16); animateCountUp(g('k3v'), rate);
+    renderSparkline('k3sf', 'k3sl', getSparkValues(CM.flagCol));
+    g('k3-delta').innerHTML = '<span class="material-symbols-outlined text-xs">check_circle</span> Flag Rate';
+  } else if(CM.rat){
+    g('k3l').textContent=('AVG '+CM.rat).toUpperCase(); animateCountUp(g('k3v'), avgC(rows,CM.rat).toFixed(2));
+    renderSparkline('k3sf', 'k3sl', getSparkValues(CM.rat));
+    g('k3-delta').innerHTML = '<span class="material-symbols-outlined text-xs">star</span> High Score';
+  } else if(CM.rev){
+    g('k3l').textContent='AVG VALUE'; animateCountUp(g('k3v'), fmtN(avgC(rows,CM.rev)));
+    renderSparkline('k3sf', 'k3sl', getSparkValues(CM.rev));
+    g('k3-delta').innerHTML = '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Average';
+  } else {
+    g('k3l').textContent='AVG VALUE'; g('k3v').textContent='—';
+    renderSparkline('k3sf', 'k3sl', []);
+    g('k3-delta').innerHTML = '● CONSTANT';
+  }
+  
+  if(CM.ord){
+    g('k4l').textContent=('TOTAL '+CM.ord).toUpperCase(); animateCountUp(g('k4v'), fmtN(sumC(rows,CM.ord)));
+    renderSparkline('k4sf', 'k4sl', getSparkValues(CM.ord));
+    g('k4-delta').innerHTML = '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Volume';
+  } else {
+    g('k4l').textContent='COLUMNS'; animateCountUp(g('k4v'), cols.length);
+    renderSparkline('k4sf', 'k4sl', []);
+    g('k4-delta').innerHTML = '● Schema';
+  }
+  
+  var cc=CM.cat||CM.brd||CM.cam;
+  if(cc){
+    var u=new Set(rows.map(function(r){return String(r[cc]).trim();})).size;
+    g('k5l').textContent=('UNIQ '+cc).toUpperCase().slice(0,15); animateCountUp(g('k5v'), u);
+    renderSparkline('k5sf', 'k5sl', getSparkValues(cc));
+    g('k5-delta').innerHTML = u > 1 ? '<span class="material-symbols-outlined text-xs">category</span> Multi' : '● SINGLE';
+  } else {
+    g('k5l').textContent='CATEGORIES'; g('k5v').textContent='N/A (Uniform)';
+    renderSparkline('k5sf', 'k5sl', []);
+    g('k5-delta').innerHTML = '● Uniform';
+  }
+  
+  if(CM.rev&&CM.ord){
+    var ords=sumC(rows,CM.ord);
+    g('k6l').textContent='AVG ORDER VALUE'; animateCountUp(g('k6v'), ords?fmtN(sumC(rows,CM.rev)/ords):'—');
+    renderSparkline('k6sf', 'k6sl', getSparkValues(CM.rev));
+    g('k6-delta').innerHTML = '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Unit Val';
+  } else {
+    var nc=0,tc=0;rows.forEach(function(r){cols.forEach(function(c){tc++;if(r[c]===null||r[c]===''||r[c]===undefined)nc++;});});
+    g('k6l').textContent='NULL RATE'; animateCountUp(g('k6v'), (tc?(nc/tc*100).toFixed(1):0)+'%');
+    renderSparkline('k6sf', 'k6sl', []);
+    g('k6-delta').innerHTML = '● Quality';
+  }
+}
+
+function updateLBs(rows){
+  var pc=CM.prd||CM.cat;
+  if(pc){g('lb1l').textContent='&#127942; TOP '+pc.toUpperCase();var t=CM.rev?topSum(rows,pc,CM.rev,1):topCnt(rows,pc,1);if(t.length){g('lb1n').textContent=t[0][0];g('lb1v').textContent=fmtN(t[0][1])+(CM.rev?' '+CM.rev:' records');}}
+  var chc=CM.cam||CM.cty;
+  if(chc){g('lb2l').textContent='&#128241; BEST '+chc.toUpperCase();var t2=CM.rev?topSum(rows,chc,CM.rev,1):topCnt(rows,chc,1);if(t2.length){g('lb2n').textContent=t2[0][0];g('lb2v').textContent=fmtN(t2[0][1])+(CM.rev?' '+CM.rev:' records');}}
+  var bc=CM.brd||CM.sta;
+  if(bc){g('lb3l').textContent='&#11088; TOP '+bc.toUpperCase();var t3=CM.rev?topSum(rows,bc,CM.rev,1):topCnt(rows,bc,1);if(t3.length){var tot=CM.rev?sumC(rows,CM.rev):rows.length;g('lb3n').textContent=t3[0][0];g('lb3v').textContent=(tot?((t3[0][1]/tot)*100).toFixed(1):0)+'% share';}}
+  var nc=CM.rev||CM.ord;
+  if(nc){g('lb4l').textContent='&#128205; PEAK '+nc.toUpperCase();var pk=rows.reduce(function(b,r){var v=parseFloat(r[nc]);return(isFinite(v)&&(b===null||v>parseFloat(b[nc])))?r:b;},null);if(pk){var idc=CM.cty||CM.sta||CM.prd||CM.cat||DS.cols[0];g('lb4n').textContent=String(pk[idc]||'').slice(0,24)||'Record';g('lb4v').textContent=fmtN(parseFloat(pk[nc]));}}
+}
+
+function updateInsight(rows){
+  var parts=[];
+  if(CM.rev)parts.push(CM.rev.toUpperCase()+' totals '+fmtN(sumC(rows,CM.rev))+' across '+fmtN(rows.length)+' records.');
+  else parts.push('Dataset: '+fmtN(rows.length)+' records, '+DS.cols.length+' columns.');
+  var c1=CM.cat||CM.brd;
+  if(c1&&CM.rev){var top=topSum(rows,c1,CM.rev,1);if(top.length){var tot=sumC(rows,CM.rev);parts.push('Top '+c1+': "'+top[0][0]+'" ('+((tot?top[0][1]/tot*100:0).toFixed(1))+'%).');}}
+  if(CM.dat&&CM.rev){var gp=grpPeriod(rows,CM.dat,CM.rev);if(gp.labels.length>1)parts.push('Span: '+gp.labels[0]+' to '+gp.labels[gp.labels.length-1]+'.');}
+  g('insight').textContent=parts.join(' ');
+}
+
+/* Raw Data Matrix Renderer & Inspector */
+function renderRawMatrix(rows){
+  var thead = g('raw-matrix-thead');
+  var tbody = g('raw-matrix-tbody');
+  var countBadge = g('matrix-count-badge');
+  var pageInfo = g('matrix-page-info');
+  var prevBtn = g('matrix-prev');
+  var nextBtn = g('matrix-next');
+  if(!thead || !tbody) return;
+
+  var searchTerm = (matrixPageState.search || '').toLowerCase().trim();
+  var filtered = rows;
+  if(searchTerm){
+    filtered = rows.filter(function(r){
+      return DS.cols.some(function(col){
+        return String(r[col]||'').toLowerCase().indexOf(searchTerm) >= 0;
+      });
+    });
+  }
+
+  if(countBadge) countBadge.textContent = filtered.length + ' rows';
+
+  var totalPages = Math.ceil(filtered.length / matrixPageState.pageSize) || 1;
+  if(matrixPageState.page > totalPages) matrixPageState.page = totalPages;
+  if(matrixPageState.page < 1) matrixPageState.page = 1;
+
+  if(pageInfo) pageInfo.textContent = 'Page ' + matrixPageState.page + ' of ' + totalPages;
+  if(prevBtn) prevBtn.disabled = (matrixPageState.page <= 1);
+  if(nextBtn) nextBtn.disabled = (matrixPageState.page >= totalPages);
+
+  // Render Table Header
+  var headHtml = '<tr>' + DS.cols.map(function(c){ return '<th>' + c.toUpperCase() + '</th>'; }).join('') + '</tr>';
+  thead.innerHTML = headHtml;
+
+  // Render Table Body
+  var startIdx = (matrixPageState.page - 1) * matrixPageState.pageSize;
+  var pageRows = filtered.slice(startIdx, startIdx + matrixPageState.pageSize);
+
+  if(!pageRows.length){
+    tbody.innerHTML = '<tr><td colspan="' + (DS.cols.length||1) + '" class="text-center py-4 text-outline">No matching records found.</td></tr>';
+    return;
+  }
+
+  var bodyHtml = pageRows.map(function(r){
+    return '<tr>' + DS.cols.map(function(c){
+      return '<td>' + (r[c] !== null && r[c] !== undefined ? String(r[c]) : '—') + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+
+  tbody.innerHTML = bodyHtml;
+}
+
+function filtRows(){
+  return DS.raw.filter(function(row){
+    return Object.keys(FIL).every(function(col){
+      var val=FIL[col];if(!val || val === 'ALL')return true;
+      return String(row[col]).trim().toLowerCase()===String(val).trim().toLowerCase();
+    });
+  });
+}
+
+function dash(){
+  var rows=filtRows();
+  updateKPIs(rows);
+  ['s1','s2','s3','s4'].forEach(function(sKey){ renderChartSlot(sKey, rows); });
+  updateLBs(rows);
+  updateInsight(rows);
+  renderRawMatrix(rows);
+}
+
+function clrBtn(){g('btn-clr').style.display=Object.keys(FIL).length?'':'none';}
+
+/* Dynamic Distinct Select Boxes Filter Engine */
+function buildDynamicFilters(){
+  var wrap = g('dynamic-filters-wrap');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+
+  var catCols = DS.cols.filter(function(c){
+    return PROF[c] && PROF[c].type === 'CATEGORICAL';
+  });
+
+  if(CM.yr && catCols.indexOf(CM.yr) < 0){
+    catCols.unshift(CM.yr);
+  }
+
+  catCols = catCols.slice(0, 5);
+
+  catCols.forEach(function(col){
+    var vals = Array.from(new Set(DS.raw.map(function(r){ return String(r[col]||'').trim(); }))).filter(Boolean).sort();
+    if(!vals.length) return;
+
+    var displayTitle = (col === '__yr' ? 'YEAR' : col.toUpperCase());
+
+    var filterBox = document.createElement('div');
+    filterBox.className = 'filter-box hud-card relative border border-outline-variant bg-white flex items-center gap-2 px-3 py-1.5 group hover:border-primary-container transition-colors';
+    
+    filterBox.innerHTML = 
+      '<div class="hud-bracket-tl opacity-50 group-hover:opacity-100 transition-all"></div>' +
+      '<div class="hud-bracket-br opacity-50 group-hover:opacity-100 transition-all"></div>' +
+      '<span class="filter-label font-data-mono text-xs text-on-surface-variant font-bold truncate max-w-[100px]">' + displayTitle + ':</span>' +
+      '<select class="filter-select font-data-mono text-xs bg-transparent border-none text-on-surface focus:ring-0 cursor-pointer outline-none" data-column="' + col + '">' +
+        '<option value="ALL">ALL (Default)</option>' +
+        vals.map(function(v){
+          var sel = (FIL[col] === v) ? ' selected' : '';
+          return '<option value="' + v.replace(/"/g, '&quot;') + '"' + sel + '>' + v + '</option>';
+        }).join('') +
+      '</select>';
+
+    wrap.appendChild(filterBox);
+
+    var selectEl = filterBox.querySelector('select');
+    selectEl.addEventListener('change', function(e){
+      triggerNeonShockwave(filterBox);
+      var val = e.target.value;
+      if(val === 'ALL' || !val){
+        delete FIL[col];
+        filterBox.classList.remove('neon-glow', 'border-primary-container');
+      } else {
+        FIL[col] = val;
+        filterBox.classList.add('neon-glow', 'border-primary-container');
+      }
+      clrBtn();
+      dash();
+    });
+  });
+}
+
+function loadData(rows,cols,fn){
+  DS.raw=rows;DS.cols=cols;DS.fn=fn;
+  PROF=profCols(rows,cols);CM=inferCM(cols,PROF);FIL={};
+  
+  if(CM.dat&&!CM.yr){DS.raw.forEach(function(r){var d=new Date(r[CM.dat]);r['__yr']=isNaN(d)?'':String(d.getFullYear());});CM.yr='__yr';}
+
+  if(!CM.cat && CM.dat){
+    DS.raw.forEach(function(r){
+      var d=new Date(r[CM.dat]);
+      var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      r['__day_of_week'] = isNaN(d) ? 'Unknown' : days[d.getDay()];
+    });
+    PROF['__day_of_week'] = { type: 'CATEGORICAL', uq: 7, nn: rows.length, total: rows.length };
+    CM.cat = '__day_of_week';
+    if(cols.indexOf('__day_of_week') < 0) cols.push('__day_of_week');
+  }
+
+  var catColsAll = cols.filter(function(c){
+    return PROF[c] && (PROF[c].type === 'CATEGORICAL' || PROF[c].type === 'DATE');
+  });
+  
+  var allStringCols = cols.filter(function(c){
+    return PROF[c] && PROF[c].type !== 'NUMERIC' && PROF[c].type !== 'ID_NUMERIC' && PROF[c].type !== 'FLAG_BOOLEAN';
+  });
+
+  var pool = Array.from(new Set(catColsAll.concat(allStringCols)));
+
+  var dateCol = CM.dat || pool[0] || cols[0];
+  var numCol = CM.rev || COUNT_METRIC_KEY;
+
+  var used = {};
+  function pickNext(exclude){
+    for(var i=0; i<pool.length; i++){
+      var candidate = pool[i];
+      if(!used[candidate] && candidate !== exclude){
+        used[candidate] = true;
+        return candidate;
+      }
+    }
+    return pool[0] || cols[0];
+  }
+
+  var s1_x = dateCol; used[s1_x] = true;
+  var s2_x = pickNext(s1_x);
+  var s3_x = pickNext(s1_x);
+  var s4_x = pickNext(s1_x);
+
+  SLOTS.s1.xCol = s1_x; SLOTS.s1.yCol = numCol;
+  SLOTS.s2.xCol = s2_x; SLOTS.s2.yCol = numCol;
+  SLOTS.s3.xCol = s3_x; SLOTS.s3.yCol = numCol;
+  SLOTS.s4.xCol = s4_x; SLOTS.s4.yCol = numCol;
+
+  updateAxesDropdowns();
+  buildDynamicFilters();
+
+  var cleanFn = fn ? fn.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9]/g, "_").toUpperCase() : "SALES_ANALYTICS";
+  var titleEl = g('hdr-title-text');
+  if(titleEl) titleEl.textContent = cleanFn;
+
+  g('hdr-fn').textContent=fn.toUpperCase().slice(0,22);g('hdr-fn').classList.remove('hidden');
+  g('upl-overlay').classList.add('hidden');
+  
+  var ib = g('insight-banner');
+  if(ib){
+    if(ENABLE_INSIGHT_BANNER && sessionStorage.getItem('insight_dismissed') !== 'true'){
+      ib.classList.remove('hidden');
+      ib.style.opacity = '1';
+      ib.style.transform = 'none';
+    } else {
+      ib.classList.add('hidden');
+    }
+  }
+
+  clrBtn();
+  dash();
+  triggerStaggeredEntrance();
+}
+
+/* Event listener for Dismiss Insight Banner */
+g('btn-close-insight').addEventListener('click', function(){
+  var b = g('insight-banner');
+  if(b){
+    b.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    b.style.opacity = '0';
+    b.style.transform = 'translateY(-10px)';
+    setTimeout(function(){ b.classList.add('hidden'); }, 300);
+  }
+  sessionStorage.setItem('insight_dismissed', 'true');
+});
+
+/* Event listeners for Enterprise Controls */
+document.querySelectorAll('.chart-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    triggerNeonShockwave(btn);
+    var slot = btn.dataset.slot;
+    var type = btn.dataset.type;
+    SLOTS[slot].type = type;
+    btn.parentElement.querySelectorAll('.chart-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    dash();
+  });
+});
+
+['s1','s2','s3','s4'].forEach(function(sKey){
+  g('ax-x-' + sKey).addEventListener('change', function(e){ SLOTS[sKey].xCol = e.target.value; dash(); });
+  g('ax-y-' + sKey).addEventListener('change', function(e){ SLOTS[sKey].yCol = e.target.value; dash(); });
+  g('cp-' + sKey).addEventListener('input', function(e){
+    SLOTS[sKey].customColor = e.target.value;
+    var ts = g('theme-select'); if(ts) ts.value = 'custom';
+    dash();
+  });
+});
+
+g('theme-select').addEventListener('change', function(e){
+  triggerNeonShockwave(e.target);
+  activeTheme = e.target.value;
+  if(PALETTES[activeTheme]){
+    activePalette = PALETTES[activeTheme].slice();
+  }
+  dash();
+});
+
+g('btn-shuffle').addEventListener('click', function(){
+  triggerNeonShockwave(this);
+  for(var i = activePalette.length - 1; i > 0; i--){
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = activePalette[i]; activePalette[i] = activePalette[j]; activePalette[j] = temp;
+  }
+  var ts = g('theme-select');
+  if(ts) ts.value = 'custom';
+  dash();
+});
+
+/* FEATURE 1: Export Menu & html2canvas Snapshot */
+var menuBtn = g('btn-dl-menu');
+var popover = g('dl-popover');
+if(menuBtn && popover){
+  menuBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    popover.classList.toggle('hidden');
+  });
+  document.addEventListener('click', function(){ popover.classList.add('hidden'); });
+}
+
+g('btn-export-csv').addEventListener('click', function(){
+  triggerNeonShockwave(this);
+  if(!DS.raw.length)return;
+  var csv=Papa.unparse(filtRows());
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='VOID_DATA_SYS_EXPORT_'+Date.now()+'.csv';a.click();
+});
+
+g('btn-export-png').addEventListener('click', async function(){
+  triggerNeonShockwave(this);
+  if(popover) popover.classList.add('hidden');
+  
+  var target = g('dashboard-main') || document.body;
+  if(!target || typeof html2canvas === 'undefined') return;
+  
+  setLd(30);
+
+  var scrollContainer = target.querySelector('.overflow-y-auto');
+  if(scrollContainer) scrollContainer.scrollTop = 0;
+
+  try {
+    const canvas = await html2canvas(target, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#f8f9fa',
+      scrollY: 0,
+      scrollX: 0,
+      windowWidth: target.scrollWidth || document.documentElement.offsetWidth,
+      windowHeight: target.scrollHeight || document.documentElement.scrollHeight,
+      logging: false,
+      onclone: function(clonedDoc){
+        var menuInClone = clonedDoc.getElementById('dl-popover');
+        if(menuInClone) menuInClone.style.display = 'none';
+
+        var origCanvases = target.querySelectorAll('canvas');
+        var clonedCanvases = clonedDoc.querySelectorAll('canvas');
+        origCanvases.forEach(function(origCvs, i){
+          if(clonedCanvases[i] && origCvs.width > 0 && origCvs.height > 0){
+            try {
+              var dataUrl = origCvs.toDataURL('image/png');
+              var img = clonedDoc.createElement('img');
+              img.src = dataUrl;
+              img.style.cssText = clonedCanvases[i].style.cssText;
+              img.className = clonedCanvases[i].className;
+              img.style.width = '100%';
+              img.style.height = '100%';
+              if(clonedCanvases[i].parentNode){
+                clonedCanvases[i].parentNode.replaceChild(img, clonedCanvases[i]);
+              }
+            } catch(e){}
+          }
+        });
+      }
+    });
+
+    setLd(90);
+    const link = document.createElement('a');
+    link.download = `VOID_DATA_SYS_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png', 1.0);
+    link.click();
+    setLd(100);
+    setTimeout(function(){ setLd(0); }, 500);
+  } catch (err) {
+    console.error('Export Error:', err);
+    showErr('Export failed: ' + err.message);
+    setLd(0);
+  }
+});
+
+/* FEATURE 2: Mobile Filter Drawer Toggle */
+g('btn-toggle-filters').addEventListener('click', function(){
+  var wrap = g('dynamic-filters-wrap');
+  if(wrap){
+    wrap.classList.toggle('hidden');
+  }
+});
+
+/* FEATURE 3: Raw Matrix Inspector Toggle & Event Handlers */
+g('btn-toggle-matrix').addEventListener('click', function(){
+  var container = g('raw-matrix-container');
+  var arrow = g('matrix-arrow');
+  if(container){
+    var isHidden = container.classList.contains('hidden');
+    if(isHidden){
+      container.classList.remove('hidden');
+      if(arrow) arrow.style.transform = 'rotate(180deg)';
+      renderRawMatrix(filtRows());
+    } else {
+      container.classList.add('hidden');
+      if(arrow) arrow.style.transform = 'rotate(0deg)';
+    }
+  }
+});
+
+g('matrix-search').addEventListener('input', function(e){
+  matrixPageState.search = e.target.value;
+  matrixPageState.page = 1;
+  renderRawMatrix(filtRows());
+});
+
+g('matrix-prev').addEventListener('click', function(){
+  if(matrixPageState.page > 1){
+    matrixPageState.page--;
+    renderRawMatrix(filtRows());
+  }
+});
+
+g('matrix-next').addEventListener('click', function(){
+  matrixPageState.page++;
+  renderRawMatrix(filtRows());
+});
+
+function parseCSV(txt,fn){setLd(30);Papa.parse(txt,{header:true,skipEmptyLines:true,dynamicTyping:false,complete:function(res){setLd(80);if(!res.data||!res.data.length){showErr('No rows found.');setLd(0);return;}setTimeout(function(){loadData(res.data,res.meta.fields||[],fn);setLd(100);setTimeout(function(){setLd(0);},600);},80);},error:function(e){showErr('Parse error: '+e.message);setLd(0);}});}
+function parseJSON(txt,fn){setLd(30);try{var d=JSON.parse(txt);if(!Array.isArray(d)){var k=Object.keys(d).find(function(k){return Array.isArray(d[k]);});if(k)d=d[k];else throw new Error('No array found');}setLd(80);setTimeout(function(){loadData(d,d.length?Object.keys(d[0]):[],fn);setLd(100);setTimeout(function(){setLd(0);},600);},80);}catch(e){showErr('JSON error: '+e.message);setLd(0);}}
+function handleFile(f){if(!f)return;var ext=f.name.split('.').pop().toLowerCase();hideErr();setLd(10);var r=new FileReader();r.onload=function(e){ext==='json'?parseJSON(e.target.result,f.name):parseCSV(e.target.result,f.name);};r.readAsText(f);}
+function showErr(m){var e=g('upl-err');e.innerHTML='&#9888; '+m;e.style.display='block';}
+function hideErr(){g('upl-err').style.display='none';}
+
+g('file-in').addEventListener('change',function(e){if(e.target.files[0])handleFile(e.target.files[0]);});
+var box=g('upl-box');
+box.addEventListener('dragover',function(e){e.preventDefault();box.classList.add('drag');});
+box.addEventListener('dragleave',function(){box.classList.remove('drag');});
+box.addEventListener('drop',function(e){e.preventDefault();box.classList.remove('drag');var f=e.dataTransfer.files[0];if(f)handleFile(f);});
+
+g('btn-rf').addEventListener('click',function(){
+  triggerNeonShockwave(this);
+  if(!DS.raw.length){g('upl-overlay').classList.remove('hidden');return;}
+  FIL={};
+  document.querySelectorAll('.filter-select').forEach(function(s){
+    s.value = 'ALL';
+    var b = s.closest('.filter-box');
+    if(b) b.classList.remove('neon-glow', 'border-primary-container');
+  });
+  clrBtn();
+  dash();
+});
+
+g('btn-clr').addEventListener('click',function(){
+  triggerNeonShockwave(this);
+  g('btn-rf').click();
+});
+
+// Demo datasets
+var DS1='Order_ID,Date,Product,Category,Brand,Channel,State,Revenue,Units,Rating\n1001,2023-01-05,Hydra Serum,Skincare,Luminos,Online,California,189.99,2,4.8\n1002,2023-01-12,Neon Toner,Skincare,CyberCorp,Retail,Texas,79.50,1,4.6\n1003,2023-01-18,Matte Lipstick,Makeup,Luminos,Online,New York,45.00,3,4.9\n1004,2023-02-03,Power Cream,Haircare,NovaBrand,Online,Florida,134.00,2,4.3\n1005,2023-02-14,Glow Drops,Skincare,CyberCorp,B2B,California,220.00,1,5.0\n1006,2023-02-22,Boost Shampoo,Haircare,Luminos,Retail,Texas,58.00,4,4.2\n1007,2023-03-07,Eye Matrix,Makeup,CyberCorp,Online,New York,99.00,2,4.7\n1008,2023-03-15,Repair Mask,Skincare,NovaBrand,Retail,Florida,77.50,3,4.4\n1009,2023-03-28,Lip Plump,Makeup,Luminos,Online,California,55.00,5,4.8\n1010,2023-04-05,Hydra Serum,Skincare,Luminos,B2B,Texas,380.00,4,4.9\n1011,2023-04-11,Neon Toner,Skincare,CyberCorp,Online,New York,79.50,2,4.6\n1012,2023-04-20,Ultra Gloss,Makeup,CyberCorp,Retail,Florida,39.00,6,4.5\n1013,2023-05-02,Root Booster,Haircare,NovaBrand,Online,California,91.00,3,4.3\n1014,2023-05-16,Glow Drops,Skincare,CyberCorp,Online,Texas,220.00,2,5.0\n1015,2023-05-25,Power Cream,Haircare,Luminos,Retail,New York,134.00,1,4.1\n1016,2023-06-04,Hydra Serum,Skincare,Luminos,Online,Florida,189.99,3,4.8\n1017,2023-06-18,Eye Matrix,Makeup,CyberCorp,B2B,California,297.00,3,4.7\n1018,2023-06-28,Boost Shampoo,Haircare,NovaBrand,Retail,Texas,58.00,2,4.2\n1019,2023-07-09,Matte Lipstick,Makeup,Luminos,Online,New York,135.00,3,4.9\n1020,2023-07-20,Repair Mask,Skincare,NovaBrand,Online,Florida,77.50,4,4.4\n1021,2023-08-01,Hydra Serum,Skincare,Luminos,Retail,California,189.99,1,4.8\n1022,2023-08-14,Ultra Gloss,Makeup,CyberCorp,Online,Texas,78.00,2,4.5\n1023,2023-08-27,Root Booster,Haircare,NovaBrand,B2B,New York,273.00,3,4.3\n1024,2023-09-06,Neon Toner,Skincare,CyberCorp,Retail,Florida,79.50,3,4.6\n1025,2023-09-19,Glow Drops,Skincare,CyberCorp,Online,California,440.00,2,5.0\n1026,2023-10-03,Power Cream,Haircare,Luminos,Online,Texas,134.00,4,4.1\n1027,2023-10-16,Eye Matrix,Makeup,CyberCorp,Retail,New York,99.00,1,4.7\n1028,2023-11-01,Lip Plump,Makeup,Luminos,Online,Florida,110.00,2,4.8\n1029,2023-11-22,Hydra Serum,Skincare,Luminos,B2B,California,569.97,3,4.8\n1030,2023-12-10,Boost Shampoo,Haircare,NovaBrand,Online,Texas,116.00,2,4.2';
+var DS2='emp_id,name,department,role,join_date,salary,is_active,location\n1,Alice Chen,Engineering,Senior Engineer,2020-03-15,95000,true,San Francisco\n2,Bob Smith,Marketing,Marketing Manager,2019-07-01,72000,false,New York\n3,Carol Williams,Engineering,Junior Engineer,2022-01-10,65000,true,Austin\n4,David Lee,Sales,Account Executive,2018-11-20,80000,true,Chicago\n5,Eva Martinez,HR,HR Specialist,2021-06-05,58000,false,Remote\n6,Frank Brown,Engineering,Tech Lead,2017-04-12,115000,true,San Francisco\n7,Grace Kim,Marketing,Content Writer,2023-02-28,55000,true,New York\n8,Henry Liu,Sales,Sales Director,2016-09-01,130000,false,Chicago\n9,Iris Patel,Engineering,DevOps Engineer,2021-10-15,88000,true,Austin\n10,James Wilson,Finance,Financial Analyst,2020-05-22,70000,true,New York\n11,Karen Davis,Engineering,Senior Engineer,2019-03-07,98000,false,San Francisco\n12,Liam Johnson,Sales,Account Executive,2022-08-14,75000,true,Chicago\n13,Maya Thompson,Marketing,Marketing Director,2015-12-01,145000,true,New York\n14,Noah Anderson,Engineering,Junior Engineer,2023-07-03,62000,true,Austin\n15,Olivia Taylor,HR,HR Manager,2018-02-19,82000,true,Remote\n16,Paul Jackson,Finance,CFO,2014-06-30,200000,true,New York\n17,Quinn White,Engineering,Backend Engineer,2020-11-01,90000,false,Austin\n18,Rachel Harris,Sales,Account Executive,2021-04-18,76000,true,Chicago\n19,Sam Clark,Marketing,SEO Specialist,2022-03-25,60000,true,Remote\n20,Tina Lewis,Engineering,Frontend Engineer,2019-09-12,87000,true,San Francisco';
+var DS3='tx_id,date,coin,exchange,tx_type,amount_usd,fee_usd,wallet_region\nTX001,2023-01-03,Bitcoin,Binance,Buy,15200,12.50,North America\nTX002,2023-01-07,Ethereum,Coinbase,Sell,3100,8.20,Europe\nTX003,2023-01-12,Solana,Kraken,Buy,980,4.10,Asia\nTX004,2023-01-19,Bitcoin,Binance,Sell,28900,22.80,North America\nTX005,2023-02-01,Ethereum,Coinbase,Buy,5250,14.00,Europe\nTX006,2023-02-08,Cardano,Binance,Buy,340,1.80,Africa\nTX007,2023-02-15,Bitcoin,Kraken,Buy,19500,16.20,Asia\nTX008,2023-02-28,Solana,FTX,Sell,1420,6.50,North America\nTX009,2023-03-05,Ethereum,Coinbase,Sell,4800,11.40,Europe\nTX010,2023-03-11,Bitcoin,Binance,Buy,24100,19.50,North America\nTX011,2023-03-20,Cardano,Kraken,Sell,520,2.60,Asia\nTX012,2023-04-02,Solana,Binance,Buy,2100,9.20,Europe\nTX013,2023-04-18,Bitcoin,Coinbase,Sell,31600,24.10,North America\nTX014,2023-05-05,Ethereum,Kraken,Buy,7100,17.80,Africa\nTX015,2023-05-22,Bitcoin,Binance,Buy,27400,21.30,Asia\nTX016,2023-06-08,Cardano,Coinbase,Buy,720,3.40,Europe\nTX017,2023-06-25,Solana,Binance,Sell,3400,12.80,North America\nTX018,2023-07-12,Ethereum,Kraken,Buy,8200,20.10,Asia\nTX019,2023-07-28,Bitcoin,Binance,Sell,29800,23.40,North America\nTX020,2023-08-14,Solana,Coinbase,Buy,2850,10.90,Europe';
+
+g('d-sales').addEventListener('click',function(){parseCSV(DS1,'demo_ecommerce.csv');});
+g('d-hr').addEventListener('click',function(){parseCSV(DS2,'demo_hr.csv');});
+g('d-crypto').addEventListener('click',function(){parseCSV(DS3,'demo_crypto.csv');});
+
+})();
+</script>
+</body>
+</html>

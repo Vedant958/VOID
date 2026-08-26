@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="VOID — A futuristic cyberpunk interactive experience with living particle systems.">
+  <title>VOID — Cyberpunk Interface</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Background Music (autoplay, looping) -->
+  <audio id="bg-music" src="music.mp3" autoplay muted loop preload="auto"></audio>
+
+  <!-- Night Mode Video Background -->
+  <div id="night-bg-wrap">
+    <!-- Astronaut / Space loop -->
+    <video id="night-video" autoplay loop muted playsinline crossorigin="anonymous">
+      <source src="https://cdn.pixabay.com/video/2020/05/20/40003-424072381_large.mp4" type="video/mp4">
+    </video>
+    <div id="night-overlay"></div>
+  </div>
+
+  <!-- Interactive Canvas -->
+  <canvas id="cyber-canvas"></canvas>
+
+  <!-- Scanline overlay -->
+  <div class="scanlines"></div>
+
+  <!-- Navigation -->
+  <nav id="main-nav">
+    <div class="nav-brand">
+      <span class="brand-glitch" data-text="VOID">VOID</span>
+    </div>
+    <div class="nav-links">
+      <a href="#hero" class="nav-link active" data-section="hero">HOME</a>
+      <a href="#about" class="nav-link" data-section="about">ABOUT</a>
+      <a href="#features" class="nav-link" data-section="features">SYSTEMS</a>
+      <a href="#contact" class="nav-link" data-section="contact">LINK</a>
+    </div>
+    <div class="nav-scroll-speed">
+      <span class="speed-label">VELOCITY</span>
+      <div class="speed-bar-track">
+        <div class="speed-bar-fill" id="speed-bar"></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Scroll Progress -->
+  <div id="scroll-progress"></div>
+
+  <!-- Hero Section -->
+  <section id="hero" class="section">
+    <div class="hero-content">
+      <div class="hero-tag">
+        <span class="tag-decorator">▸</span>
+        <span class="tag-text">SYSTEM.ONLINE // BUILD 2026.4</span>
+      </div>
+      <h1 class="hero-title">
+        <span class="title-row">
+          <span class="title-word" style="--d:0">WELCOME</span>
+          <span class="title-word" style="--d:1">TO</span>
+          <span class="title-word" style="--d:2">THE</span>
+        </span>
+        <span class="title-row">
+          <span class="title-word title-highlight" style="--d:3">VOID</span>
+        </span>
+      </h1>
+      <p class="hero-sub type-effect" data-type-text="Scroll to accelerate particles. Move your cursor to interact with the grid. This interface is alive — every input shapes the system."></p>
+      <div class="hero-btns">
+        <button id="enter-btn" class="cyber-btn">
+          <span class="cyber-btn-text">INITIALIZE</span>
+          <span class="cyber-btn-tag">R1</span>
+        </button>
+        <div class="hero-meta">
+          <span id="particle-count">PARTICLES: 000</span>
+          <span id="fps-counter">FPS: 60</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-scroll-hint">
+      <div class="hint-arrows">
+        <span>▼</span><span>▼</span><span>▼</span>
+      </div>
+      <span class="hint-label">SCROLL TO ENGAGE</span>
+    </div>
+  </section>
+
+  <!-- About Section -->
+  <section id="about" class="section">
+    <div class="section-inner">
+      <div class="section-tag">
+        <span class="tag-decorator">▸</span>
+        <span class="tag-num">01</span>
+        <span class="tag-line"></span>
+        <span class="tag-text">ABOUT.SYS</span>
+      </div>
+      <div class="about-grid">
+        <div class="about-main" data-reveal>
+          <h2 class="section-title">THE SYSTEM<br><span class="title-highlight">RESPONDS</span></h2>
+          <p class="section-body section-body--white type-effect" data-type-text="This isn't a static page — it's a reactive environment. Every scroll, every cursor movement, every interaction feeds into the particle simulation running behind these words."></p>
+          <p class="section-body section-body--white type-effect" data-type-text="Built with raw canvas rendering and real-time physics, the cyberpunk grid adapts to your behavior. Scroll faster — particles accelerate. Stop — they drift to silence."></p>
+        </div>
+        <div class="about-stats">
+          <div class="stat-block" data-reveal>
+            <div class="stat-value"><span class="stat-num" data-target="200">0</span>+</div>
+            <div class="stat-desc">ACTIVE PARTICLES</div>
+          </div>
+          <div class="stat-block" data-reveal>
+            <div class="stat-value"><span class="stat-num" data-target="60">0</span></div>
+            <div class="stat-desc">FRAMES PER SECOND</div>
+          </div>
+          <div class="stat-block" data-reveal>
+            <div class="stat-value"><span class="stat-num" data-target="100">0</span>%</div>
+            <div class="stat-desc">INTERACTIVE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="section">
+    <div class="section-inner">
+      <div class="section-tag">
+        <span class="tag-decorator">▸</span>
+        <span class="tag-num">02</span>
+        <span class="tag-line"></span>
+        <span class="tag-text">SYSTEMS.CORE</span>
+      </div>
+      <h2 class="section-title" data-reveal>CORE <span class="title-highlight">MODULES</span></h2>
+      <div class="features-grid">
+        <a href="worldfm.html" class="feature-card feature-card--link" data-reveal>
+          <div class="card-header">
+            <span class="card-id">MOD_01</span>
+            <span class="card-status">● ACTIVE</span>
+          </div>
+          <h3 class="card-title">WORLD FM</h3>
+          <p class="card-body type-effect" data-type-text="Live radio from anywhere on Earth. Click any location on the interactive world map to tune in to local FM stations broadcasting in real-time."></p>
+          <div class="card-footer">
+            <span class="card-metric">CLICK TO LAUNCH ▶</span>
+          </div>
+        </a>
+        <a href="eyes.html" class="feature-card feature-card--link" data-reveal>
+          <div class="card-header">
+            <span class="card-id">MOD_02</span>
+            <span class="card-status">● ACTIVE</span>
+          </div>
+          <h3 class="card-title">EYES OF THE WORLD</h3>
+          <p class="card-body type-effect" data-type-text="Access open public surveillance feeds from across the globe. Tap into live city cameras, traffic feeds, and nature streams broadcasting in real-time."></p>
+          <div class="card-footer">
+            <span class="card-metric">CLICK TO LAUNCH ▶</span>
+          </div>
+        </a>
+        <a href="presence.html" class="feature-card feature-card--link" data-reveal>
+          <div class="card-header">
+            <span class="card-id">MOD_03</span>
+            <span class="card-status">● ACTIVE</span>
+          </div>
+          <h3 class="card-title">GLOBAL PRESENCE</h3>
+          <p class="card-body type-effect" data-type-text="A real-time visualization of active connections across the globe. You are not alone in the void."></p>
+          <div class="card-footer">
+            <span class="card-metric">CLICK TO LAUNCH ▶</span>
+          </div>
+        </a>
+        <div class="feature-card" data-reveal>
+          <div class="card-header">
+            <span class="card-id">MOD_04</span>
+            <span class="card-status">● ACTIVE</span>
+          </div>
+          <h3 class="card-title">SCROLL REACTOR</h3>
+          <p class="card-body type-effect" data-type-text="Scroll velocity is captured and converted into kinetic energy. Faster scrolling means faster particles. Stop scrolling — particles decelerate to rest."></p>
+          <div class="card-footer">
+            <span class="card-metric">LOAD: 4%</span>
+          </div>
+        </div>
+        <div class="feature-card" data-reveal>
+          <div class="card-header">
+            <span class="card-id">MOD_05</span>
+            <span class="card-status">● ACTIVE</span>
+          </div>
+          <h3 class="card-title">GLITCH MATRIX</h3>
+          <p class="card-body type-effect" data-type-text="Subtle scanline and noise effects add depth to the interface. The aesthetic draws from CRT monitors, circuit boards, and neon-lit cityscapes."></p>
+          <div class="card-footer">
+            <span class="card-metric">LOAD: 2%</span>
+          </div>
+        </div>
+        <a href="datasys.html" class="feature-card feature-card--link" data-reveal>
+          <div class="card-header">
+            <span class="card-id">MOD_06</span>
+            <span class="card-status">● ACTIVE</span>
+          </div>
+          <h3 class="card-title">DATA.SYS</h3>
+          <p class="card-body type-effect" data-type-text="Upload a dataset. VOID reads the structure, detects patterns, and generates an interactive analytical dashboard — automatically."></p>
+          <div class="card-footer">
+            <span class="card-metric">CLICK TO LAUNCH ▶</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact Section -->
+  <section id="contact" class="section">
+    <div class="section-inner">
+      <div class="section-tag">
+        <span class="tag-decorator">▸</span>
+        <span class="tag-num">03</span>
+        <span class="tag-line"></span>
+        <span class="tag-text">LINK.TRANSMIT</span>
+      </div>
+      <div class="contact-layout">
+        <div class="contact-text" data-reveal>
+          <h2 class="section-title">OPEN<br><span class="title-highlight">FREQUENCY</span></h2>
+          <p class="section-body type-effect" id="uplink-text" data-type-text="Uplink established. Your signal now echoes across the void."></p>
+        </div>
+        <div id="cyber-chat" class="cyber-chat" data-reveal>
+          <div class="chat-header">
+            <span class="chat-title" id="chat-title-el">GLOBAL COMMS</span>
+            <div class="chat-controls">
+              <button id="chat-mode-switch" class="mode-switch-btn">SWITCH TO AI</button>
+            </div>
+            <span class="chat-status"><span class="status-dot"></span>LIVE</span>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-sys-msg">Initializing connection protocol...</div>
+          </div>
+          <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="BROADCAST MESSAGE..." autocomplete="off" maxlength="200">
+            <button id="chat-send" class="cyber-btn">
+              <span class="cyber-btn-text">SEND</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer id="main-footer">
+    <div class="footer-inner">
+      <span class="footer-brand">VOID.SYS</span>
+      <span class="footer-info">v2.1.26 // ALL SYSTEMS NOMINAL</span>
+      <span class="footer-status">
+        <span class="status-blink"></span>
+        ONLINE
+      </span>
+    </div>
+    <div class="footer-credit">
+      <span class="credit-text">CRAFTED BY <span class="credit-name">VEDANT VARSHNEY</span> <span class="credit-amp">&</span> HIS BOT</span>
+    </div>
+  </footer>
+
+  <!-- System Log Panel -->
+  <div id="system-log" class="system-log">
+    <div class="log-indicator"></div>
+    <div class="log-text" id="log-text">SYSTEM.ONLINE</div>
+  </div>
+
+  <!-- Music Player -->
+  <div id="music-player" class="music-player">
+    <!-- Expandable Track Info Panel -->
+    <div class="music-track-panel" id="music-track-panel">
+      <div class="mtp-inner">
+        <div class="mtp-top">
+          <span class="mtp-live-dot"></span>
+          <span class="mtp-live-text">NOW PLAYING</span>
+        </div>
+        <div class="mtp-track-name" id="mtp-track-name">AMBIENT.SYNC</div>
+        <div class="mtp-track-sub" id="mtp-track-sub">VOID.SYS // LOOP ∞</div>
+        <div class="mtp-visualizer" id="mtp-visualizer">
+          <span class="mtp-bar"></span>
+          <span class="mtp-bar"></span>
+          <span class="mtp-bar"></span>
+          <span class="mtp-bar"></span>
+          <span class="mtp-bar"></span>
+          <span class="mtp-bar"></span>
+          <span class="mtp-bar"></span>
+          <span class="mtp-bar"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Toggle Button -->
+    <button id="music-toggle" class="music-btn" aria-label="Play ambient music" title="Toggle Ambient Sound">
+      <div class="music-icon-wrap">
+        <!-- Play icon -->
+        <svg id="music-icon-play" class="music-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 5.14v14l11-7-11-7z" fill="currentColor"/>
+        </svg>
+        <!-- Pause icon -->
+        <svg id="music-icon-pause" class="music-svg hidden" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+          <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>
+        </svg>
+      </div>
+      <!-- Equalizer bars (visible when playing) -->
+      <div class="eq-bars" id="eq-bars">
+        <span class="eq-bar"></span>
+        <span class="eq-bar"></span>
+        <span class="eq-bar"></span>
+        <span class="eq-bar"></span>
+      </div>
+    </button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+  <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="WORLD FM — Click any location on the map to tune in to live local radio stations from around the globe.">
+  <title>WORLD FM — VOID Interface</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #ffffff;
+      --surface: #f5f5f5;
+      --surface-dark: #111111;
+      --border: #e0e0e0;
+      --border-dark: #222222;
+      --text-primary: #000000;
+      --text-muted: #666666;
+      --text-dim: #999999;
+      --neon-green: #00dd55;
+      --neon-glow: rgba(0, 221, 85, 0.4);
+      --font-display: 'Orbitron', sans-serif;
+      --font-body: 'Rajdhani', sans-serif;
+      --font-mono: 'Share Tech Mono', monospace;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text-primary);
+      overflow: hidden;
+    }
+
+    /* ---- NAV ---- */
+    #top-bar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 12px 28px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #top-bar a {
+      font-family: var(--font-display);
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    #top-bar a:hover { color: var(--neon-green); }
+
+    .topbar-brand {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 5px;
+      color: var(--text-primary);
+      margin-right: auto;
+    }
+    .topbar-brand span { color: var(--neon-green); text-shadow: 0 0 12px var(--neon-glow); }
+
+    #signal-status {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #signal-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #ccc;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    #signal-dot.live {
+      background: var(--neon-green);
+      box-shadow: 0 0 10px var(--neon-glow);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 8px var(--neon-glow); }
+      50% { box-shadow: 0 0 20px var(--neon-glow), 0 0 40px rgba(0,221,85,0.2); }
+    }
+
+    /* ---- LAYOUT ---- */
+    #layout {
+      display: flex;
+      height: 100vh;
+      padding-top: 49px;
+    }
+
+    /* ---- MAP ---- */
+    #map-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    #map-wrap::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 221, 85, 0.05); /* Green tint */
+      border: 1px solid var(--neon-green);
+      box-shadow: inset 0 0 50px rgba(0, 221, 85, 0.15);
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* Custom leaflet tiles to match theme */
+    .leaflet-container {
+      background: #050505;
+      font-family: var(--font-mono);
+    }
+
+    /* Click ripple */
+    .map-ripple {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid var(--neon-green);
+      animation: rippleOut 0.7s var(--ease-out) forwards;
+      pointer-events: none;
+      z-index: 500;
+    }
+    @keyframes rippleOut {
+      from { width: 0; height: 0; opacity: 1; transform: translate(-50%,-50%) scale(1); }
+      to   { width: 80px; height: 80px; opacity: 0; transform: translate(-50%,-50%) scale(1); }
+    }
+
+    /* ---- SIDE PANEL ---- */
+    #panel {
+      width: 360px;
+      min-width: 300px;
+      background: #fff;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #panel-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .panel-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    #location-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--text-primary);
+      min-height: 22px;
+    }
+
+    #location-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* ---- NOW PLAYING PLAYER ---- */
+    #now-playing {
+      flex-shrink: 0;
+      background: #000;
+      border-bottom: 1px solid #222;
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+                  padding 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      padding: 0 24px;
+    }
+
+    #now-playing.expanded {
+      max-height: 220px;
+      padding: 20px 24px;
+    }
+
+    .np-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: #555;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .np-live-badge {
+      background: var(--neon-green);
+      color: #000;
+      font-family: var(--font-mono);
+      font-size: 7px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 2px 6px;
+      border-radius: 2px;
+      animation: badgePulse 1.5s ease-in-out infinite;
+    }
+    @keyframes badgePulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    #np-station {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-shadow: 0 0 16px var(--neon-glow);
+      margin-bottom: 6px;
+    }
+
+    #np-meta {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: #555;
+      letter-spacing: 1px;
+      margin-bottom: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #np-meta span { color: #888; margin: 0 4px; }
+
+    /* Waveform visualizer */
+    .np-visualizer {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 28px;
+      margin-bottom: 14px;
+    }
+    .vis-bar {
+      width: 4px;
+      background: var(--neon-green);
+      border-radius: 2px;
+      opacity: 0.8;
+      box-shadow: 0 0 4px var(--neon-glow);
+      animation: visAnim 0.8s ease-in-out infinite alternate;
+    }
+    .vis-bar:nth-child(odd)  { animation-duration: 0.6s; }
+    .vis-bar:nth-child(3n)   { animation-duration: 1.0s; }
+    .vis-bar:nth-child(5n)   { animation-duration: 0.75s; }
+    @keyframes visAnim {
+      from { height: 4px; opacity: 0.4; }
+      to   { height: 26px; opacity: 1; }
+    }
+    #now-playing:not(.expanded) .vis-bar { animation-play-state: paused; }
+
+    /* Audio controls */
+    #audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #play-pause-btn {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: var(--neon-green);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      box-shadow: 0 0 16px var(--neon-glow);
+    }
+    #play-pause-btn:hover {
+      background: #fff;
+      box-shadow: 0 0 24px rgba(255,255,255,0.4);
+    }
+    #play-pause-btn svg { width: 16px; height: 16px; fill: #000; }
+
+    #vol-icon {
+      font-size: 13px;
+      color: #555;
+    }
+
+
+    /* ---- STATION LIST ---- */
+    #station-list-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 0;
+    }
+
+    .list-header {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: var(--text-dim);
+      padding: 0 24px 10px;
+    }
+
+    .station-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 24px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.2s;
+      gap: 12px;
+    }
+    .station-item:hover {
+      background: var(--surface);
+      border-left-color: var(--neon-green);
+    }
+    .station-item.active {
+      background: rgba(0, 221, 85, 0.07);
+      border-left-color: var(--neon-green);
+    }
+
+    .station-logo {
+      width: 36px; height: 36px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      object-fit: contain;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      overflow: hidden;
+    }
+    .station-logo img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+    }
+
+    .station-info { flex: 1; min-width: 0; }
+    .station-name {
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .station-meta {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .station-codec {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .station-item.active .station-name { color: var(--neon-green); }
+
+    /* Placeholder / loading states */
+    #panel-placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 40px;
+      text-align: center;
+    }
+    .ph-icon { font-size: 40px; opacity: 0.3; }
+    .ph-title {
+      font-family: var(--font-display);
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+    }
+    .ph-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--neon-green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #error-msg {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #cc0033;
+      letter-spacing: 1px;
+      text-align: center;
+      padding: 20px 24px;
+      display: none;
+    }
+
+    /* Scrollbar */
+    #station-list-wrap::-webkit-scrollbar { width: 4px; }
+    #station-list-wrap::-webkit-scrollbar-track { background: transparent; }
+    #station-list-wrap::-webkit-scrollbar-thumb { background: var(--neon-green); border-radius: 2px; }
+
+    @media (max-width: 700px) {
+      #layout { flex-direction: column; }
+      #panel { width: 100%; min-width: unset; height: 50vh; border-left: none; border-top: 1px solid var(--border); }
+      #map-wrap { height: 50vh; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div id="top-bar">
+    <span class="topbar-brand">VOID<span>.</span>FM</span>
+    <a href="index.html">← BACK TO VOID</a>
+    <div id="signal-status">
+      <div id="signal-dot"></div>
+      <span id="signal-label">STANDBY</span>
+    </div>
+  </div>
+
+  <!-- HIDDEN AUDIO -->
+  <audio id="radio-audio" preload="none"></audio>
+
+  <div id="layout">
+
+    <!-- MAP -->
+    <div id="map-wrap">
+      <div id="map"></div>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div id="panel">
+      <div id="panel-header">
+        <div class="panel-tag">▸ SIGNAL_SCAN</div>
+        <div id="location-title">SELECT A LOCATION</div>
+        <div id="location-sub">Click anywhere on the map to scan for stations</div>
+      </div>
+
+      <div id="now-playing">
+        <div class="np-label">
+          ▸ NOW BROADCASTING
+          <span class="np-live-badge">LIVE</span>
+        </div>
+        <div id="np-station">—</div>
+        <div id="np-meta"></div>
+        <div class="np-visualizer" id="np-visualizer">
+          <!-- bars generated by JS -->
+        </div>
+        <div id="audio-controls">
+          <button id="play-pause-btn">
+            <svg id="icon-play" viewBox="0 0 24 24"><path d="M8 5.14v14l11-7-11-7z"/></svg>
+            <svg id="icon-pause" viewBox="0 0 24 24" style="display:none"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </button>
+          <span id="vol-icon">🔊</span>
+          <input type="range" id="volume-slider" min="0" max="1" step="0.02" value="0.8">
+        </div>
+      </div>
+
+      <!-- PLACEHOLDER -->
+      <div id="panel-placeholder">
+        <div class="ph-icon">📡</div>
+        <div class="ph-title">AWAITING COORDINATES</div>
+        <div class="ph-sub">Click anywhere on the map to scan<br>for live FM stations in that region.</div>
+      </div>
+
+      <!-- STATION LIST -->
+      <div id="station-list-wrap" style="display:none">
+        <div class="list-header" id="list-header">STATIONS FOUND —</div>
+        <div id="error-msg">NO STATIONS FOUND FOR THIS REGION</div>
+        <div id="station-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+  (() => {
+    'use strict';
+
+    // =====================
+    // MAP SETUP
+    // =====================
+    const map = L.map('map', {
+      center: [20, 0],
+      zoom: 2,
+      zoomControl: true,
+      attributionControl: false,
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 18,
+      attribution: '&copy; CARTO'
+    }).addTo(map);
+    const nowPlayingEl = document.getElementById('now-playing');
+    const npMeta = document.getElementById('np-meta');
+    const npVisualizer = document.getElementById('np-visualizer');
+
+    // =====================
+    // STATE
+    // =====================
+    const audio = document.getElementById('radio-audio');
+    const playBtn = document.getElementById('play-pause-btn');
+    const iconPlay = document.getElementById('icon-play');
+    const iconPause = document.getElementById('icon-pause');
+    const volSlider = document.getElementById('volume-slider');
+    const npStation = document.getElementById('np-station');
+    const nowPlayingBar = document.getElementById('now-playing');
+    const placeholder = document.getElementById('panel-placeholder');
+    const stationListWrap = document.getElementById('station-list-wrap');
+    const stationListEl = document.getElementById('station-list');
+    const listHeader = document.getElementById('list-header');
+    const errorMsg = document.getElementById('error-msg');
+    const locationTitle = document.getElementById('location-title');
+    const locationSub = document.getElementById('location-sub');
+    const signalDot = document.getElementById('signal-dot');
+    const signalLabel = document.getElementById('signal-label');
+    const eqMini = document.getElementById('eq-mini');
+
+    let currentMarker = null;
+    let currentStation = null;
+    let isPlaying = false;
+
+    // Radio Browser API hosts (rotating for reliability)
+    const API_HOSTS = [
+      'https://de1.api.radio-browser.info',
+      'https://fr1.api.radio-browser.info',
+      'https://nl1.api.radio-browser.info',
+    ];
+    let apiHostIdx = 0;
+    function getApiBase() { return API_HOSTS[apiHostIdx % API_HOSTS.length]; }
+
+    // =====================
+    // VOLUME
+    // =====================
+    audio.volume = 0.8;
+    volSlider.addEventListener('input', () => {
+      audio.volume = volSlider.value;
+    });
+
+    // =====================
+    // PLAY / PAUSE
+    // =====================
+    playBtn.addEventListener('click', () => {
+      if (audio.src) {
+        if (isPlaying) pauseStation();
+        else resumeStation();
+      }
+    });
+
+    function pauseStation() {
+      audio.pause();
+      isPlaying = false;
+      iconPlay.style.display = '';
+      iconPause.style.display = 'none';
+      signalDot.classList.remove('live');
+      signalLabel.textContent = 'PAUSED';
+      nowPlayingEl.classList.remove('expanded');
+      localStorage.setItem('void_mood', 'idle');
+    }
+
+    function resumeStation() {
+      audio.play().catch(() => {});
+      isPlaying = true;
+      iconPlay.style.display = 'none';
+      iconPause.style.display = '';
+      signalDot.classList.add('live');
+      signalLabel.textContent = 'LIVE';
+      nowPlayingEl.classList.add('expanded');
+      localStorage.setItem('void_mood', 'fm_on');
+    }
+
+    // =====================
+    // MAP CLICK
+    // =====================
+    map.on('click', async (e) => {
+      const { lat, lng } = e.latlng;
+
+      // Ripple effect
+      addRipple(e.containerPoint);
+
+      // Move marker
+      if (currentMarker) map.removeLayer(currentMarker);
+      currentMarker = L.circleMarker([lat, lng], {
+        radius: 8,
+        color: '#00dd55',
+        fillColor: '#00dd55',
+        fillOpacity: 0.8,
+        weight: 2,
+      }).addTo(map);
+
+      locationTitle.textContent = 'SCANNING...';
+      locationSub.textContent = `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
+      showLoading();
+
+      // Reverse geocode → get country
+      try {
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=5`,
+          { headers: { 'Accept-Language': 'en' } }
+        );
+        const geoData = await geoRes.json();
+        const country = geoData.address?.country || 'Unknown';
+        const countryCode = (geoData.address?.country_code || '').toLowerCase();
+        const city = geoData.address?.city || geoData.address?.state || geoData.address?.county || '';
+
+        locationTitle.textContent = country.toUpperCase();
+        locationSub.textContent = `${city ? city.toUpperCase() + ' // ' : ''}${countryCode} // ${lat.toFixed(4)}°N ${lng.toFixed(4)}°E`;
+
+        if (countryCode) {
+          await fetchStations(countryCode, country);
+        } else {
+          showError();
+        }
+      } catch (err) {
+        locationTitle.textContent = 'SIGNAL LOST';
+        showError();
+      }
+    });
+
+    // =====================
+    // FETCH STATIONS
+    // =====================
+    async function fetchStations(countryCode, countryName, retryCount = 0) {
+      try {
+        // Try by country code first, then fall back to country name search
+        let url;
+        if (retryCount === 0) {
+          url = `${getApiBase()}/json/stations/bycountrycode/${countryCode}?limit=60&order=votes&reverse=true`;
+        } else {
+          url = `${getApiBase()}/json/stations/search?country=${encodeURIComponent(countryName)}&limit=60&order=votes&reverse=true`;
+        }
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('API error');
+        const stations = await res.json();
+
+        // Accept stations with either url_resolved or url
+        const valid = stations.filter(s => {
+          const streamUrl = s.url_resolved || s.url;
+          return streamUrl && (streamUrl.startsWith('http://') || streamUrl.startsWith('https://'));
+        });
+
+        if (valid.length === 0 && retryCount === 0) {
+          // Retry using country name search
+          return fetchStations(countryCode, countryName, 1);
+        }
+
+        if (valid.length === 0) {
+          showError();
+          return;
+        }
+
+        renderStations(valid);
+      } catch (err) {
+        if (retryCount < 3) {
+          apiHostIdx++;
+          return fetchStations(countryCode, countryName, retryCount + 1);
+        }
+        showError();
+      }
+    }
+
+    // =====================
+    // RENDER STATIONS
+    // =====================
+    function renderStations(stations) {
+      stationListEl.innerHTML = '';
+      errorMsg.style.display = 'none';
+      listHeader.textContent = `STATIONS FOUND — ${stations.length}`;
+
+      placeholder.style.display = 'none';
+      stationListWrap.style.display = 'flex';
+      stationListWrap.style.flexDirection = 'column';
+
+      stations.forEach((station, idx) => {
+        const item = document.createElement('div');
+        item.className = 'station-item';
+        item.dataset.idx = idx;
+
+        const logo = document.createElement('div');
+        logo.className = 'station-logo';
+        if (station.favicon) {
+          const img = document.createElement('img');
+          img.src = station.favicon;
+          img.onerror = () => { logo.textContent = '📻'; img.remove(); };
+          logo.appendChild(img);
+        } else {
+          logo.textContent = '📻';
+        }
+
+        const info = document.createElement('div');
+        info.className = 'station-info';
+        info.innerHTML = `
+          <div class="station-name">${station.name}</div>
+          <div class="station-meta">${station.tags ? station.tags.split(',').slice(0,2).join(' · ') : 'FM RADIO'}</div>
+        `;
+
+        const codec = document.createElement('span');
+        codec.className = 'station-codec';
+        codec.textContent = (station.codec || 'MP3').toUpperCase();
+
+        item.appendChild(logo);
+        item.appendChild(info);
+        item.appendChild(codec);
+
+        item.addEventListener('click', () => playStation(station, item));
+        stationListEl.appendChild(item);
+      });
+    }
+
+    // =====================
+    // PLAY STATION
+    // =====================
+    function playStation(station, itemEl) {
+      // Deactivate all
+      document.querySelectorAll('.station-item').forEach(i => i.classList.remove('active'));
+      itemEl.classList.add('active');
+
+      currentStation = station;
+      // Use url_resolved first, fall back to url
+      const streamUrl = (station.url_resolved && station.url_resolved.startsWith('http'))
+        ? station.url_resolved
+        : station.url;
+
+      audio.src = streamUrl;
+      audio.load();
+
+      // Populate station info
+      npStation.textContent = station.name;
+
+      // Meta line: country · tags · codec · bitrate
+      const parts = [];
+      if (station.country) parts.push(station.country.toUpperCase());
+      if (station.tags)    parts.push(station.tags.split(',').slice(0, 2).map(t => t.trim().toUpperCase()).join(' · '));
+      if (station.codec)   parts.push(station.codec.toUpperCase());
+      if (station.bitrate && station.bitrate > 0) parts.push(station.bitrate + ' KBPS');
+      npMeta.innerHTML = parts.map((p, i) =>
+        i === 0 ? p : `<span>·</span>${p}`
+      ).join(' ');
+
+      // Generate visualizer bars
+      npVisualizer.innerHTML = '';
+      for (let i = 0; i < 28; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'vis-bar';
+        bar.style.animationDelay = `${(Math.random() * 0.6).toFixed(2)}s`;
+        bar.style.animationDuration = `${(0.5 + Math.random() * 0.7).toFixed(2)}s`;
+        npVisualizer.appendChild(bar);
+      }
+
+      resumeStation();
+
+      // Track play count on radio-browser
+      if (station.stationuuid) {
+        fetch(`${getApiBase()}/json/url/${station.stationuuid}`).catch(() => {});
+      }
+    }
+
+    // =====================
+    // UI HELPERS
+    // =====================
+    function showLoading() {
+      placeholder.style.display = 'flex';
+      placeholder.innerHTML = `<div class="spinner"></div><div class="ph-title">SCANNING FREQUENCIES...</div>`;
+      stationListWrap.style.display = 'none';
+    }
+
+    function showError() {
+      placeholder.style.display = 'none';
+      stationListWrap.style.display = 'flex';
+      stationListWrap.style.flexDirection = 'column';
+      stationListEl.innerHTML = '';
+      listHeader.textContent = 'STATIONS FOUND — 0';
+      errorMsg.style.display = 'block';
+    }
+
+    function addRipple(point) {
+      const wrap = document.getElementById('map-wrap');
+      const el = document.createElement('div');
+      el.className = 'map-ripple';
+      el.style.cssText = `left:${point.x}px;top:${point.y}px;`;
+      wrap.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+
+    // Reset mood strictly when page unloads
+    window.addEventListener('beforeunload', () => {
+      localStorage.setItem('void_mood', 'idle');
+    });
+
+  })();
+  </script>
+</body>
+</html>
