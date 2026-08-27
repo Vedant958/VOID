@@ -150,9 +150,26 @@ tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-secondary":"#ffffff
   box-shadow: 0 0 8px rgba(0, 229, 255, 0.25);
 }
 
+/* Horizon Switcher Buttons */
+.fc-horizon-btn {
+  color: #6b7c68;
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+.fc-horizon-btn:hover {
+  background: #f1f5f9;
+  color: #191c1d;
+}
+.fc-horizon-btn.active {
+  background: #00E5FF !important;
+  color: #00363d !important;
+  font-weight: 800;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.35);
+}
+
 /* Real-Time ML Accuracy HUD Badge */
 #ml-accuracy-badge {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -270,6 +287,7 @@ body.sim-mode-active #btn-mode-historical {
   </div>
   <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:#b9ccb5">// OR LOAD A DEMO DATASET</div>
   <div class="demo-row">
+    <button class="dbtn" id="d-sessions">Website Sessions</button>
     <button class="dbtn" id="d-sales">E-Commerce Sales</button>
     <button class="dbtn" id="d-hr">HR Workforce</button>
     <button class="dbtn" id="d-crypto">Crypto Txns</button>
@@ -415,7 +433,7 @@ body.sim-mode-active #btn-mode-historical {
           <div id="k1v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
         </div>
         <div id="k1-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
-          <span id="k1-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> ▲ +5.2%</span>
+          <span id="k1-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> &#8212;</span>
         </div>
         <div class="sparkline-box">
           <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
@@ -432,7 +450,7 @@ body.sim-mode-active #btn-mode-historical {
           <div id="k2v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
         </div>
         <div id="k2-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
-          <span id="k2-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> ▲ +3.8%</span>
+          <span id="k2-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> &#8212;</span>
         </div>
         <div class="sparkline-box">
           <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
@@ -466,7 +484,7 @@ body.sim-mode-active #btn-mode-historical {
           <div id="k4v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
         </div>
         <div id="k4-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
-          <span id="k4-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> ▲ +8.1%</span>
+          <span id="k4-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> &#8212;</span>
         </div>
         <div class="sparkline-box">
           <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
@@ -500,7 +518,7 @@ body.sim-mode-active #btn-mode-historical {
           <div id="k6v" class="font-data-mono text-headline-sm font-bold text-on-background mt-1">&#8212;</div>
         </div>
         <div id="k6-trend" class="flex items-center gap-1 text-[11px] text-primary font-data-mono">
-          <span id="k6-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> ▲ +4.5%</span>
+          <span id="k6-delta" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_up</span> &#8212;</span>
         </div>
         <div class="sparkline-box">
           <svg class="w-full h-full text-primary-container" preserveAspectRatio="none" viewBox="0 0 100 20">
@@ -520,17 +538,24 @@ body.sim-mode-active #btn-mode-historical {
         <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
           <div class="flex items-center gap-2 flex-wrap">
             <h3 id="ct-ttl" class="font-data-mono text-data-mono font-bold uppercase">Revenue_Timeline</h3>
-            <!-- Timeline Forecast Controls (Visible ONLY in SIMULATION (+90D) Mode) -->
-            <div id="timeline-forecast-controls" class="hidden items-center gap-2">
+            <!-- Timeline Forecast Controls -->
+            <div id="timeline-forecast-controls" class="hidden items-center gap-2 flex-wrap">
               <!-- Forecast Toggle Button -->
-              <button id="btn-ml-forecast" class="group relative px-2.5 py-1 rounded font-data-mono text-[11px] font-bold border border-outline-variant bg-surface-bright text-on-surface-variant hover:text-primary transition-all flex items-center gap-1.5 cursor-pointer select-none" title="Toggle Client-Side Predictive Forecasting Model">
+              <button id="btn-ml-forecast" class="group relative px-2.5 py-1 rounded font-data-mono text-[11px] font-bold border border-outline-variant bg-surface-bright text-on-surface-variant hover:text-primary transition-all flex items-center gap-1.5 cursor-pointer select-none" title="Toggle Holt-Winters Forecast Model">
                 <span class="forecast-indicator inline-block w-2 h-2 rounded-full bg-outline transition-all"></span>
-                <span class="tracking-wide">[ 🔮 AI FORECAST // 30-90D ]</span>
+                <span class="tracking-wide">[ 🔮 AI FORECAST ]</span>
               </button>
+              <!-- Horizon Switcher: 30D, 60D, 90D -->
+              <div id="forecast-horizon-group" class="flex items-center border border-outline-variant rounded overflow-hidden text-[10px] font-data-mono font-bold bg-surface-bright shadow-xs">
+                <button class="fc-horizon-btn px-2 py-0.5 hover:bg-surface-dim transition-all cursor-pointer" data-horizon="30D" title="Evaluate 30-Day Ahead Horizon">30D</button>
+                <button class="fc-horizon-btn px-2 py-0.5 border-l border-outline-variant hover:bg-surface-dim transition-all cursor-pointer" data-horizon="60D" title="Evaluate 60-Day Ahead Horizon">60D</button>
+                <button class="fc-horizon-btn px-2 py-0.5 border-l border-outline-variant active bg-primary text-on-primary hover:opacity-90 transition-all cursor-pointer" data-horizon="90D" title="Evaluate 90-Day Ahead Horizon">90D</button>
+              </div>
               <!-- Accuracy Pill (Visible only when forecast is ON) -->
-              <span id="ml-accuracy-badge" class="hidden px-2 py-0.5 text-xs font-mono rounded border border-[#00FF66] bg-[#00FF66]/10 text-zinc-900 font-semibold items-center gap-1.5 transition-all">
+              <span id="ml-accuracy-badge" class="hidden px-2.5 py-0.5 text-xs font-mono rounded border border-[#00FF66] bg-[#00FF66]/10 text-zinc-900 font-semibold items-center gap-2 transition-all shadow-xs flex-wrap">
                 <span id="ml-accuracy-dot" class="inline-block w-1.5 h-1.5 rounded-full bg-[#00FF66] animate-ping"></span>
-                <span id="ml-accuracy-text">🎯 ACCURACY: --% | R²: -- | MAPE: ±--%</span>
+                <span class="text-[9px] px-1.5 py-0.5 bg-zinc-800 text-white rounded font-bold uppercase tracking-wider">WALK-FORWARD BACKTEST</span>
+                <span id="ml-accuracy-text">MAPE-DERIVED FORECAST ACCURACY: --% | OOS R²: -- | MAPE: ±--% | MAE: -- | RMSE: --</span>
               </span>
             </div>
           </div>
@@ -832,7 +857,8 @@ var SLOTS = {
 /* 🔮 Client-Side Predictive Forecasting & Machine Learning Engine */
 var FORECAST_STATE = {
   enabled: false,
-  horizon: 4, // 3 to 6 future intervals
+  horizonKey: '90D', // '30D', '60D', '90D'
+  horizonMap: { '30D': 1, '60D': 2, '90D': 3 }, // Mapped to monthly period horizons
   lastMetrics: null
 };
 
@@ -857,7 +883,7 @@ var SIMULATION_STATE = {
 };
 
 function generateFutureLabels(labels, horizon){
-  horizon = horizon || 4;
+  horizon = horizon || 3;
   if(!labels || !labels.length){
     var def = [];
     for(var i = 1; i <= horizon; i++) def.push('Period +' + i);
@@ -938,182 +964,262 @@ function generateFutureLabels(labels, horizon){
   return future;
 }
 
-// True Dynamic Model Metrics Calculation Engine (R², MAPE, Accuracy)
-function calculateModelMetrics(actual, predicted) {
-  if (!actual || actual.length < 3) return { r2: 0.85, mape: 5.0, accuracy: 95.0 };
-  
-  var count = actual.length;
-  var meanActual = actual.reduce(function(a, b){ return a + b; }, 0) / count;
-  var ssTot = actual.reduce(function(acc, y){ return acc + Math.pow(y - meanActual, 2); }, 0);
-  var ssRes = actual.reduce(function(acc, y, i){
-    var pred = (predicted && predicted[i] !== undefined) ? predicted[i] : meanActual;
-    return acc + Math.pow(y - pred, 2);
-  }, 0);
-  
-  var r2 = ssTot !== 0 ? Math.max(0, Math.min(0.99, 1 - (ssRes / ssTot))) : 0.88;
-  
-  var mapeSum = actual.reduce(function(acc, y, i){
-    var pred = (predicted && predicted[i] !== undefined) ? predicted[i] : y;
-    return acc + (y !== 0 ? Math.abs((y - pred) / y) : 0);
-  }, 0);
-  var mape = (mapeSum / count) * 100;
-  var accuracy = Math.max(50, Math.min(99.4, 100 - mape));
-  
-  return { 
-    r2: Number(r2.toFixed(2)), 
-    mape: Number(mape.toFixed(1)), 
-    accuracy: Number(accuracy.toFixed(1)) 
+// --- HOLT-WINTERS EXPONENTIAL SMOOTHING (Level, Trend, Additive Seasonality) ---
+function fitHoltWinters(series, hSteps, alpha, beta, gamma, m) {
+  var T = series.length;
+  if(T === 0) return { inSample: [], forecasts: [], sse: Infinity, alpha: alpha, beta: beta, gamma: gamma };
+  if(T === 1) {
+    var f1 = []; for(var i = 0; i < hSteps; i++) f1.push(series[0]);
+    return { inSample: [series[0]], forecasts: f1, sse: 0, alpha: alpha, beta: beta, gamma: gamma };
+  }
+
+  m = m || 12;
+  var useSeasonality = (gamma > 0 && T >= m + 2);
+  if(!useSeasonality){
+    m = 1;
+    gamma = 0;
+  }
+
+  // Initialization: Initial Level L0, Trend B0, Seasonal Factors S
+  var L0 = 0, B0 = 0;
+  var S = [];
+
+  if(useSeasonality){
+    for(var i = 0; i < m; i++) L0 += series[i];
+    L0 /= m;
+
+    if(T >= 2 * m){
+      for(var i = 0; i < m; i++){
+        B0 += (series[m + i] - series[i]) / m;
+      }
+      B0 /= m;
+    } else {
+      B0 = (series[T - 1] - series[0]) / Math.max(1, T - 1);
+    }
+
+    var sumS = 0;
+    for(var i = 0; i < m; i++){
+      var sVal = series[i] - L0;
+      S.push(sVal);
+      sumS += sVal;
+    }
+    var meanS = sumS / m;
+    for(var i = 0; i < m; i++){
+      S[i] -= meanS;
+    }
+  } else {
+    L0 = series[0];
+    B0 = (series[1] - series[0]);
+  }
+
+  var L = L0, B = B0;
+  var inSample = [];
+  var sse = 0;
+  var seasonals = S.slice();
+
+  for(var t = 0; t < T; t++){
+    var y = series[t];
+    var sIdx = useSeasonality ? (t % m) : 0;
+    var sPrev = useSeasonality ? seasonals[sIdx] : 0;
+
+    // 1-step ahead prediction before observing y
+    var yHat = L + B + sPrev;
+    inSample.push(yHat);
+    var err = y - yHat;
+    sse += err * err;
+
+    // Update state equations
+    var newL = alpha * (y - sPrev) + (1 - alpha) * (L + B);
+    var newB = beta * (newL - L) + (1 - beta) * B;
+    if(useSeasonality){
+      var newS = gamma * (y - newL) + (1 - gamma) * sPrev;
+      seasonals[sIdx] = newS;
+    }
+    L = newL;
+    B = newB;
+  }
+
+  // Generate future forecasts
+  var forecasts = [];
+  for(var h = 1; h <= hSteps; h++){
+    var sFuture = useSeasonality ? seasonals[(T + h - 1) % m] : 0;
+    var f = L + h * B + sFuture;
+    forecasts.push(f);
+  }
+
+  return {
+    inSample: inSample,
+    forecasts: forecasts,
+    sse: sse,
+    alpha: alpha,
+    beta: beta,
+    gamma: gamma,
+    level: L,
+    trend: B,
+    seasonals: seasonals
   };
 }
 
-function runMLForecast(labels, values, horizon){
-  horizon = horizon || 4;
+// Optimize Holt-Winters parameters (alpha, beta, gamma) on training data
+function optimizeHoltWinters(series, hSteps, m){
+  var T = series.length;
+  m = m || 12;
+  var canSeasonal = (T >= m + 2);
+
+  var alphaGrid = [0.05, 0.15, 0.25, 0.35, 0.50, 0.65, 0.80, 0.95];
+  var betaGrid = [0.01, 0.05, 0.10, 0.20, 0.35, 0.50];
+  var gammaGrid = canSeasonal ? [0.0, 0.05, 0.15, 0.30, 0.50] : [0.0];
+
+  var bestModel = null;
+  var bestSse = Infinity;
+
+  for(var a = 0; a < alphaGrid.length; a++){
+    for(var b = 0; b < betaGrid.length; b++){
+      for(var g = 0; g < gammaGrid.length; g++){
+        var res = fitHoltWinters(series, hSteps, alphaGrid[a], betaGrid[b], gammaGrid[g], m);
+        if(res.sse < bestSse){
+          bestSse = res.sse;
+          bestModel = res;
+        }
+      }
+    }
+  }
+
+  return bestModel;
+}
+
+// --- CHRONOLOGICAL WALK-FORWARD OUT-OF-SAMPLE BACKTESTING ENGINE ---
+function runWalkForwardBacktest(series, horizonSteps, m){
+  var T = series.length;
+  m = m || 12;
+  var H = horizonSteps || 1;
+
+  // Determine starting training window size (W_min)
+  var W_min = 3;
+  if(T >= 16){
+    W_min = Math.max(4, Math.min(8, T - Math.max(4, H * 2)));
+  } else if(T >= 8){
+    W_min = Math.max(3, Math.floor(T / 2));
+  } else {
+    W_min = Math.max(2, Math.floor(T / 2));
+  }
+
+  if(W_min > T - H){
+    W_min = Math.max(2, T - H);
+  }
+
+  var backtestPairs = [];
+  var trainWindowSizes = [];
+
+  // Expanding-window walk-forward evaluation
+  for(var k = W_min; k <= T - H; k++){
+    var trainData = series.slice(0, k); // Strictly past observations
+    var trainedModel = optimizeHoltWinters(trainData, H, Math.min(m, Math.max(2, Math.floor(k / 2))));
+    
+    var predictedVal = trainedModel.forecasts[H - 1]; // Out-of-sample prediction at horizon H
+    var actualVal = series[k - 1 + H]; // Unseen actual observation
+
+    backtestPairs.push({
+      actual: actualVal,
+      predicted: predictedVal,
+      cutoff: k,
+      trainSize: trainData.length
+    });
+    trainWindowSizes.push(trainData.length);
+  }
+
+  var N = backtestPairs.length;
+  if(N === 0){
+    return {
+      error: true,
+      message: 'Insufficient historical observations for out-of-sample backtesting with horizon H=' + H + ' (T=' + T + ').'
+    };
+  }
+
+  // Statistically rigorous dynamic metrics calculation
+  var sumActual = 0, sumPred = 0, sumAbsErr = 0, sumSqErr = 0;
+  var mapeSum = 0, validMapeCount = 0;
+
+  for(var i = 0; i < N; i++){
+    var act = backtestPairs[i].actual;
+    var prd = backtestPairs[i].predicted;
+    var err = act - prd;
+
+    sumActual += act;
+    sumPred += prd;
+    sumAbsErr += Math.abs(err);
+    sumSqErr += err * err;
+
+    if(act !== 0){
+      mapeSum += Math.abs(err / act);
+      validMapeCount++;
+    }
+  }
+
+  var mae = sumAbsErr / N;
+  var rmse = Math.sqrt(sumSqErr / N);
+  var mape = validMapeCount > 0 ? (mapeSum / validMapeCount) * 100 : 0;
+  var forecastAccuracy = Math.max(0, 100 - mape);
+
+  // Out-of-sample R² from backtest predictions
+  var meanActual = sumActual / N;
+  var ssTot = 0;
+  for(var i = 0; i < N; i++){
+    var diff = backtestPairs[i].actual - meanActual;
+    ssTot += diff * diff;
+  }
+  var r2_oos = ssTot > 1e-12 ? (1 - (sumSqErr / ssTot)) : (sumSqErr < 1e-12 ? 1.0 : 0.0);
+
+  return {
+    error: false,
+    evalCount: N,
+    trainWindowSizes: trainWindowSizes,
+    backtestPairs: backtestPairs,
+    mae: mae,
+    rmse: rmse,
+    mape: mape,
+    forecastAccuracy: forecastAccuracy,
+    r2_oos: r2_oos,
+    validMapeCount: validMapeCount,
+    excludedZeros: N - validMapeCount
+  };
+}
+
+// Master ML Forecasting Pipeline
+function runMLForecast(labels, values, horizonKey){
+  horizonKey = horizonKey || FORECAST_STATE.horizonKey || '90D';
+  var H = FORECAST_STATE.horizonMap[horizonKey] || 3;
   var n = values.length;
-  if(n < 2) return null;
+
+  if(n < 3){
+    return {
+      error: true,
+      message: 'At least 3 historical data points are required for time-series forecasting.'
+    };
+  }
 
   var isNonNegative = values.every(function(v){ return v >= 0; });
-  var meanY = values.reduce(function(a,b){ return a + b; }, 0) / n;
+  var seasonalPeriod = (n >= 24) ? 12 : Math.min(12, Math.max(2, Math.floor(n / 2)));
 
-  // 3x3 Matrix Inversion Helper for Ridge Regularization
-  function invert3x3(m) {
-    var a = m[0][0], b = m[0][1], c = m[0][2];
-    var d = m[1][0], e = m[1][1], f = m[1][2];
-    var g = m[2][0], h = m[2][1], k = m[2][2];
-    var det = a*(e*k - f*h) - b*(d*k - f*g) + c*(d*h - e*g);
-    if(Math.abs(det) < 1e-12) return null;
-    var invdet = 1 / det;
-    return [
-      [(e*k - f*h)*invdet, (c*h - b*k)*invdet, (b*f - c*e)*invdet],
-      [(f*g - d*k)*invdet, (a*k - c*g)*invdet, (c*d - a*f)*invdet],
-      [(d*h - e*g)*invdet, (g*b - a*h)*invdet, (a*e - b*d)*invdet]
-    ];
-  }
+  // 1. Run Chronological Walk-Forward Backtesting (Evaluates Out-of-Sample Accuracy)
+  var backtestResult = runWalkForwardBacktest(values, H, seasonalPeriod);
 
-  // --- MODEL A: Holt-Winters Exponential Smoothing (Alpha Trend + Beta Seasonality/Momentum) ---
-  function fitHoltWinters(series, hSteps) {
-    var sLen = series.length;
-    var bestAlpha = 0.45, bestBeta = 0.25;
-    var bestMse = Infinity;
-    var candidateAlphas = [0.25, 0.45, 0.65, 0.85];
-    var candidateBetas = [0.1, 0.25, 0.4];
+  // 2. Final Holt-Winters Model Fitting on ALL Historical Observations
+  var finalModel = optimizeHoltWinters(values, H, seasonalPeriod);
 
-    for(var aI = 0; aI < candidateAlphas.length; aI++){
-      for(var bI = 0; bI < candidateBetas.length; bI++){
-        var a = candidateAlphas[aI], b = candidateBetas[bI];
-        var lVal = series[0];
-        var tVal = sLen > 1 ? (series[1] - series[0]) : 0;
-        var sse = 0;
-        for(var t = 1; t < sLen; t++){
-          var pred = lVal + tVal;
-          var err = series[t] - pred;
-          sse += err * err;
-          var nxtL = a * series[t] + (1 - a) * (lVal + tVal);
-          var nxtT = b * (nxtL - lVal) + (1 - b) * tVal;
-          lVal = nxtL;
-          tVal = nxtT;
-        }
-        if(sse < bestMse){
-          bestMse = sse;
-          bestAlpha = a;
-          bestBeta = b;
-        }
-      }
-    }
-
-    var L = series[0];
-    var T = sLen > 1 ? (series[1] - series[0]) : 0;
-    var inSample = [L];
-    for(var t = 1; t < sLen; t++){
-      var nextL = bestAlpha * series[t] + (1 - bestAlpha) * (L + T);
-      var nextT = bestBeta * (nextL - L) + (1 - bestBeta) * T;
-      L = nextL;
-      T = nextT;
-      inSample.push(L);
-    }
-
-    var preds = [];
-    for(var h = 1; h <= hSteps; h++){
-      var p = L + h * T * Math.pow(0.96, h);
-      if(isNonNegative && p < 0) p = 0;
-      preds.push(p);
-    }
-    return { name: 'Holt-Winters (Trend+Seasonality)', inSample: inSample, forecasts: preds, alpha: bestAlpha, beta: bestBeta };
-  }
-
-  // --- MODEL B: Polynomial Ridge Regression + Moving Trend ---
-  function fitPolyRidge(series, hSteps) {
-    var sLen = series.length;
-    var xNorm = series.map(function(_, i){ return sLen > 1 ? i / (sLen - 1) : 0; });
-    var XtX = [[0,0,0],[0,0,0],[0,0,0]];
-    var XtY = [0, 0, 0];
-    var lambda = 0.015;
-
-    for(var i = 0; i < sLen; i++){
-      var x = xNorm[i], yVal = series[i];
-      var x2 = x * x;
-      var row = [1, x, x2];
-      for(var r = 0; r < 3; r++){
-        XtY[r] += row[r] * yVal;
-        for(var c = 0; c < 3; c++){
-          XtX[r][c] += row[r] * row[c];
-        }
-      }
-    }
-    XtX[0][0] += lambda;
-    XtX[1][1] += lambda;
-    XtX[2][2] += lambda;
-    var inv = invert3x3(XtX);
-    var w = [series[0], 0, 0];
-    if(inv){
-      w = [
-        inv[0][0]*XtY[0] + inv[0][1]*XtY[1] + inv[0][2]*XtY[2],
-        inv[1][0]*XtY[0] + inv[1][1]*XtY[1] + inv[1][2]*XtY[2],
-        inv[2][0]*XtY[0] + inv[2][1]*XtY[1] + inv[2][2]*XtY[2]
-      ];
-    }
-
-    var inSample = xNorm.map(function(x){ return w[0] + w[1]*x + w[2]*x*x; });
-    var preds = [];
-    var recentTrend = sLen >= 3 ? (series[sLen-1] - series[sLen-3]) / 2 : (series[sLen-1] - series[0]);
-
-    for(var h = 1; h <= hSteps; h++){
-      var nextX = sLen > 1 ? (sLen - 1 + h) / (sLen - 1) : 1;
-      var polyVal = w[0] + w[1]*nextX + w[2]*nextX*nextX;
-      var linBlend = series[sLen-1] + h * (recentTrend / (sLen > 1 ? sLen - 1 : 1));
-      var p = 0.7 * polyVal + 0.3 * linBlend;
-      if(isNonNegative && p < 0) p = 0;
-      preds.push(p);
-    }
-    return { name: 'Polynomial Ridge (Moving Trend)', inSample: inSample, forecasts: preds };
-  }
-
-  // --- MODEL FITTING & TRUE DYNAMIC BACKTESTING ---
-  var fullModelA = fitHoltWinters(values, horizon);
-  var fullModelB = fitPolyRidge(values, horizon);
-
-  var scoreA = calculateModelMetrics(values, fullModelA.inSample);
-  var scoreB = calculateModelMetrics(values, fullModelB.inSample);
-
-  // Best-Fit selection: Model with highest R² score
-  var winnerModel = (scoreA.r2 >= scoreB.r2 || scoreA.accuracy >= scoreB.accuracy) ? fullModelA : fullModelB;
-  var winnerScore = (winnerModel === fullModelA) ? scoreA : scoreB;
-
-  // Residual variance for 95% Confidence Cones (z=1.96)
-  var resSq = 0;
-  for(var i = 0; i < n; i++){
-    var d = values[i] - winnerModel.inSample[i];
-    resSq += d * d;
-  }
-  var stdError = Math.sqrt(resSq / Math.max(1, n - 2));
+  // 3. Generate 95% Confidence Bounds from Final Model Residual Standard Error
+  var resSq = finalModel.sse;
+  var stdError = Math.sqrt(resSq / Math.max(1, n - 3));
 
   var forecastValues = [];
   var upperBounds = [];
   var lowerBounds = [];
-  var futureLabels = generateFutureLabels(labels, horizon);
+  var futureLabels = generateFutureLabels(labels, H);
   var simMult = SIMULATION_STATE.getMultiplier();
 
-  for(var h = 0; h < horizon; h++){
-    var rawVal = winnerModel.forecasts[h] * simMult;
+  for(var h = 0; h < H; h++){
+    var rawVal = finalModel.forecasts[h] * simMult;
+    if(isNonNegative && rawVal < 0) rawVal = 0;
     var pred = Number(rawVal.toFixed(2));
     var coneExp = Math.sqrt(1 + ((h + 1) / n) + Math.pow(h + 1, 2) / (n * 2));
     var marginOfError = 1.96 * stdError * coneExp * (SIMULATION_STATE.active ? Math.sqrt(simMult) : 1);
@@ -1129,17 +1235,43 @@ function runMLForecast(labels, values, horizon){
   var nextCyclePred = forecastValues[0];
   var pctChange = lastActual !== 0 ? ((nextCyclePred - lastActual) / Math.abs(lastActual)) * 100 : 0;
 
+  // 4. Console Logging Validation & Sanity Check
+  console.group('%c📊 WALK-FORWARD BACKTEST & HOLT-WINTERS VALIDATION', 'color: #00E5FF; font-weight: bold; font-size: 12px;');
+  console.log('📌 Original Records Count:', DS.raw ? DS.raw.length : values.length);
+  console.log('📈 Aggregated Time-Series Points:', values.length);
+  console.log('🪟 Training Window Sizes:', backtestResult.error ? 'N/A' : backtestResult.trainWindowSizes.join(', '));
+  console.log('🔁 Number of Backtest Windows:', backtestResult.error ? 0 : backtestResult.evalCount);
+  console.log('🎯 Forecast Horizon:', horizonKey + ' (' + H + ' monthly period' + (H > 1 ? 's' : '') + ')');
+  if(!backtestResult.error){
+    console.log('📉 MAPE (Mean Absolute Percentage Error):', backtestResult.mape.toFixed(2) + '% (Zero-actuals excluded: ' + backtestResult.excludedZeros + ')');
+    console.log('📐 MAE (Mean Absolute Error):', backtestResult.mae.toFixed(2));
+    console.log('📏 RMSE (Root Mean Squared Error):', backtestResult.rmse.toFixed(2));
+    console.log('📊 Out-of-Sample R² (Unseen Backtest):', backtestResult.r2_oos.toFixed(4));
+    console.log('🎯 MAPE-Derived Forecast Accuracy (100 - MAPE):', backtestResult.forecastAccuracy.toFixed(2) + '%');
+  }
+  console.log('⚙️ Optimized Holt-Winters Parameters:', { alpha: finalModel.alpha, beta: finalModel.beta, gamma: finalModel.gamma });
+  console.log('🔮 Final Projected Forecast Values:', forecastValues);
+  console.groupEnd();
+
   return {
-    selectedModel: winnerModel.name,
-    accuracyPct: winnerScore.accuracy.toFixed(1),
-    r2Score: winnerScore.r2.toFixed(2),
-    mapePct: winnerScore.mape.toFixed(1),
+    error: backtestResult.error,
+    message: backtestResult.message,
+    selectedModel: 'Holt-Winters Additive (α=' + finalModel.alpha + ', β=' + finalModel.beta + (finalModel.gamma > 0 ? (', γ=' + finalModel.gamma) : '') + ')',
+    alpha: finalModel.alpha,
+    beta: finalModel.beta,
+    gamma: finalModel.gamma,
+    accuracyPct: backtestResult.error ? null : Number(backtestResult.forecastAccuracy.toFixed(1)),
+    r2Score: backtestResult.error ? null : Number(backtestResult.r2_oos.toFixed(2)),
+    mapePct: backtestResult.error ? null : Number(backtestResult.mape.toFixed(1)),
+    mae: backtestResult.error ? null : Number(backtestResult.mae.toFixed(2)),
+    rmse: backtestResult.error ? null : Number(backtestResult.rmse.toFixed(2)),
+    backtestWindows: backtestResult.error ? 0 : backtestResult.evalCount,
     nextValue: nextCyclePred,
     pctChange: pctChange,
     slope: (nextCyclePred - lastActual) / (lastActual || 1),
     isBullish: pctChange >= 0,
-    confidencePct: winnerScore.accuracy.toFixed(1),
-    horizon: horizon,
+    horizon: H,
+    horizonKey: horizonKey,
     forecastValues: forecastValues,
     upperBounds: upperBounds,
     lowerBounds: lowerBounds,
@@ -1468,95 +1600,118 @@ function renderChartSlot(slotKey, rows){
     var datasets = [];
 
     if(isS1Forecast){
-      var mlResult = runMLForecast(dataObj.labels, dataObj.values, FORECAST_STATE.horizon);
+      var mlResult = runMLForecast(dataObj.labels, dataObj.values, FORECAST_STATE.horizonKey);
       FORECAST_STATE.lastMetrics = mlResult;
-      chartLabels = dataObj.labels.concat(mlResult.futureLabels);
 
-      var grad = ctx.createLinearGradient(0, 0, 0, cvs.height || 220);
-      grad.addColorStop(0, pal[0] + (isArea ? '55' : '22'));
-      grad.addColorStop(1, pal[0] + '00');
+      if(mlResult && !mlResult.error){
+        chartLabels = dataObj.labels.concat(mlResult.futureLabels);
 
-      // 1. Historical Actual Dataset (Solid Neon Line)
-      datasets.push({
-        label: (yCol || 'ACTUAL').toUpperCase(),
-        data: dataObj.values.concat(Array(mlResult.forecastValues.length).fill(null)),
-        borderColor: pal[0],
-        backgroundColor: grad,
-        borderWidth: 2.5,
-        pointRadius: dataObj.labels.length === 1 ? 6 : 3.5,
-        pointHoverRadius: 6,
-        pointBackgroundColor: pal[0],
-        tension: 0.3,
-        fill: isArea
-      });
+        var grad = ctx.createLinearGradient(0, 0, 0, cvs.height || 220);
+        grad.addColorStop(0, pal[0] + (isArea ? '55' : '22'));
+        grad.addColorStop(1, pal[0] + '00');
 
-      // 2. 95% Confidence Lower Bound (Baseline)
-      var lbData = Array(dataObj.values.length - 1).fill(null)
-        .concat([dataObj.values[dataObj.values.length - 1]])
-        .concat(mlResult.lowerBounds);
-      
-      datasets.push({
-        label: '95% CONFIDENCE (LOWER)',
-        data: lbData,
-        borderColor: 'transparent',
-        backgroundColor: 'transparent',
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        borderWidth: 0,
-        fill: false
-      });
+        // 1. Historical Actual Dataset (Solid Neon Line)
+        datasets.push({
+          label: (yCol || 'ACTUAL').toUpperCase(),
+          data: dataObj.values.concat(Array(mlResult.forecastValues.length).fill(null)),
+          borderColor: pal[0],
+          backgroundColor: grad,
+          borderWidth: 2.5,
+          pointRadius: dataObj.labels.length === 1 ? 6 : 3.5,
+          pointHoverRadius: 6,
+          pointBackgroundColor: pal[0],
+          tension: 0.3,
+          fill: isArea
+        });
 
-      // 3. 95% Confidence Upper Bound Cone (Translucent shaded area between bounds)
-      var ubData = Array(dataObj.values.length - 1).fill(null)
-        .concat([dataObj.values[dataObj.values.length - 1]])
-        .concat(mlResult.upperBounds);
+        // 2. 95% Confidence Lower Bound (Baseline)
+        var lbData = Array(dataObj.values.length - 1).fill(null)
+          .concat([dataObj.values[dataObj.values.length - 1]])
+          .concat(mlResult.lowerBounds);
+        
+        datasets.push({
+          label: '95% CONFIDENCE (LOWER)',
+          data: lbData,
+          borderColor: 'transparent',
+          backgroundColor: 'transparent',
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          borderWidth: 0,
+          fill: false
+        });
 
-      datasets.push({
-        label: '95% CONFIDENCE CONE (UPPER)',
-        data: ubData,
-        borderColor: 'transparent',
-        backgroundColor: 'rgba(0, 229, 255, 0.14)',
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        borderWidth: 0,
-        fill: '-1' // Fills to Lower Bound dataset
-      });
+        // 3. 95% Confidence Upper Bound Cone (Translucent shaded area between bounds)
+        var ubData = Array(dataObj.values.length - 1).fill(null)
+          .concat([dataObj.values[dataObj.values.length - 1]])
+          .concat(mlResult.upperBounds);
 
-      // 4. Forecasted Horizon (Dotted / Dashed glowing line)
-      var fcData = Array(dataObj.values.length - 1).fill(null)
-        .concat([dataObj.values[dataObj.values.length - 1]])
-        .concat(mlResult.forecastValues);
+        datasets.push({
+          label: '95% CONFIDENCE CONE (UPPER)',
+          data: ubData,
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(0, 229, 255, 0.14)',
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          borderWidth: 0,
+          fill: '-1' // Fills to Lower Bound dataset
+        });
 
-      datasets.push({
-        label: '🔮 AI FORECAST (PROJECTED)',
-        data: fcData,
-        borderColor: '#00E5FF',
-        borderDash: [6, 4],
-        borderWidth: 2.5,
-        pointRadius: 4.5,
-        pointHoverRadius: 7,
-        pointBackgroundColor: '#00E5FF',
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 1.5,
-        tension: 0.3,
-        fill: false
-      });
+        // 4. Forecasted Horizon (Dotted / Dashed glowing line)
+        var fcData = Array(dataObj.values.length - 1).fill(null)
+          .concat([dataObj.values[dataObj.values.length - 1]])
+          .concat(mlResult.forecastValues);
 
-      // Update Real-Time Accuracy HUD Pill in Header
-      var badgeEl = g('ml-accuracy-badge');
-      var badgeTextEl = g('ml-accuracy-text');
-      if(badgeEl && badgeTextEl){
-        badgeEl.classList.remove('hidden', 'accuracy-badge-green', 'accuracy-badge-cyan', 'accuracy-badge-amber');
-        badgeEl.classList.add('inline-flex');
-        badgeTextEl.textContent = '🎯 ACCURACY: ' + mlResult.accuracyPct + '% | R²: ' + mlResult.r2Score + ' | MAPE: ±' + mlResult.mapePct + '%';
-        badgeEl.title = 'Model: ' + mlResult.selectedModel + ' | Error: ±' + mlResult.mapePct + '%';
-        var accNum = parseFloat(mlResult.accuracyPct) || 0;
-        if(accNum >= 90){
-          badgeEl.classList.add('accuracy-badge-green');
-        } else if(accNum >= 75){
-          badgeEl.classList.add('accuracy-badge-cyan');
-        } else {
-          badgeEl.classList.add('accuracy-badge-amber');
+        datasets.push({
+          label: '🔮 FORECAST (' + FORECAST_STATE.horizonKey + ' PROJECTED)',
+          data: fcData,
+          borderColor: '#00E5FF',
+          borderDash: [6, 4],
+          borderWidth: 2.5,
+          pointRadius: 4.5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#00E5FF',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          tension: 0.3,
+          fill: false
+        });
+
+        // Update Real-Time Accuracy HUD Pill in Header
+        var badgeEl = g('ml-accuracy-badge');
+        var badgeTextEl = g('ml-accuracy-text');
+        if(badgeEl && badgeTextEl){
+          badgeEl.classList.remove('hidden', 'accuracy-badge-green', 'accuracy-badge-cyan', 'accuracy-badge-amber');
+          badgeEl.classList.add('inline-flex');
+
+          var accTxt = (mlResult.accuracyPct !== null) ? (mlResult.accuracyPct.toFixed(1) + '%') : 'N/A';
+          var r2Txt = (mlResult.r2Score !== null) ? mlResult.r2Score.toFixed(2) : 'N/A';
+          var mapeTxt = (mlResult.mapePct !== null) ? ('±' + mlResult.mapePct.toFixed(1) + '%') : 'N/A';
+          var maeTxt = (mlResult.mae !== null) ? fmtN(mlResult.mae) : 'N/A';
+          var rmseTxt = (mlResult.rmse !== null) ? fmtN(mlResult.rmse) : 'N/A';
+
+          badgeTextEl.innerHTML = '<span class="uppercase tracking-wide text-[9px] opacity-70">MAPE-DERIVED FORECAST ACCURACY</span> <span class="font-bold text-sm">' + accTxt + '</span>' +
+            ' &nbsp;|&nbsp; <span class="opacity-70">OOS R²</span> <span class="font-bold">' + r2Txt + '</span>' +
+            ' &nbsp;|&nbsp; <span class="opacity-70">MAPE</span> <span class="font-bold">' + mapeTxt + '</span>' +
+            ' &nbsp;|&nbsp; <span class="opacity-70">MAE</span> <span class="font-bold">' + maeTxt + '</span>' +
+            ' &nbsp;|&nbsp; <span class="opacity-70">RMSE</span> <span class="font-bold">' + rmseTxt + '</span>';
+          badgeEl.title = 'Walk-Forward Backtest (' + FORECAST_STATE.horizonKey + ') | Model: ' + mlResult.selectedModel + ' | ' + mlResult.backtestWindows + ' backtest windows';
+
+          var accNum = parseFloat(mlResult.accuracyPct) || 0;
+          if(accNum >= 85){
+            badgeEl.classList.add('accuracy-badge-green');
+          } else if(accNum >= 70){
+            badgeEl.classList.add('accuracy-badge-cyan');
+          } else {
+            badgeEl.classList.add('accuracy-badge-amber');
+          }
+        }
+      } else if(mlResult && mlResult.error){
+        var badgeEl = g('ml-accuracy-badge');
+        var badgeTextEl = g('ml-accuracy-text');
+        if(badgeEl && badgeTextEl){
+          badgeEl.classList.remove('hidden', 'accuracy-badge-green', 'accuracy-badge-cyan');
+          badgeEl.classList.add('inline-flex', 'accuracy-badge-amber');
+          badgeTextEl.textContent = '⚠️ ' + mlResult.message;
         }
       }
     } else {
@@ -1899,24 +2054,27 @@ function updateLBs(rows){
 
 function updateInsight(rows){
   var parts=[];
-  if(SIMULATION_STATE.active && FORECAST_STATE.lastMetrics){
+  if(SIMULATION_STATE.active && FORECAST_STATE.lastMetrics && !FORECAST_STATE.lastMetrics.error){
     var m = FORECAST_STATE.lastMetrics;
     var simMult = SIMULATION_STATE.getMultiplier();
     var netScale = ((simMult - 1) * 100).toFixed(1);
     var metricName = (SLOTS.s1.yCol || 'METRIC').toUpperCase();
-    var insightText = '🔮 FUTURE_SIMULATION (+90D): Synthesized forward state (Horizon: Next 3-6 Months). Projected ' + metricName + ': ~' + fmtN(m.nextValue) + 
+    var insightText = '🔮 FUTURE_SIMULATION (+90D): Forward state (Horizon: ' + FORECAST_STATE.horizonKey + '). Projected ' + metricName + ': ~' + fmtN(m.nextValue) + 
       ' | Levers: Momentum (' + (SIMULATION_STATE.levers.momentum >= 0 ? '+' : '') + SIMULATION_STATE.levers.momentum + '%), Seasonality (' + 
-      SIMULATION_STATE.levers.seasonality.toFixed(2) + 'x), Net Impact (' + (simMult >= 1 ? '+' : '') + netScale + '%). Model Accuracy: ' + m.accuracyPct + '%';
+      SIMULATION_STATE.levers.seasonality.toFixed(2) + 'x), Net Impact (' + (simMult >= 1 ? '+' : '') + netScale + '%). Model: ' + m.selectedModel + ' | Walk-Forward Accuracy: ' + (m.accuracyPct !== null ? (m.accuracyPct.toFixed(1) + '%') : 'N/A');
     g('insight').textContent = insightText;
     return;
   }
-  if(FORECAST_STATE.enabled && FORECAST_STATE.lastMetrics){
+  if(FORECAST_STATE.enabled && FORECAST_STATE.lastMetrics && !FORECAST_STATE.lastMetrics.error){
     var m = FORECAST_STATE.lastMetrics;
     var trendIcon = m.isBullish ? '▲' : '▼';
     var trendLabel = m.isBullish ? 'Bullish' : 'Bearish';
     var sign = m.pctChange >= 0 ? '+' : '';
     var metricName = (SLOTS.s1.yCol || 'METRIC').toUpperCase();
-    var insightText = 'AI_PREDICTION: Projected ' + metricName + ' value for next cycle: ~' + fmtN(m.nextValue) + ' (Trend: [' + trendIcon + ' ' + trendLabel + ' | Slope: ' + sign + m.pctChange.toFixed(1) + '%]). Model: ' + (m.selectedModel || 'Adaptive Ensemble') + ' | Accuracy: ' + m.accuracyPct + '% (R²: ' + m.r2Score + ' | MAPE: ±' + m.mapePct + '%)';
+    var insightText = 'AI_PREDICTION (' + FORECAST_STATE.horizonKey + ' Horizon): Projected ' + metricName + ' for next period: ~' + fmtN(m.nextValue) + 
+      ' (Trend: [' + trendIcon + ' ' + trendLabel + ' | Slope: ' + sign + m.pctChange.toFixed(1) + '%]). Walk-Forward Out-of-Sample Accuracy: ' + 
+      (m.accuracyPct !== null ? (m.accuracyPct.toFixed(1) + '%') : 'N/A') + ' (R²: ' + (m.r2Score !== null ? m.r2Score.toFixed(2) : 'N/A') + 
+      ', MAPE: ±' + (m.mapePct !== null ? m.mapePct.toFixed(1) + '%' : 'N/A') + ', MAE: ' + fmtN(m.mae) + ', RMSE: ' + fmtN(m.rmse) + ') across ' + m.backtestWindows + ' backtest windows.';
     g('insight').textContent = insightText;
     return;
   }
@@ -2188,6 +2346,27 @@ if(mlForecastBtn){
   });
 }
 
+/* Forecast Horizon Selector Listener (30D, 60D, 90D) */
+document.querySelectorAll('.fc-horizon-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    triggerNeonShockwave(this);
+    var hKey = this.dataset.horizon;
+    if(hKey){
+      FORECAST_STATE.horizonKey = hKey;
+      document.querySelectorAll('.fc-horizon-btn').forEach(function(b){
+        b.classList.remove('active', 'bg-primary', 'text-on-primary');
+      });
+      this.classList.add('active', 'bg-primary', 'text-on-primary');
+      if(!FORECAST_STATE.enabled){
+        FORECAST_STATE.enabled = true;
+        var fcBtn = g('btn-ml-forecast');
+        if(fcBtn) fcBtn.classList.add('active');
+      }
+      dash();
+    }
+  });
+});
+
 ['s1','s2','s3','s4'].forEach(function(sKey){
   g('ax-x-' + sKey).addEventListener('change', function(e){ SLOTS[sKey].xCol = e.target.value; dash(); });
   g('ax-y-' + sKey).addEventListener('change', function(e){ SLOTS[sKey].yCol = e.target.value; dash(); });
@@ -2377,7 +2556,58 @@ g('btn-clr').addEventListener('click',function(){
 var DS1='Order_ID,Date,Product,Category,Brand,Channel,State,Revenue,Units,Rating\n1001,2023-01-05,Hydra Serum,Skincare,Luminos,Online,California,189.99,2,4.8\n1002,2023-01-12,Neon Toner,Skincare,CyberCorp,Retail,Texas,79.50,1,4.6\n1003,2023-01-18,Matte Lipstick,Makeup,Luminos,Online,New York,45.00,3,4.9\n1004,2023-02-03,Power Cream,Haircare,NovaBrand,Online,Florida,134.00,2,4.3\n1005,2023-02-14,Glow Drops,Skincare,CyberCorp,B2B,California,220.00,1,5.0\n1006,2023-02-22,Boost Shampoo,Haircare,Luminos,Retail,Texas,58.00,4,4.2\n1007,2023-03-07,Eye Matrix,Makeup,CyberCorp,Online,New York,99.00,2,4.7\n1008,2023-03-15,Repair Mask,Skincare,NovaBrand,Retail,Florida,77.50,3,4.4\n1009,2023-03-28,Lip Plump,Makeup,Luminos,Online,California,55.00,5,4.8\n1010,2023-04-05,Hydra Serum,Skincare,Luminos,B2B,Texas,380.00,4,4.9\n1011,2023-04-11,Neon Toner,Skincare,CyberCorp,Online,New York,79.50,2,4.6\n1012,2023-04-20,Ultra Gloss,Makeup,CyberCorp,Retail,Florida,39.00,6,4.5\n1013,2023-05-02,Root Booster,Haircare,NovaBrand,Online,California,91.00,3,4.3\n1014,2023-05-16,Glow Drops,Skincare,CyberCorp,Online,Texas,220.00,2,5.0\n1015,2023-05-25,Power Cream,Haircare,Luminos,Retail,New York,134.00,1,4.1\n1016,2023-06-04,Hydra Serum,Skincare,Luminos,Online,Florida,189.99,3,4.8\n1017,2023-06-18,Eye Matrix,Makeup,CyberCorp,B2B,California,297.00,3,4.7\n1018,2023-06-28,Boost Shampoo,Haircare,NovaBrand,Retail,Texas,58.00,2,4.2\n1019,2023-07-09,Matte Lipstick,Makeup,Luminos,Online,New York,135.00,3,4.9\n1020,2023-07-20,Repair Mask,Skincare,NovaBrand,Online,Florida,77.50,4,4.4\n1021,2023-08-01,Hydra Serum,Skincare,Luminos,Retail,California,189.99,1,4.8\n1022,2023-08-14,Ultra Gloss,Makeup,CyberCorp,Online,Texas,78.00,2,4.5\n1023,2023-08-27,Root Booster,Haircare,NovaBrand,B2B,New York,273.00,3,4.3\n1024,2023-09-06,Neon Toner,Skincare,CyberCorp,Retail,Florida,79.50,3,4.6\n1025,2023-09-19,Glow Drops,Skincare,CyberCorp,Online,California,440.00,2,5.0\n1026,2023-10-03,Power Cream,Haircare,Luminos,Online,Texas,134.00,4,4.1\n1027,2023-10-16,Eye Matrix,Makeup,CyberCorp,Retail,New York,99.00,1,4.7\n1028,2023-11-01,Lip Plump,Makeup,Luminos,Online,Florida,110.00,2,4.8\n1029,2023-11-22,Hydra Serum,Skincare,Luminos,B2B,California,569.97,3,4.8\n1030,2023-12-10,Boost Shampoo,Haircare,NovaBrand,Online,Texas,116.00,2,4.2';
 var DS2='emp_id,name,department,role,join_date,salary,is_active,location\n1,Alice Chen,Engineering,Senior Engineer,2020-03-15,95000,true,San Francisco\n2,Bob Smith,Marketing,Marketing Manager,2019-07-01,72000,false,New York\n3,Carol Williams,Engineering,Junior Engineer,2022-01-10,65000,true,Austin\n4,David Lee,Sales,Account Executive,2018-11-20,80000,true,Chicago\n5,Eva Martinez,HR,HR Specialist,2021-06-05,58000,false,Remote\n6,Frank Brown,Engineering,Tech Lead,2017-04-12,115000,true,San Francisco\n7,Grace Kim,Marketing,Content Writer,2023-02-28,55000,true,New York\n8,Henry Liu,Sales,Sales Director,2016-09-01,130000,false,Chicago\n9,Iris Patel,Engineering,DevOps Engineer,2021-10-15,88000,true,Austin\n10,James Wilson,Finance,Financial Analyst,2020-05-22,70000,true,New York\n11,Karen Davis,Engineering,Senior Engineer,2019-03-07,98000,false,San Francisco\n12,Liam Johnson,Sales,Account Executive,2022-08-14,75000,true,Chicago\n13,Maya Thompson,Marketing,Marketing Director,2015-12-01,145000,true,New York\n14,Noah Anderson,Engineering,Junior Engineer,2023-07-03,62000,true,Austin\n15,Olivia Taylor,HR,HR Manager,2018-02-19,82000,true,Remote\n16,Paul Jackson,Finance,CFO,2014-06-30,200000,true,New York\n17,Quinn White,Engineering,Backend Engineer,2020-11-01,90000,false,Austin\n18,Rachel Harris,Sales,Account Executive,2021-04-18,76000,true,Chicago\n19,Sam Clark,Marketing,SEO Specialist,2022-03-25,60000,true,Remote\n20,Tina Lewis,Engineering,Frontend Engineer,2019-09-12,87000,true,San Francisco';
 var DS3='tx_id,date,coin,exchange,tx_type,amount_usd,fee_usd,wallet_region\nTX001,2023-01-03,Bitcoin,Binance,Buy,15200,12.50,North America\nTX002,2023-01-07,Ethereum,Coinbase,Sell,3100,8.20,Europe\nTX003,2023-01-12,Solana,Kraken,Buy,980,4.10,Asia\nTX004,2023-01-19,Bitcoin,Binance,Sell,28900,22.80,North America\nTX005,2023-02-01,Ethereum,Coinbase,Buy,5250,14.00,Europe\nTX006,2023-02-08,Cardano,Binance,Buy,340,1.80,Africa\nTX007,2023-02-15,Bitcoin,Kraken,Buy,19500,16.20,Asia\nTX008,2023-02-28,Solana,FTX,Sell,1420,6.50,North America\nTX009,2023-03-05,Ethereum,Coinbase,Sell,4800,11.40,Europe\nTX010,2023-03-11,Bitcoin,Binance,Buy,24100,19.50,North America\nTX011,2023-03-20,Cardano,Kraken,Sell,520,2.60,Asia\nTX012,2023-04-02,Solana,Binance,Buy,2100,9.20,Europe\nTX013,2023-04-18,Bitcoin,Coinbase,Sell,31600,24.10,North America\nTX014,2023-05-05,Ethereum,Kraken,Buy,7100,17.80,Africa\nTX015,2023-05-22,Bitcoin,Binance,Buy,27400,21.30,Asia\nTX016,2023-06-08,Cardano,Coinbase,Buy,720,3.40,Europe\nTX017,2023-06-25,Solana,Binance,Sell,3400,12.80,North America\nTX018,2023-07-12,Ethereum,Kraken,Buy,8200,20.10,Asia\nTX019,2023-07-28,Bitcoin,Binance,Sell,29800,23.40,North America\nTX020,2023-08-14,Solana,Coinbase,Buy,2850,10.90,Europe';
+var DS4='session_id,created_at,utm_source,device,country,pageviews,session_count\n' +
+  'S101,2022-01-08 09:30:00,Google Search,Desktop,USA,4500,1200\n' +
+  'S102,2022-01-22 14:15:00,Direct,Mobile,Germany,3200,950\n' +
+  'S103,2022-02-05 11:00:00,Google Search,Desktop,USA,4900,1320\n' +
+  'S104,2022-02-18 16:45:00,Paid Social,Mobile,UK,3800,1050\n' +
+  'S105,2022-03-09 10:20:00,Google Search,Desktop,USA,5600,1500\n' +
+  'S106,2022-03-24 15:30:00,Direct,Mobile,Canada,4100,1180\n' +
+  'S107,2022-04-07 08:45:00,Google Search,Desktop,USA,6100,1650\n' +
+  'S108,2022-04-21 13:10:00,Organic Social,Mobile,Germany,4500,1290\n' +
+  'S109,2022-05-04 12:00:00,Google Search,Desktop,USA,6800,1820\n' +
+  'S110,2022-05-19 17:25:00,Direct,Mobile,UK,4900,1400\n' +
+  'S111,2022-06-06 09:15:00,Google Search,Desktop,USA,7400,1980\n' +
+  'S112,2022-06-20 14:40:00,Paid Social,Mobile,Canada,5300,1520\n' +
+  'S113,2022-07-08 11:30:00,Google Search,Desktop,USA,7900,2100\n' +
+  'S114,2022-07-23 16:00:00,Direct,Mobile,Germany,5600,1610\n' +
+  'S115,2022-08-05 10:50:00,Google Search,Desktop,USA,8300,2230\n' +
+  'S116,2022-08-19 15:15:00,Paid Social,Mobile,UK,5900,1690\n' +
+  'S117,2022-09-07 09:40:00,Google Search,Desktop,USA,7800,2080\n' +
+  'S118,2022-09-22 14:05:00,Direct,Mobile,Canada,5500,1580\n' +
+  'S119,2022-10-06 11:15:00,Google Search,Desktop,USA,7200,1920\n' +
+  'S120,2022-10-20 16:30:00,Organic Social,Mobile,Germany,5100,1460\n' +
+  'S121,2022-11-04 10:00:00,Google Search,Desktop,USA,8600,2300\n' +
+  'S122,2022-11-18 15:45:00,Paid Social,Mobile,UK,6200,1780\n' +
+  'S123,2022-12-05 09:20:00,Google Search,Desktop,USA,9800,2650\n' +
+  'S124,2022-12-19 14:10:00,Direct,Mobile,USA,7100,2010\n' +
+  'S125,2023-01-07 10:30:00,Google Search,Desktop,USA,5800,1550\n' +
+  'S126,2023-01-21 15:00:00,Direct,Mobile,Germany,4200,1210\n' +
+  'S127,2023-02-04 11:45:00,Google Search,Desktop,USA,6400,1710\n' +
+  'S128,2023-02-18 16:20:00,Paid Social,Mobile,UK,4700,1330\n' +
+  'S129,2023-03-08 09:10:00,Google Search,Desktop,USA,7300,1950\n' +
+  'S130,2023-03-22 14:35:00,Direct,Mobile,Canada,5200,1490\n' +
+  'S131,2023-04-05 10:00:00,Google Search,Desktop,USA,7900,2120\n' +
+  'S132,2023-04-19 15:25:00,Organic Social,Mobile,Germany,5700,1630\n' +
+  'S133,2023-05-03 11:15:00,Google Search,Desktop,USA,8700,2340\n' +
+  'S134,2023-05-17 16:40:00,Direct,Mobile,UK,6300,1790\n' +
+  'S135,2023-06-07 09:50:00,Google Search,Desktop,USA,9500,2550\n' +
+  'S136,2023-06-21 14:15:00,Paid Social,Mobile,Canada,6800,1940\n' +
+  'S137,2023-07-05 10:40:00,Google Search,Desktop,USA,10200,2740\n' +
+  'S138,2023-07-19 15:05:00,Direct,Mobile,Germany,7300,2080\n' +
+  'S139,2023-08-09 11:20:00,Google Search,Desktop,USA,10700,2890\n' +
+  'S140,2023-08-23 16:50:00,Paid Social,Mobile,UK,7700,2190\n' +
+  'S141,2023-09-06 09:30:00,Google Search,Desktop,USA,10100,2700\n' +
+  'S142,2023-09-20 14:00:00,Direct,Mobile,Canada,7200,2040\n' +
+  'S143,2023-10-04 10:15:00,Google Search,Desktop,USA,9300,2480\n' +
+  'S144,2023-10-18 15:35:00,Organic Social,Mobile,Germany,6700,1890\n' +
+  'S145,2023-11-08 11:00:00,Google Search,Desktop,USA,11200,3010\n' +
+  'S146,2023-11-22 16:25:00,Paid Social,Mobile,UK,8100,2320\n' +
+  'S147,2023-12-06 09:45:00,Google Search,Desktop,USA,12800,3450\n' +
+  'S148,2023-12-20 14:30:00,Direct,Mobile,USA,9200,2610';
 
+var btnSessions = g('d-sessions');
+if(btnSessions) btnSessions.addEventListener('click',function(){parseCSV(DS4,'demo_website_sessions.csv');});
 g('d-sales').addEventListener('click',function(){parseCSV(DS1,'demo_ecommerce.csv');});
 g('d-hr').addEventListener('click',function(){parseCSV(DS2,'demo_hr.csv');});
 g('d-crypto').addEventListener('click',function(){parseCSV(DS3,'demo_crypto.csv');});
