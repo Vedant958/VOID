@@ -848,6 +848,11 @@ var SIMULATION_STATE = {
     if(!this.active) return 1.0;
     var m = (1 + (this.levers.momentum / 100)) * this.levers.seasonality * this.levers.expansion;
     return Math.max(0.15, m);
+  },
+  getGlobalGrowthFactor: function(){
+    if(!this.active) return 1.0;
+    var baseTrendGrowth = 1.15; // +15% baseline forward forecast cycle
+    return Math.max(0.1, baseTrendGrowth * this.getMultiplier());
   }
 };
 
@@ -1404,9 +1409,17 @@ function renderChartSlot(slotKey, rows){
     dataObj = { labels: topC.map(function(e){return e[0];}), values: topC.map(function(e){return e[1];}) };
   }
 
-  if(SIMULATION_STATE.active && slotKey !== 's1'){
-    var simMult = SIMULATION_STATE.getMultiplier();
-    dataObj.values = dataObj.values.map(function(v){ return Number((v * simMult).toFixed(2)); });
+  var isSim = SIMULATION_STATE.active;
+  var G = isSim ? SIMULATION_STATE.getGlobalGrowthFactor() : 1.0;
+
+  if(isSim && slotKey !== 's1'){
+    var totalVals = dataObj.values.length;
+    dataObj.values = dataObj.values.map(function(v, idx){
+      // Differential category momentum: top categories get slight growth velocity
+      var trendWeight = totalVals > 1 ? (1 + (Math.floor(totalVals / 2) - idx) * 0.035) : 1.0;
+      var scaled = v * G * trendWeight;
+      return Number(Math.max(0, scaled).toFixed(2));
+    });
   }
 
   var ctx = cvs.getContext('2d');
@@ -1414,7 +1427,7 @@ function renderChartSlot(slotKey, rows){
 
   if(cfg.type === 'line' || cfg.type === 'area'){
     var isArea = cfg.type === 'area';
-    var isS1Forecast = (slotKey === 's1' && (FORECAST_STATE.enabled || SIMULATION_STATE.active) && dataObj.values.length >= 2);
+    var isS1Forecast = (slotKey === 's1' && (FORECAST_STATE.enabled || isSim) && dataObj.values.length >= 2);
     var chartLabels = dataObj.labels;
     var datasets = [];
 
@@ -1524,12 +1537,12 @@ function renderChartSlot(slotKey, rows){
       grad.addColorStop(1, pal[0] + '00');
 
       datasets.push({
-        label: yCol.toUpperCase(),
+        label: (isSim ? '[PROJ] ' : '') + yCol.toUpperCase(),
         data: dataObj.values,
         borderColor: pal[0],
         backgroundColor: grad,
-        borderWidth: 2,
-        pointRadius: dataObj.labels.length === 1 ? 6 : 3,
+        borderWidth: isSim ? 2.5 : 2,
+        pointRadius: dataObj.labels.length === 1 ? 6 : (isSim ? 4 : 3),
         pointBackgroundColor: pal[0],
         tension: 0.3,
         fill: true
@@ -1544,7 +1557,7 @@ function renderChartSlot(slotKey, rows){
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        animation: { duration: isS1Forecast ? 400 : 600, easing: 'easeOutQuart' },
+        animation: { duration: (isS1Forecast || isSim) ? 400 : 600, easing: 'easeOutQuart' },
         plugins: {
           legend: isS1Forecast ? {
             display: true,
@@ -1562,7 +1575,7 @@ function renderChartSlot(slotKey, rows){
             callbacks: {
               label: function(c){
                 if(c.parsed.y === null || c.parsed.y === undefined) return '';
-                return ' ' + c.dataset.label + ': ' + fmtN(c.parsed.y);
+                return ' ' + (isSim ? '[PROJ] ' : '') + c.dataset.label + ': ' + fmtN(c.parsed.y);
               }
             }
           })
@@ -1579,18 +1592,28 @@ function renderChartSlot(slotKey, rows){
       data: {
         labels: dataObj.labels,
         datasets: [{
-          label: yCol.toUpperCase(),
+          label: (isSim ? '[PROJ] ' : '') + yCol.toUpperCase(),
           data: dataObj.values,
           maxBarThickness: 45,
-          backgroundColor: dataObj.labels.map(function(_, i){ return pal[i % pal.length] + 'CC'; }),
-          borderColor: dataObj.labels.map(function(_, i){ return pal[i % pal.length]; }),
-          borderWidth: 1, borderRadius: 2
+          backgroundColor: dataObj.labels.map(function(_, i){ return pal[i % pal.length] + (isSim ? 'EE' : 'CC'); }),
+          borderColor: dataObj.labels.map(function(_, i){ return isSim ? '#8B5CF6' : pal[i % pal.length]; }),
+          borderWidth: isSim ? 2 : 1,
+          borderRadius: isSim ? 4 : 2
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        animation: { duration: 600, easing: 'easeOutQuart' },
-        plugins: { legend: { display: false }, tooltip: TT },
+        animation: { duration: isSim ? 400 : 600, easing: 'easeOutQuart' },
+        plugins: {
+          legend: { display: false },
+          tooltip: Object.assign({}, TT, {
+            callbacks: {
+              label: function(c){
+                return ' ' + (isSim ? '[PROJ] ' : '') + c.dataset.label + ': ' + fmtN(c.parsed.y);
+              }
+            }
+          })
+        },
         scales: {
           x: { grid: { display: false }, ticks: { font: { family: MN, size: 9 }, color: '#6b7c68', maxTicksLimit: 10, maxRotation: 40 } },
           y: { grid: gridOpts, ticks: { font: { family: MN, size: 9 }, color: '#6b7c68', callback: function(v){ return fmtN(v); } } }
@@ -1602,21 +1625,23 @@ function renderChartSlot(slotKey, rows){
     CHS[cfg.canvasId] = new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels: isSingleCat ? [dataObj.labels[0] + ' (100%)'] : dataObj.labels,
+        labels: isSingleCat ? [(isSim ? '[PROJ] ' : '') + dataObj.labels[0] + ' (100%)'] : dataObj.labels,
         datasets: [{
           data: dataObj.values,
           backgroundColor: dataObj.labels.map(function(_, i){ return pal[i % pal.length] + 'DD'; }),
-          borderColor: '#fff', borderWidth: 2, hoverOffset: 6
+          borderColor: isSim ? '#8B5CF6' : '#fff',
+          borderWidth: isSim ? 2.5 : 2,
+          hoverOffset: 6
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: '62%',
-        animation: { duration: 600, easing: 'easeOutQuart' },
+        animation: { duration: isSim ? 400 : 600, easing: 'easeOutQuart' },
         plugins: {
           legend: { position: 'bottom', labels: { font: { family: MN, size: 9 }, color: '#6b7c68', boxWidth: 8, padding: 6 } },
           tooltip: Object.assign({}, TT, { callbacks: { label: function(c){
             var t = c.dataset.data.reduce(function(a,b){return a+b;},0);
-            return ' ' + fmtN(c.parsed) + ' (' + (t?((c.parsed/t)*100).toFixed(1):0) + '%)';
+            return ' ' + (isSim ? '[PROJ] ' : '') + fmtN(c.parsed) + ' (' + (t?((c.parsed/t)*100).toFixed(1):0) + '%)';
           }}})
         }
       }
@@ -1626,11 +1651,15 @@ function renderChartSlot(slotKey, rows){
 
 function renderTableSlot(tblContainer, cfg, rows){
   var xCol = cfg.xCol, yCol = cfg.yCol;
+  var isSim = SIMULATION_STATE.active;
+  var G = isSim ? SIMULATION_STATE.getGlobalGrowthFactor() : 1.0;
   var isYNumeric = yCol !== COUNT_METRIC_KEY && PROF[yCol] && PROF[yCol].type === 'NUMERIC';
   var top = isYNumeric ? topSum(rows, xCol, yCol, 15) : topCnt(rows, xCol, 15);
-  var html = '<table class="hud-table"><thead><tr><th>' + (xCol||'Dimension').toUpperCase() + '</th><th>' + (yCol||'Measure').toUpperCase() + '</th></tr></thead><tbody>';
+  var colTitle = (isSim ? '[PROJ] ' : '') + (yCol || 'Measure').toUpperCase();
+  var html = '<table class="hud-table"><thead><tr><th>' + (xCol||'Dimension').toUpperCase() + '</th><th>' + colTitle + '</th></tr></thead><tbody>';
   top.forEach(function(row){
-    html += '<tr><td>' + row[0] + '</td><td>' + fmtN(row[1]) + '</td></tr>';
+    var val = isSim ? (row[1] * G) : row[1];
+    html += '<tr><td>' + row[0] + '</td><td>' + fmtN(val) + '</td></tr>';
   });
   html += '</tbody></table>';
   tblContainer.innerHTML = html;
