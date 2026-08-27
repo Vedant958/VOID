@@ -1659,12 +1659,31 @@ function updateAxesDropdowns(){
 }
 
 function updateKPIs(rows){
-  var total=rows.length,cols=DS.cols;
+  var total = rows.length, cols = DS.cols;
   var isSim = SIMULATION_STATE.active;
   var simMult = SIMULATION_STATE.getMultiplier();
-  var simGrowthPct = ((simMult - 1) * 100).toFixed(1);
-  var simSign = simMult >= 1 ? '+' : '';
-  var simTrendHtml = '<span class="material-symbols-outlined text-xs text-[#8B5CF6]">magic_button</span> <span class="text-[#8B5CF6] font-bold">▲ ' + simSign + simGrowthPct + '% (Sim +90D)</span>';
+
+  // Dynamic Delta Calculation Function comparing Historical Base vs Simulated Future
+  function makeDeltaBadge(historicalVal, projectedVal, fallbackRate){
+    if(!isSim){
+      return total > 1 ? '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Live' : '● CONSTANT';
+    }
+    var baseRate = fallbackRate !== undefined ? fallbackRate : 1.15;
+    var pVal = projectedVal !== undefined ? projectedVal : (historicalVal * baseRate * simMult);
+    var delta = (historicalVal > 0)
+      ? (((pVal - historicalVal) / historicalVal) * 100)
+      : (((simMult * baseRate) - 1) * 100);
+    
+    var isPositive = delta >= 0;
+    var deltaStr = (isPositive ? '+' : '') + delta.toFixed(1) + '%';
+    var icon = isPositive ? 'trending_up' : 'trending_down';
+    var arrow = isPositive ? '▲' : '▼';
+    var colorHex = isPositive ? '#00FF66' : '#FF3366';
+    var textStyle = isPositive ? 'color:#007128;' : 'color:#e11d48;';
+
+    return '<span class="material-symbols-outlined text-xs" style="color:' + colorHex + '">' + icon + '</span> ' +
+           '<span class="font-bold font-data-mono" style="' + textStyle + '">' + arrow + ' ' + deltaStr + ' (Sim +90D)</span>';
+  }
 
   function getSparkValues(metricCol){
     if(total <= 1) return [];
@@ -1680,83 +1699,112 @@ function updateKPIs(rows){
     return slices;
   }
   
+  // KPI 1: Primary Metric / Revenue
   if(CM.rev){
-    var s=sumC(rows,CM.rev);
-    if(isSim) s = s * simMult * 1.15;
-    g('k1l').textContent = (isSim ? '[PROJ] ' : '') + CM.rev.toUpperCase(); animateCountUp(g('k1v'), fmtN(s));
+    var s = sumC(rows, CM.rev);
+    var pRev = isSim ? (s * 1.15 * simMult) : s;
+    g('k1l').textContent = (isSim ? '[PROJ] ' : '') + CM.rev.toUpperCase();
+    animateCountUp(g('k1v'), fmtN(pRev));
     renderSparkline('k1sf', 'k1sl', getSparkValues(CM.rev));
-    g('k1-delta').innerHTML = isSim ? simTrendHtml : (total > 1 ? '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Live' : '● CONSTANT');
-  }else{
-    var tRev = isSim ? Math.round(total * simMult * 1.2) : total;
-    g('k1l').textContent = (isSim ? '[PROJ] ' : '') + 'TOTAL RECORDS'; animateCountUp(g('k1v'), fmtN(tRev));
+    g('k1-delta').innerHTML = makeDeltaBadge(s, pRev, 1.15);
+  } else {
+    var histRecs = total;
+    var pRecs = isSim ? Math.round(histRecs * 1.12 * simMult) : histRecs;
+    g('k1l').textContent = (isSim ? '[PROJ] ' : '') + 'TOTAL RECORDS';
+    animateCountUp(g('k1v'), fmtN(pRecs));
     renderSparkline('k1sf', 'k1sl', getSparkValues(null));
-    g('k1-delta').innerHTML = isSim ? simTrendHtml : (total > 1 ? '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Active' : '● 1 RECORD');
+    g('k1-delta').innerHTML = makeDeltaBadge(histRecs, pRecs, 1.12);
   }
   
-  var tFiltered = isSim ? Math.round(total * simMult) : total;
-  g('k2l').textContent = (isSim ? '[PROJ] ' : '') + 'TOTAL RECORDS'; animateCountUp(g('k2v'), fmtN(tFiltered));
+  // KPI 2: Total Records / Volume
+  var histTotal = total;
+  var pFiltered = isSim ? Math.round(histTotal * 1.10 * simMult) : histTotal;
+  g('k2l').textContent = (isSim ? '[PROJ] ' : '') + 'TOTAL RECORDS';
+  animateCountUp(g('k2v'), fmtN(pFiltered));
   renderSparkline('k2sf', 'k2sl', getSparkValues(null));
-  g('k2-delta').innerHTML = isSim ? simTrendHtml : (total > 1 ? '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Filtered' : '● 1 RECORD');
+  g('k2-delta').innerHTML = makeDeltaBadge(histTotal, pFiltered, 1.10);
   
+  // KPI 3: Rate / Score / Avg Value
   if(CM.flagCol){
     var trueCnt = rows.filter(function(r){
       var v = r[CM.flagCol];
       return String(v).toLowerCase()==='true'||v==='1'||v===1||String(v).toLowerCase()==='yes';
     }).length;
-    var rate = total ? (trueCnt/total*100).toFixed(1)+'%' : '0%';
-    g('k3l').textContent=((isSim ? '[PROJ] ' : '') + CM.flagCol+' RATE').toUpperCase().slice(0,16); animateCountUp(g('k3v'), rate);
+    var histRate = total ? (trueCnt / total * 100) : 0;
+    var pRate = isSim ? Math.min(100, Math.max(0, histRate * (1 + (simMult - 1) * 0.35))) : histRate;
+    g('k3l').textContent = ((isSim ? '[PROJ] ' : '') + CM.flagCol + ' RATE').toUpperCase().slice(0, 16);
+    animateCountUp(g('k3v'), pRate.toFixed(1) + '%');
     renderSparkline('k3sf', 'k3sl', getSparkValues(CM.flagCol));
-    g('k3-delta').innerHTML = isSim ? simTrendHtml : '<span class="material-symbols-outlined text-xs">check_circle</span> Flag Rate';
+    g('k3-delta').innerHTML = isSim ? makeDeltaBadge(histRate, pRate, 1.05) : '<span class="material-symbols-outlined text-xs">check_circle</span> Flag Rate';
   } else if(CM.rat){
-    var ratVal = isSim ? Math.min(5.0, avgC(rows,CM.rat) * (1 + (simMult - 1)*0.05)).toFixed(2) : avgC(rows,CM.rat).toFixed(2);
-    g('k3l').textContent=((isSim ? '[PROJ] ' : '') + 'AVG '+CM.rat).toUpperCase(); animateCountUp(g('k3v'), ratVal);
+    var histRat = avgC(rows, CM.rat);
+    var pRat = isSim ? Math.min(5.0, Math.max(1.0, histRat * (1 + (simMult - 1) * 0.06))) : histRat;
+    g('k3l').textContent = ((isSim ? '[PROJ] ' : '') + 'AVG ' + CM.rat).toUpperCase();
+    animateCountUp(g('k3v'), pRat.toFixed(2));
     renderSparkline('k3sf', 'k3sl', getSparkValues(CM.rat));
-    g('k3-delta').innerHTML = isSim ? simTrendHtml : '<span class="material-symbols-outlined text-xs">star</span> High Score';
+    g('k3-delta').innerHTML = isSim ? makeDeltaBadge(histRat, pRat, 1.03) : '<span class="material-symbols-outlined text-xs">star</span> High Score';
   } else if(CM.rev){
-    var avgVal = isSim ? avgC(rows,CM.rev) * simMult : avgC(rows,CM.rev);
-    g('k3l').textContent = (isSim ? '[PROJ] ' : '') + 'AVG VALUE'; animateCountUp(g('k3v'), fmtN(avgVal));
+    var histAvg = avgC(rows, CM.rev);
+    var pAvg = isSim ? (histAvg * (1 + (simMult - 1) * 0.45)) : histAvg;
+    g('k3l').textContent = (isSim ? '[PROJ] ' : '') + 'AVG VALUE';
+    animateCountUp(g('k3v'), fmtN(pAvg));
     renderSparkline('k3sf', 'k3sl', getSparkValues(CM.rev));
-    g('k3-delta').innerHTML = isSim ? simTrendHtml : '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Average';
+    g('k3-delta').innerHTML = isSim ? makeDeltaBadge(histAvg, pAvg, 1.08) : '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Average';
   } else {
-    g('k3l').textContent = (isSim ? '[PROJ] ' : '') + 'AVG VALUE'; g('k3v').textContent='—';
+    g('k3l').textContent = (isSim ? '[PROJ] ' : '') + 'AVG VALUE';
+    g('k3v').textContent = '—';
     renderSparkline('k3sf', 'k3sl', []);
-    g('k3-delta').innerHTML = '● CONSTANT';
+    g('k3-delta').innerHTML = isSim ? makeDeltaBadge(1, simMult, 1.0) : '● CONSTANT';
   }
   
+  // KPI 4: Volume / Orders
   if(CM.ord){
-    var oVal = isSim ? sumC(rows,CM.ord) * simMult * 1.1 : sumC(rows,CM.ord);
-    g('k4l').textContent=((isSim ? '[PROJ] ' : '') + 'TOTAL '+CM.ord).toUpperCase(); animateCountUp(g('k4v'), fmtN(oVal));
+    var histOrd = sumC(rows, CM.ord);
+    var pOrd = isSim ? (histOrd * 1.12 * simMult) : histOrd;
+    g('k4l').textContent = ((isSim ? '[PROJ] ' : '') + 'TOTAL ' + CM.ord).toUpperCase();
+    animateCountUp(g('k4v'), fmtN(pOrd));
     renderSparkline('k4sf', 'k4sl', getSparkValues(CM.ord));
-    g('k4-delta').innerHTML = isSim ? simTrendHtml : '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Volume';
+    g('k4-delta').innerHTML = isSim ? makeDeltaBadge(histOrd, pOrd, 1.12) : '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Volume';
   } else {
-    g('k4l').textContent = (isSim ? '[PROJ] ' : '') + 'COLUMNS'; animateCountUp(g('k4v'), cols.length);
+    g('k4l').textContent = (isSim ? '[PROJ] ' : '') + 'COLUMNS';
+    animateCountUp(g('k4v'), cols.length);
     renderSparkline('k4sf', 'k4sl', []);
-    g('k4-delta').innerHTML = '● Schema';
+    g('k4-delta').innerHTML = isSim ? makeDeltaBadge(cols.length, cols.length * simMult, 1.0) : '● Schema';
   }
   
-  var cc=CM.cat||CM.brd||CM.cam;
+  // KPI 5: Unique Categories / Segments
+  var cc = CM.cat || CM.brd || CM.cam;
   if(cc){
-    var u=new Set(rows.map(function(r){return String(r[cc]).trim();})).size;
-    g('k5l').textContent=((isSim ? '[PROJ] ' : '') + 'UNIQ '+cc).toUpperCase().slice(0,15); animateCountUp(g('k5v'), u);
+    var u = new Set(rows.map(function(r){ return String(r[cc]).trim(); })).size;
+    var pUniq = isSim ? Math.max(1, Math.round(u * (1 + (simMult - 1) * 0.15))) : u;
+    g('k5l').textContent = ((isSim ? '[PROJ] ' : '') + 'UNIQ ' + cc).toUpperCase().slice(0, 15);
+    animateCountUp(g('k5v'), pUniq);
     renderSparkline('k5sf', 'k5sl', getSparkValues(cc));
-    g('k5-delta').innerHTML = isSim ? simTrendHtml : (u > 1 ? '<span class="material-symbols-outlined text-xs">category</span> Multi' : '● SINGLE');
+    g('k5-delta').innerHTML = isSim ? makeDeltaBadge(u, pUniq, 1.05) : (u > 1 ? '<span class="material-symbols-outlined text-xs">category</span> Multi' : '● SINGLE');
   } else {
-    g('k5l').textContent = (isSim ? '[PROJ] ' : '') + 'CATEGORIES'; g('k5v').textContent='N/A (Uniform)';
+    g('k5l').textContent = (isSim ? '[PROJ] ' : '') + 'CATEGORIES';
+    g('k5v').textContent = 'N/A (Uniform)';
     renderSparkline('k5sf', 'k5sl', []);
-    g('k5-delta').innerHTML = '● Uniform';
+    g('k5-delta').innerHTML = isSim ? makeDeltaBadge(1, simMult, 1.0) : '● Uniform';
   }
   
-  if(CM.rev&&CM.ord){
-    var ords=sumC(rows,CM.ord);
-    var aovVal = ords ? (sumC(rows,CM.rev)/ords) * (isSim ? (1 + (simMult - 1)*0.2) : 1) : 0;
-    g('k6l').textContent = (isSim ? '[PROJ] ' : '') + 'AVG ORDER VALUE'; animateCountUp(g('k6v'), ords?fmtN(aovVal):'—');
+  // KPI 6: AOV / Unit Val / Null Rate
+  if(CM.rev && CM.ord){
+    var ords = sumC(rows, CM.ord);
+    var histAov = ords ? (sumC(rows, CM.rev) / ords) : 0;
+    var pAov = isSim ? (histAov * (1 + (simMult - 1) * 0.35)) : histAov;
+    g('k6l').textContent = (isSim ? '[PROJ] ' : '') + 'AVG ORDER VALUE';
+    animateCountUp(g('k6v'), ords ? fmtN(pAov) : '—');
     renderSparkline('k6sf', 'k6sl', getSparkValues(CM.rev));
-    g('k6-delta').innerHTML = isSim ? simTrendHtml : '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Unit Val';
+    g('k6-delta').innerHTML = isSim ? makeDeltaBadge(histAov, pAov, 1.05) : '<span class="material-symbols-outlined text-xs">trending_up</span> ▲ Unit Val';
   } else {
-    var nc=0,tc=0;rows.forEach(function(r){cols.forEach(function(c){tc++;if(r[c]===null||r[c]===''||r[c]===undefined)nc++;});});
-    g('k6l').textContent = (isSim ? '[PROJ] ' : '') + 'NULL RATE'; animateCountUp(g('k6v'), (tc?(nc/tc*100).toFixed(1):0)+'%');
+    var nc = 0, tc = 0;
+    rows.forEach(function(r){ cols.forEach(function(c){ tc++; if(r[c]===null||r[c]===''||r[c]===undefined) nc++; }); });
+    var nullRate = tc ? (nc / tc * 100) : 0;
+    g('k6l').textContent = (isSim ? '[PROJ] ' : '') + 'NULL RATE';
+    animateCountUp(g('k6v'), nullRate.toFixed(1) + '%');
     renderSparkline('k6sf', 'k6sl', []);
-    g('k6-delta').innerHTML = '● Quality';
+    g('k6-delta').innerHTML = isSim ? makeDeltaBadge(nullRate, nullRate * (1 - (simMult - 1) * 0.2), 0.95) : '● Quality';
   }
 }
 
@@ -2357,7 +2405,9 @@ function updateSliderValues(){
     SIMULATION_STATE.levers.expansion = e;
     vExp.textContent = e.toFixed(2) + 'x';
   }
-  if(SIMULATION_STATE.active){
+  if(!SIMULATION_STATE.active){
+    setSimulationMode(true);
+  } else {
     dash();
   }
 }
