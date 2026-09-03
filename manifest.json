@@ -1,0 +1,23 @@
+{
+  "name": "VOID — Neural Cyber-Deck",
+  "short_name": "VOID",
+  "description": "A unified underground cyber-deck for open-source intelligence, real-time global acoustic feeds, telemetry visualization, and decentralized media archives.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00dd55",
+  "icons": [
+    {
+      "src": "assets/icon-void.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-void.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
