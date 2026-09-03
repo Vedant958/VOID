@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="VOID — A futuristic cyberpunk interactive experience with living particle systems.">
-  <title>VOID — Cyberpunk Interface</title>
+  <meta name="description" content="VOID — A unified underground cyber-deck for open-source intelligence, real-time global acoustic feeds, telemetry visualization, and decentralized media archives.">
+  <title>VOID — Neural Cyber-Deck v2.4</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -28,6 +28,7 @@
 
   <!-- Scanline overlay -->
   <div class="scanlines"></div>
+  <div class="cyber-overlay"></div>
 
   <!-- Navigation -->
   <nav id="main-nav">
@@ -56,21 +57,21 @@
     <div class="hero-content">
       <div class="hero-tag">
         <span class="tag-decorator">▸</span>
-        <span class="tag-text">SYSTEM.ONLINE // BUILD 2026.4</span>
+        <span class="tag-text">SYSTEM.ONLINE // NEURAL CYBER-DECK v2.4</span>
       </div>
-      <h1 class="hero-title">
+      <h1 class="hero-title scramble-header">
         <span class="title-row">
-          <span class="title-word" style="--d:0">WELCOME</span>
-          <span class="title-word" style="--d:1">TO</span>
-          <span class="title-word" style="--d:2">THE</span>
+          <span class="title-word scramble-target" style="--d:0">WELCOME</span>
+          <span class="title-word scramble-target" style="--d:1">TO</span>
+          <span class="title-word scramble-target" style="--d:2">THE</span>
         </span>
         <span class="title-row">
-          <span class="title-word title-highlight" style="--d:3">VOID</span>
+          <span class="title-word title-highlight scramble-target" style="--d:3">VOID</span>
         </span>
       </h1>
-      <p class="hero-sub type-effect" data-type-text="Scroll to accelerate particles. Move your cursor to interact with the grid. This interface is alive — every input shapes the system."></p>
+      <p class="hero-sub type-effect" data-type-text="A unified underground cyber-deck. Direct interface for open-source intelligence, real-time global acoustic feeds, telemetry visualization, and decentralized media archives."></p>
       <div class="hero-btns">
-        <button id="enter-btn" class="cyber-btn">
+        <button id="enter-btn" class="cyber-btn" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">
           <span class="cyber-btn-text">INITIALIZE</span>
           <span class="cyber-btn-tag">R1</span>
         </button>
@@ -78,6 +79,15 @@
           <span id="particle-count">PARTICLES: 000</span>
           <span id="fps-counter">FPS: 60</span>
         </div>
+      </div>
+
+      <!-- Quick-jump Direct Access Pills -->
+      <div class="hero-access-pills">
+        <span class="pills-label">// DIRECT ACCESS:</span>
+        <a href="worldfm.html" class="access-pill">[📻 WORLD_FM]</a>
+        <a href="eyes.html" class="access-pill">[👁️ EYES_OF_THE_WORLD]</a>
+        <a href="shady.html" class="access-pill access-pill--highlight">[🎬 SHADY_VOID]</a>
+        <a href="datasys.html" class="access-pill">[📊 DATA.SYS]</a>
       </div>
     </div>
     <div class="hero-scroll-hint">
@@ -99,7 +109,7 @@
       </div>
       <div class="about-grid">
         <div class="about-main" data-reveal>
-          <h2 class="section-title">THE SYSTEM<br><span class="title-highlight">RESPONDS</span></h2>
+          <h2 class="section-title scramble-header"><span class="scramble-target">THE SYSTEM</span><br><span class="title-highlight scramble-target">RESPONDS</span></h2>
           <p class="section-body section-body--white type-effect" data-type-text="This isn't a static page — it's a reactive environment. Every scroll, every cursor movement, every interaction feeds into the particle simulation running behind these words."></p>
           <p class="section-body section-body--white type-effect" data-type-text="Built with raw canvas rendering and real-time physics, the cyberpunk grid adapts to your behavior. Scroll faster — particles accelerate. Stop — they drift to silence."></p>
         </div>
@@ -122,6 +132,7 @@
   </section>
 
   <!-- Features Section -->
+  <div id="systems" class="section-anchor"></div>
   <section id="features" class="section">
     <div class="section-inner">
       <div class="section-tag">
@@ -130,74 +141,153 @@
         <span class="tag-line"></span>
         <span class="tag-text">SYSTEMS.CORE</span>
       </div>
-      <h2 class="section-title" data-reveal>CORE <span class="title-highlight">MODULES</span></h2>
+      <h2 class="section-title scramble-header" data-reveal><span class="scramble-target">CORE</span> <span class="title-highlight scramble-target">MODULES</span></h2>
       <div class="features-grid">
-        <a href="worldfm.html" class="feature-card feature-card--link" data-reveal>
-          <div class="card-header">
-            <span class="card-id">MOD_01</span>
-            <span class="card-status">● ACTIVE</span>
-          </div>
-          <h3 class="card-title">WORLD FM</h3>
-          <p class="card-body type-effect" data-type-text="Live radio from anywhere on Earth. Click any location on the interactive world map to tune in to local FM stations broadcasting in real-time."></p>
-          <div class="card-footer">
-            <span class="card-metric">CLICK TO LAUNCH ▶</span>
-          </div>
-        </a>
-        <a href="eyes.html" class="feature-card feature-card--link" data-reveal>
-          <div class="card-header">
-            <span class="card-id">MOD_02</span>
-            <span class="card-status">● ACTIVE</span>
-          </div>
-          <h3 class="card-title">EYES OF THE WORLD</h3>
-          <p class="card-body type-effect" data-type-text="Access open public surveillance feeds from across the globe. Tap into live city cameras, traffic feeds, and nature streams broadcasting in real-time."></p>
-          <div class="card-footer">
-            <span class="card-metric">CLICK TO LAUNCH ▶</span>
-          </div>
-        </a>
-        <a href="presence.html" class="feature-card feature-card--link" data-reveal>
-          <div class="card-header">
-            <span class="card-id">MOD_03</span>
-            <span class="card-status">● ACTIVE</span>
-          </div>
-          <h3 class="card-title">GLOBAL PRESENCE</h3>
-          <p class="card-body type-effect" data-type-text="A real-time visualization of active connections across the globe. You are not alone in the void."></p>
-          <div class="card-footer">
-            <span class="card-metric">CLICK TO LAUNCH ▶</span>
+
+        <!-- MOD_01: WORLD FM — radio frequency / acoustic stream -->
+        <a href="worldfm.html" class="feature-card module-card group feature-card--link" data-reveal>
+          <div class="card-laser"></div>
+          <div class="card-corner corner-tl"></div>
+          <div class="card-corner corner-tr"></div>
+          <div class="card-corner corner-bl"></div>
+          <div class="card-corner corner-br"></div>
+          <video class="module-video" autoplay loop muted playsinline>
+            <source src="assets/videos/world_fm.mp4" type="video/mp4">
+          </video>
+          <div class="module-scrim"></div>
+          <div class="module-content">
+            <div class="card-header">
+              <span class="card-id">MOD_01</span>
+              <span class="card-status">● ACTIVE</span>
+            </div>
+            <h3 class="card-title">WORLD FM</h3>
+            <p class="card-body type-effect" data-type-text="Live radio from anywhere on Earth. Click any location on the interactive world map to tune in to local FM stations broadcasting in real-time."></p>
+            <div class="card-footer">
+              <span class="card-metric">CLICK TO LAUNCH ▶</span>
+            </div>
           </div>
         </a>
-        <a href="./shady.html" class="feature-card feature-card--link" data-reveal>
-          <div class="card-header">
-            <span class="card-id">MOD_04</span>
-            <span class="card-status" style="color:#00dd55;text-shadow:0 0 8px rgba(0,221,85,0.7)">● ACTIVE</span>
-          </div>
-          <h3 class="card-title">SHADY VOID</h3>
-          <p class="card-body type-effect" data-type-text="Underground media indexing and stream resolution engine. Aggregates and decrypts direct feeds for movies, web series, and PC/console titles with zero telemetry tracking."></p>
-          <div class="card-footer">
-            <span class="card-metric">CLICK TO LAUNCH ▶</span>
+
+        <!-- MOD_02: EYES OF THE WORLD — city surveillance / optical feed -->
+        <a href="eyes.html" class="feature-card module-card group feature-card--link" data-reveal>
+          <div class="card-laser"></div>
+          <div class="card-corner corner-tl"></div>
+          <div class="card-corner corner-tr"></div>
+          <div class="card-corner corner-bl"></div>
+          <div class="card-corner corner-br"></div>
+          <video class="module-video" autoplay loop muted playsinline>
+            <source src="assets/videos/eyes.mp4" type="video/mp4">
+          </video>
+          <div class="module-scrim"></div>
+          <div class="module-content">
+            <div class="card-header">
+              <span class="card-id">MOD_02</span>
+              <span class="card-status">● ACTIVE</span>
+            </div>
+            <h3 class="card-title">EYES OF THE WORLD</h3>
+            <p class="card-body type-effect" data-type-text="Access open public surveillance feeds from across the globe. Tap into live city cameras, traffic feeds, and nature streams broadcasting in real-time."></p>
+            <div class="card-footer">
+              <span class="card-metric">CLICK TO LAUNCH ▶</span>
+            </div>
           </div>
         </a>
-        <div class="feature-card" data-reveal>
-          <div class="card-header">
-            <span class="card-id">MOD_05</span>
-            <span class="card-status">● ACTIVE</span>
+
+        <!-- MOD_03: GLOBAL PRESENCE — telemetry globe -->
+        <a href="presence.html" class="feature-card module-card group feature-card--link" data-reveal>
+          <div class="card-laser"></div>
+          <div class="card-corner corner-tl"></div>
+          <div class="card-corner corner-tr"></div>
+          <div class="card-corner corner-bl"></div>
+          <div class="card-corner corner-br"></div>
+          <video class="module-video" autoplay loop muted playsinline>
+            <source src="assets/videos/globe.mp4" type="video/mp4">
+          </video>
+          <div class="module-scrim"></div>
+          <div class="module-content">
+            <div class="card-header">
+              <span class="card-id">MOD_03</span>
+              <span class="card-status">● ACTIVE</span>
+            </div>
+            <h3 class="card-title">GLOBAL PRESENCE</h3>
+            <p class="card-body type-effect" data-type-text="A real-time visualization of active connections across the globe. You are not alone in the void."></p>
+            <div class="card-footer">
+              <span class="card-metric">CLICK TO LAUNCH ▶</span>
+            </div>
           </div>
-          <h3 class="card-title">GLITCH MATRIX</h3>
-          <p class="card-body type-effect" data-type-text="Subtle scanline and noise effects add depth to the interface. The aesthetic draws from CRT monitors, circuit boards, and neon-lit cityscapes."></p>
-          <div class="card-footer">
-            <span class="card-metric">LOAD: 2%</span>
+        </a>
+
+        <!-- MOD_04: SHADY VOID — decentralized media vault -->
+        <a href="./shady.html" class="feature-card module-card group feature-card--link" data-reveal>
+          <div class="card-laser"></div>
+          <div class="card-corner corner-tl"></div>
+          <div class="card-corner corner-tr"></div>
+          <div class="card-corner corner-bl"></div>
+          <div class="card-corner corner-br"></div>
+          <video class="module-video" autoplay loop muted playsinline>
+            <source src="assets/videos/shady.mp4" type="video/mp4">
+          </video>
+          <div class="module-scrim"></div>
+          <div class="module-content">
+            <div class="card-header">
+              <span class="card-id">MOD_04</span>
+              <span class="card-status" style="color:#00dd55;text-shadow:0 0 8px rgba(0,221,85,0.7)">● ACTIVE</span>
+            </div>
+            <h3 class="card-title">SHADY VOID</h3>
+            <p class="card-body type-effect" data-type-text="Underground media indexing and stream resolution engine. Aggregates and decrypts direct feeds for movies, web series, and PC/console titles with zero telemetry tracking."></p>
+            <div class="card-footer">
+              <span class="card-metric">CLICK TO LAUNCH ▶</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- MOD_05: GLITCH MATRIX — CRT interference / matrix code -->
+        <div class="feature-card module-card group" data-reveal>
+          <div class="card-laser"></div>
+          <div class="card-corner corner-tl"></div>
+          <div class="card-corner corner-tr"></div>
+          <div class="card-corner corner-bl"></div>
+          <div class="card-corner corner-br"></div>
+          <video class="module-video" autoplay loop muted playsinline>
+            <source src="assets/videos/glitch.mp4" type="video/mp4">
+          </video>
+          <div class="module-scrim"></div>
+          <div class="module-content">
+            <div class="card-header">
+              <span class="card-id">MOD_05</span>
+              <span class="card-status">● ACTIVE</span>
+            </div>
+            <h3 class="card-title">GLITCH MATRIX</h3>
+            <p class="card-body type-effect" data-type-text="Subtle scanline and noise effects add depth to the interface. The aesthetic draws from CRT monitors, circuit boards, and neon-lit cityscapes."></p>
+            <div class="card-footer">
+              <span class="card-metric">LOAD: 2%</span>
+            </div>
           </div>
         </div>
-        <a href="datasys.html" class="feature-card feature-card--link" data-reveal>
-          <div class="card-header">
-            <span class="card-id">MOD_06</span>
-            <span class="card-status">● ACTIVE</span>
-          </div>
-          <h3 class="card-title">DATA.SYS</h3>
-          <p class="card-body type-effect" data-type-text="Upload a dataset. VOID reads the structure, detects patterns, and generates an interactive analytical dashboard — automatically."></p>
-          <div class="card-footer">
-            <span class="card-metric">CLICK TO LAUNCH ▶</span>
+
+        <!-- MOD_06: DATA.SYS — neural analysis / dataset stream -->
+        <a href="datasys.html" class="feature-card module-card group feature-card--link" data-reveal>
+          <div class="card-laser"></div>
+          <div class="card-corner corner-tl"></div>
+          <div class="card-corner corner-tr"></div>
+          <div class="card-corner corner-bl"></div>
+          <div class="card-corner corner-br"></div>
+          <video class="module-video" autoplay loop muted playsinline>
+            <source src="assets/videos/data.mp4" type="video/mp4">
+          </video>
+          <div class="module-scrim"></div>
+          <div class="module-content">
+            <div class="card-header">
+              <span class="card-id">MOD_06</span>
+              <span class="card-status">● ACTIVE</span>
+            </div>
+            <h3 class="card-title">DATA.SYS</h3>
+            <p class="card-body type-effect" data-type-text="Upload a dataset. VOID reads the structure, detects patterns, and generates an interactive analytical dashboard — automatically."></p>
+            <div class="card-footer">
+              <span class="card-metric">CLICK TO LAUNCH ▶</span>
+            </div>
           </div>
         </a>
+
       </div>
     </div>
   </section>
@@ -213,7 +303,7 @@
       </div>
       <div class="contact-layout">
         <div class="contact-text" data-reveal>
-          <h2 class="section-title">OPEN<br><span class="title-highlight">FREQUENCY</span></h2>
+          <h2 class="section-title scramble-header"><span class="scramble-target">OPEN</span><br><span class="title-highlight scramble-target">FREQUENCY</span></h2>
           <p class="section-body type-effect" id="uplink-text" data-type-text="Uplink established. Your signal now echoes across the void."></p>
         </div>
         <div id="cyber-chat" class="cyber-chat" data-reveal>

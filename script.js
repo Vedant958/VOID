@@ -1835,3 +1835,140 @@
     }
   });
 })();
+
+// =======================================================
+// CYBERPUNK ANIMATION SUITE: HACKER DECRYPT & TEXT SCRAMBLE
+// =======================================================
+(() => {
+  const SYMBOLS = '!<>-_\\/[]{}—=+*^?#________';
+  const runningAnimations = new WeakMap();
+
+  function scramble(el, duration = 600) {
+    if (!el) return;
+    const targetText = el.getAttribute('data-original-text') || el.textContent.trim();
+    if (!el.getAttribute('data-original-text')) {
+      el.setAttribute('data-original-text', targetText);
+    }
+
+    if (runningAnimations.has(el)) {
+      cancelAnimationFrame(runningAnimations.get(el));
+    }
+
+    const length = targetText.length;
+    const startTime = performance.now();
+
+    function update(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // Progressive resolution of characters
+      const resolvedCount = Math.floor(progress * length);
+
+      let result = '';
+      for (let i = 0; i < length; i++) {
+        const char = targetText[i];
+        if (char === ' ' || char === '\n' || char === '\t') {
+          result += char;
+        } else if (i < resolvedCount) {
+          result += char;
+        } else {
+          result += SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+        }
+      }
+
+      el.textContent = result;
+
+      if (progress < 1) {
+        runningAnimations.set(el, requestAnimationFrame(update));
+      } else {
+        el.textContent = targetText;
+        runningAnimations.delete(el);
+      }
+    }
+
+    runningAnimations.set(el, requestAnimationFrame(update));
+  }
+
+  function triggerHeaderScramble(headerEl) {
+    const targets = headerEl.querySelectorAll('.scramble-target');
+    if (targets.length > 0) {
+      targets.forEach((t, i) => {
+        setTimeout(() => scramble(t, 600), i * 60);
+      });
+    } else {
+      scramble(headerEl, 600);
+    }
+  }
+
+  // 1. Initial Page Load Trigger (Hero Header & initial viewport)
+  function initScrambleOnLoad() {
+    const heroTitle = document.querySelector('.hero-title');
+    if (heroTitle) {
+      setTimeout(() => triggerHeaderScramble(heroTitle), 250);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initScrambleOnLoad);
+  } else {
+    initScrambleOnLoad();
+  }
+
+  // 2. IntersectionObserver trigger on scroll into viewport
+  const headers = document.querySelectorAll('.scramble-header');
+  let lastTriggerTimes = new WeakMap();
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const now = performance.now();
+        const lastTrigger = lastTriggerTimes.get(entry.target) || 0;
+        // Debounce by 1.2s to prevent retriggers on minor jitter
+        if (now - lastTrigger > 1200) {
+          lastTriggerTimes.set(entry.target, now);
+          triggerHeaderScramble(entry.target);
+        }
+      }
+    });
+  }, { threshold: 0.35, rootMargin: '0px 0px -50px 0px' });
+
+  headers.forEach(h => observer.observe(h));
+})();
+
+// =======================================================
+// 3D PARALLAX TILT PHYSICS ON MODULE CARDS
+// =======================================================
+(() => {
+  const cards = document.querySelectorAll('.feature-card, .module-card');
+
+  cards.forEach(card => {
+    let isInside = false;
+
+    card.addEventListener('mouseenter', () => {
+      isInside = true;
+      card.style.transition = 'transform 0.08s ease-out, border-color 0.3s ease, box-shadow 0.3s ease';
+    });
+
+    card.addEventListener('mousemove', (e) => {
+      if (!isInside) return;
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const maxTilt = 8; // degrees
+      const rx = (((centerY - y) / centerY) * maxTilt).toFixed(2);
+      const ry = (((x - centerX) / centerX) * maxTilt).toFixed(2);
+
+      card.style.setProperty('--rx', `${rx}deg`);
+      card.style.setProperty('--ry', `${ry}deg`);
+      card.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.02, 1.02, 1.02)`;
+    });
+
+    card.addEventListener('mouseleave', () => {
+      isInside = false;
+      card.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s ease, box-shadow 0.3s ease';
+      card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+    });
+  });
+})();
+
