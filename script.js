@@ -1653,102 +1653,211 @@
   }
 
   // ==========================================
-  // DIRECT YOUTUBE ENGINE (ZERO SERVERLESS, ZERO CORS)
+  // BULLETPROOF HYBRID MUSIC ENGINE (SAAVN SEARCH + YOUTUBE AUDIO)
   // ==========================================
   let ytPlayer = null;
+  let syncInterval = null;
   let isSeeking = false;
-  let currentTrackDuration = 0;
 
-  // Load YouTube IFrame API
-  (function initYouTubeAPI() {
+  // Initialize YouTube IFrame API
+  (function initYT() {
     if (window.YT && window.YT.Player) {
-      setupYTPlayer();
+      onYouTubeIframeAPIReady();
     } else {
       const tag = document.createElement('script');
       tag.src = "https://www.youtube.com/iframe_api";
       document.head.appendChild(tag);
-      window.onYouTubeIframeAPIReady = setupYTPlayer;
     }
   })();
 
-  function setupYTPlayer() {
+  window.onYouTubeIframeAPIReady = function() {
     ytPlayer = new YT.Player('void-yt-engine', {
       height: '1',
       width: '1',
-      playerVars: {
-        'autoplay': 0,
-        'controls': 0,
-        'disablekb': 1,
-        'fs': 0,
-        'rel': 0
-      },
+      playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'rel': 0 },
       events: {
         'onReady': () => console.log("// VOID_YT_ENGINE: READY"),
-        'onStateChange': onPlayerStateChange
+        'onStateChange': (e) => {
+          const playBtn = document.getElementById('play-pause-btn');
+          if (e.data === YT.PlayerState.PLAYING) {
+            if (playBtn) {
+              playBtn.innerHTML = `
+                <svg class="w-5 h-5 fill-current text-black" viewBox="0 0 24 24" width="22" height="22">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>`;
+            }
+            if (typeof syncAllUI === 'function') syncAllUI(true);
+            startTimelineSync();
+          } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
+            if (playBtn) {
+              playBtn.innerHTML = `
+                <svg class="w-5 h-5 fill-current text-black ml-0.5" viewBox="0 0 24 24" width="22" height="22">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>`;
+            }
+            if (typeof syncAllUI === 'function') syncAllUI(false);
+          }
+        }
       }
     });
-  }
+  };
 
-  function onPlayerStateChange(event) {
-    const playBtn = document.getElementById('play-pause-btn');
-    // 1 = Playing, 2 = Paused, 0 = Ended
-    if (event.data === YT.PlayerState.PLAYING) {
-      if (playBtn) {
-        playBtn.innerHTML = `
-          <svg class="w-5 h-5 fill-current text-black" viewBox="0 0 24 24" width="22" height="22">
-            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-          </svg>`;
-      }
-      syncAllUI(true);
-      startScrubberSync();
-    } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-      if (playBtn) {
-        playBtn.innerHTML = `
-          <svg class="w-5 h-5 fill-current text-black ml-0.5" viewBox="0 0 24 24" width="22" height="22">
-            <path d="M8 5v14l11-7z"/>
-          </svg>`;
-      }
-      syncAllUI(false);
-    }
-  }
-
-  // Scrubber Sync Loop
-  function startScrubberSync() {
-    clearInterval(window._ytSyncInterval);
-    window._ytSyncInterval = setInterval(() => {
+  function startTimelineSync() {
+    clearInterval(syncInterval);
+    syncInterval = setInterval(() => {
       if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
       if (ytPlayer.getPlayerState() !== 1 || isSeeking) return;
 
-      const current = ytPlayer.getCurrentTime();
-      const duration = ytPlayer.getDuration() || currentTrackDuration || 1;
-      
-      const progressEl = document.getElementById('audio-progress-bar') || scrubberFill;
+      const cur = ytPlayer.getCurrentTime();
+      const dur = ytPlayer.getDuration() || 1;
+
+      const progressBar = document.getElementById('audio-progress-bar') || scrubberFill;
       const curTimeEl = document.getElementById('current-time-display') || timeCurrent;
       const totalTimeEl = document.getElementById('total-duration-display') || timeDuration;
       const thumb = document.getElementById('void-scrubber-thumb') || scrubberThumb;
 
-      const pct = (current / duration) * 100;
-      if (progressEl) progressEl.style.width = `${pct}%`;
+      const pct = (cur / dur) * 100;
+      if (progressBar) progressBar.style.width = `${pct}%`;
       if (thumb) thumb.style.left = `${pct}%`;
-      if (curTimeEl) curTimeEl.innerText = formatTime(current);
-      if (totalTimeEl && duration > 1) totalTimeEl.innerText = formatTime(duration);
+      if (curTimeEl) curTimeEl.innerText = formatTime(cur);
+      if (totalTimeEl && dur > 1) totalTimeEl.innerText = formatTime(dur);
     }, 500);
   }
+  const startScrubberSync = startTimelineSync;
 
-  function formatTime(seconds) {
-    const s = Math.floor(seconds || 0);
+  function formatTime(sec) {
+    const s = Math.floor(sec || 0);
     const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+    const r = s % 60;
+    return `${m}:${r < 10 ? '0' : ''}${r}`;
   }
 
-  // Play Selected Track
-  function playTrack(track) {
-    if (!ytPlayer || !ytPlayer.loadVideoById) {
-      console.warn("YouTube Engine still warming up...");
-      return;
-    }
+  // 1. Instant Search via Saavn (CORS friendly, high quality album art)
+  async function executeGlobalSearch(query) {
+    const container = document.getElementById('playlist-container') || trackListContainer;
+    if (!container) return;
 
+    container.innerHTML = `
+      <div class="text-xs text-neutral-400 p-6 text-center animate-pulse font-mono" style="padding: 24px; text-align: center; color: #a3a3a3; font-family: monospace; font-size: 12px;">
+        // TUNING FREQUENCIES FOR "${query}"...
+      </div>`;
+
+    try {
+      let list = [];
+      try {
+        const res = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=15`);
+        if (res.ok) {
+          const json = await res.json();
+          list = json.data?.results || [];
+        }
+      } catch (e) {}
+
+      if (!list || list.length === 0) {
+        const mirrors = [
+          `https://saavn-api.vercel.app/search/songs?query=${encodeURIComponent(query)}`,
+          `https://saavn-api-one.vercel.app/search/songs?query=${encodeURIComponent(query)}`
+        ];
+        for (const mirror of mirrors) {
+          try {
+            const mRes = await fetch(mirror);
+            if (mRes.ok) {
+              const mJson = await mRes.json();
+              if (Array.isArray(mJson) && mJson.length > 0) {
+                list = mJson;
+                break;
+              } else if (mJson.data?.results?.length > 0) {
+                list = mJson.data.results;
+                break;
+              }
+            }
+          } catch (mErr) {}
+        }
+      }
+
+      if (!list || list.length === 0) {
+        container.innerHTML = `<div class="text-xs text-neutral-500 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #737373; font-family: monospace; font-size: 12px;">// NO SIGNALS FOUND.</div>`;
+        return;
+      }
+
+      const tracks = list.map(item => {
+        let bestImg = 'assets/images/album-art.png';
+        if (typeof item.image === 'string') {
+          bestImg = item.image;
+        } else if (Array.isArray(item.image)) {
+          bestImg = item.image[item.image.length - 1]?.url || item.image[0]?.url || bestImg;
+        }
+
+        let artist = "Unknown Artist";
+        if (item.artists?.primary && Array.isArray(item.artists.primary)) {
+          artist = item.artists.primary.map(a => a.name).join(', ');
+        } else if (typeof item.artists === 'string' && item.artists.trim()) {
+          artist = item.artists;
+        } else if (item.primary_artists) {
+          artist = item.primary_artists;
+        } else if (item.subtitle) {
+          artist = item.subtitle;
+        }
+
+        const rawTitle = item.title || item.name || "Unknown Track";
+        const title = rawTitle.replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&amp;/g, '&');
+
+        return {
+          id: item.id || '',
+          title: title,
+          artist: artist,
+          duration: formatTime(item.duration),
+          cover: bestImg.replace(/^http:\/\//i, 'https://')
+        };
+      });
+
+      renderTracksList(tracks);
+    } catch (err) {
+      console.error("Search failed:", err);
+      container.innerHTML = `<div class="text-xs text-red-400 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #f87171; font-family: monospace; font-size: 12px;">// RELAY OFFLINE. RETRY.</div>`;
+    }
+  }
+
+  // Render dynamic track list
+  function renderTracksList(tracks) {
+    const container = document.getElementById('playlist-container') || trackListContainer;
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (trackCountEl) trackCountEl.textContent = `${tracks.length} ${tracks.length === 1 ? 'Track' : 'Tracks'}`;
+
+    tracks.forEach((track) => {
+      const row = document.createElement('div');
+      row.className = "playlist-track-row void-track-row flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 cursor-pointer transition group border border-transparent";
+      row.innerHTML = `
+        <div class="void-track-row-left flex items-center gap-3 overflow-hidden">
+          <div class="void-track-thumb-box">
+            <img src="${track.cover}" class="void-track-thumb-img w-10 h-10 rounded-lg object-cover border border-white/5" alt="cover" onerror="this.src='assets/images/album-art.png'">
+          </div>
+          <div class="void-track-row-meta truncate">
+            <div class="void-track-title text-sm text-white font-medium truncate group-hover:text-emerald-400 transition">${track.title}</div>
+            <div class="void-track-artist text-xs text-neutral-400 truncate">${track.artist}</div>
+          </div>
+        </div>
+        <div class="void-track-row-right text-xs text-neutral-500 font-mono pl-3">
+          <span class="void-track-dur">${track.duration}</span>
+        </div>
+      `;
+
+      row.addEventListener('click', () => {
+        document.querySelectorAll('.playlist-track-row').forEach(r => {
+          r.classList.remove('bg-emerald-500/10', 'border-emerald-500/30', 'active');
+        });
+        row.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'active');
+
+        playTrackHybrid(track);
+      });
+
+      container.appendChild(row);
+    });
+  }
+
+  // 2. Play Audio via YouTube Engine Using Track Title & Artist
+  function playTrackHybrid(track) {
     const titleEl = document.getElementById('current-track-title') || modalTrackTitle;
     const artistEl = document.getElementById('current-track-artist') || modalArtistTag;
     const coverEl = document.getElementById('album-cover-img');
@@ -1763,9 +1872,30 @@
     if (ambientTrackName) ambientTrackName.textContent = track.title;
     if (ambientTrackSub) ambientTrackSub.textContent = track.artist;
 
-    ytPlayer.loadVideoById(track.id);
-    ytPlayer.playVideo();
+    if (!ytPlayer) {
+      console.warn("YouTube Engine still warming up...");
+      return;
+    }
+
+    if (track.id && typeof track.id === 'string' && track.id.length === 11 && !track.id.includes(' ') && !track.id.startsWith('saavn')) {
+      if (typeof ytPlayer.loadVideoById === 'function') {
+        ytPlayer.loadVideoById(track.id);
+        ytPlayer.playVideo();
+        return;
+      }
+    }
+
+    if (typeof ytPlayer.loadPlaylist === 'function') {
+      // Search & load directly via YouTube engine using query
+      ytPlayer.loadPlaylist({
+        listType: 'search',
+        list: `${track.title} ${track.artist} Audio`,
+        index: 0
+      });
+      ytPlayer.playVideo();
+    }
   }
+  const playTrack = playTrackHybrid;
 
   // Toggle Play/Pause
   const playPauseBtn = document.getElementById('play-pause-btn');
@@ -1806,109 +1936,6 @@
       }
       if (volumeLabel) volumeLabel.textContent = `${e.target.value}%`;
     };
-  }
-
-  // Client-Side Instant YouTube Search
-  async function executeGlobalSearch(query) {
-    const container = document.getElementById('playlist-container') || trackListContainer;
-    if (!container) return;
-
-    container.innerHTML = `
-      <div class="text-xs text-neutral-400 p-6 text-center animate-pulse font-mono" style="padding: 24px; text-align: center; color: #a3a3a3; font-family: monospace; font-size: 12px;">
-        // LOCATING FREQUENCIES FOR "${query}"...
-      </div>`;
-
-    try {
-      let data = null;
-
-      // Robust search endpoint that never blocks client browsers
-      try {
-        const res = await fetch(`https://invidious.nerdvpn.de/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
-        if (res.ok) data = await res.json();
-      } catch (e) {}
-
-      if (!Array.isArray(data) || data.length === 0) {
-        // Fallback search route
-        try {
-          const altRes = await fetch(`https://inv.nadeko.net/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
-          if (altRes.ok) data = await altRes.json();
-        } catch (e) {}
-      }
-
-      if (!Array.isArray(data) || data.length === 0) {
-        const publicMirrors = [
-          `https://invidious.f5.si/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
-          `https://yewtu.be/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
-          `https://api.invidious.io/api/v1/search?q=${encodeURIComponent(query)}&type=video`
-        ];
-        for (const m of publicMirrors) {
-          try {
-            const r = await fetch(m);
-            if (r.ok) {
-              const j = await r.json();
-              if (Array.isArray(j) && j.length > 0) {
-                data = j;
-                break;
-              }
-            }
-          } catch (err) {}
-        }
-      }
-
-      const tracks = (data || []).slice(0, 10).map(item => ({
-        id: item.videoId || (item.url ? item.url.replace('/watch?v=', '') : ''),
-        title: item.title,
-        artist: item.author || item.uploaderName || "Unknown",
-        duration: formatTime(item.lengthSeconds),
-        cover: item.videoId ? `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg` : (item.thumbnail || 'assets/images/album-art.png')
-      })).filter(t => t.id);
-
-      if (tracks.length === 0) throw new Error("Empty list");
-      renderTracksList(tracks);
-
-    } catch (err) {
-      console.error("Search relay error:", err);
-      container.innerHTML = `<div class="text-xs text-neutral-500 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #737373; font-family: monospace; font-size: 12px;">// SEARCH TIMED OUT. TRY ANOTHER QUERY.</div>`;
-    }
-  }
-
-  // Render dynamic track list
-  function renderTracksList(tracks) {
-    const container = document.getElementById('playlist-container') || trackListContainer;
-    if (!container) return;
-    container.innerHTML = '';
-
-    if (trackCountEl) trackCountEl.textContent = `${tracks.length} ${tracks.length === 1 ? 'Track' : 'Tracks'}`;
-
-    tracks.forEach((item, index) => {
-      const row = document.createElement('div');
-      row.className = "playlist-track-row void-track-row flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 cursor-pointer transition group border border-transparent";
-      row.innerHTML = `
-        <div class="void-track-row-left flex items-center gap-3 overflow-hidden">
-          <div class="void-track-thumb-box">
-            <img src="${item.cover}" class="void-track-thumb-img w-10 h-10 rounded-lg object-cover border border-white/5" alt="cover" onerror="this.src='assets/images/album-art.png'">
-          </div>
-          <div class="void-track-row-meta truncate">
-            <div class="void-track-title text-sm text-white font-medium truncate group-hover:text-emerald-400 transition">${item.title}</div>
-            <div class="void-track-artist text-xs text-neutral-400 truncate">${item.artist}</div>
-          </div>
-        </div>
-        <div class="void-track-row-right text-xs text-neutral-500 font-mono pl-3">
-          <span class="void-track-dur">${item.duration}</span>
-        </div>
-      `;
-
-      row.addEventListener('click', () => {
-        document.querySelectorAll('.playlist-track-row').forEach(r => {
-          r.classList.remove('bg-emerald-500/10', 'border-emerald-500/30', 'active');
-        });
-        row.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'active');
-
-        playTrack(item);
-      });
-
-      container.appendChild(row);
-    });
   }
 
   // Force Input Event Attachment (Wipe cloned listeners, bind Enter key)
