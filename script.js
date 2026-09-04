@@ -1288,6 +1288,9 @@
   const bgMusicAlias = document.getElementById('bg-music');
   if (!coreAudio) return;
 
+  // Global Audio Instance
+  window.voidAudioPlayer = window.voidAudioPlayer || coreAudio || new Audio();
+
   // Floating AMBIENT.SYNC widget elements
   const ambientBtn = document.getElementById('music-toggle');
   const ambientIconPlay = document.getElementById('music-icon-play');
@@ -1313,8 +1316,9 @@
   const modalPlayBtn = document.getElementById('void-modal-play-btn');
   const modalPrevBtn = document.getElementById('void-prev-track-btn');
   const modalNextBtn = document.getElementById('void-next-track-btn');
-  const modalTrackTitle = document.getElementById('void-modal-track-title');
-  const modalArtistTag = document.getElementById('void-modal-artist-tag');
+  const modalTrackTitle = document.getElementById('current-track-title') || document.getElementById('void-modal-track-title');
+  const modalArtistTag = document.getElementById('current-track-artist') || document.getElementById('void-modal-artist-tag');
+  const modalAlbumImg = document.getElementById('album-cover-img') || document.getElementById('void-modal-album-img');
   const scrubberTrack = document.getElementById('void-scrubber-track');
   const scrubberFill = document.getElementById('void-scrubber-fill');
   const scrubberThumb = document.getElementById('void-scrubber-thumb');
@@ -1325,7 +1329,7 @@
   const loopToggleBtn = document.getElementById('void-loop-toggle');
   const searchTerminal = document.getElementById('void-search-terminal');
   const filterTabs = document.querySelectorAll('.void-filter-tab');
-  const trackListContainer = document.getElementById('void-track-list');
+  const trackListContainer = document.getElementById('playlist-container') || document.getElementById('void-track-list');
   const visualizerCanvas = document.getElementById('void-deck-visualizer-canvas');
   const trackCountEl = document.getElementById('void-track-count');
 
@@ -1524,50 +1528,33 @@
     if (timeCurrent) timeCurrent.textContent = formatTime(coreAudio.currentTime);
   });
 
-  // Render Modern Sleek Playlist with Live Search & Filter
+  // Render Modern Sleek Playlist
   function renderPlaylist() {
     if (!trackListContainer) return;
     trackListContainer.innerHTML = '';
 
-    const filtered = TRACKS.filter(t => {
-      const matchesFilter = activeFilter === 'all' || t.channel === activeFilter;
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch = !q ||
-        t.title.toLowerCase().includes(q) ||
-        t.artist.toLowerCase().includes(q) ||
-        t.channelLabel.toLowerCase().includes(q);
-      return matchesFilter && matchesSearch;
-    });
+    const filtered = TRACKS.filter(t => activeFilter === 'all' || t.channel === activeFilter);
 
     if (trackCountEl) trackCountEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'Track' : 'Tracks'}`;
-
-    if (filtered.length === 0) {
-      trackListContainer.innerHTML = `
-        <div style="padding: 32px 16px; text-align: center; font-size: 13px; color: #64748b;">
-          No tracks found matching "${searchQuery}"
-        </div>
-      `;
-      return;
-    }
 
     filtered.forEach(track => {
       const origIndex = TRACKS.findIndex(t => t.id === track.id);
       const isActive = origIndex === currentTrackIndex;
 
       const item = document.createElement('div');
-      item.className = `void-track-row ${isActive ? 'active' : ''}`;
+      item.className = `void-track-row flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 cursor-pointer transition group ${isActive ? 'active' : ''}`;
       item.innerHTML = `
-        <div class="void-track-row-left">
+        <div class="void-track-row-left flex items-center gap-3 overflow-hidden">
           <div class="void-track-thumb-box">
-            <img src="assets/album_art.jpg" class="void-track-thumb-img" alt="${track.title}">
+            <img src="assets/album_art.jpg" class="void-track-thumb-img w-10 h-10 rounded-lg object-cover border border-white/5" alt="${track.title}">
             ${isActive ? '<div class="void-track-playing-badge"><span class="void-track-playing-dot"></span></div>' : ''}
           </div>
-          <div class="void-track-row-meta">
-            <div class="void-track-title">${track.title}</div>
-            <div class="void-track-artist">${track.artist}</div>
+          <div class="void-track-row-meta truncate">
+            <div class="void-track-title text-sm text-white font-medium truncate group-hover:text-emerald-400 transition">${track.title}</div>
+            <div class="void-track-artist text-xs text-neutral-400 truncate">${track.artist}</div>
           </div>
         </div>
-        <div class="void-track-row-right">
+        <div class="void-track-row-right text-xs text-neutral-500 font-mono pl-3">
           <span class="void-track-dur">${track.duration}</span>
         </div>
       `;
@@ -1664,29 +1651,171 @@
     });
   }
 
-  // Search Terminal Event Handler
-  if (searchTerminal) {
-    searchTerminal.addEventListener('input', (e) => {
-      searchQuery = e.target.value;
-      renderPlaylist();
-    });
-    searchTerminal.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const val = searchTerminal.value.trim();
-        if (val.startsWith('http://') || val.startsWith('https://')) {
-          TRACKS.unshift({
-            id: '00',
-            title: 'CUSTOM_STREAM_INJECT',
-            artist: 'REMOTE_STREAM',
-            channel: 'all',
-            channelLabel: 'CUSTOM',
-            duration: 'LIVE',
-            durationSec: 300,
-            bitrate: 'REMOTE_NET',
-            src: val
-          });
-          loadTrack(0, true);
+  // ==========================================
+  // SAAVN DIRECT LIVE SEARCH ENGINE (ZERO-CORS)
+  // ==========================================
+  async function executeGlobalSearch(query) {
+    const container = document.getElementById('playlist-container') || trackListContainer;
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="text-xs text-neutral-400 p-6 text-center animate-pulse font-mono" style="padding: 24px; text-align: center; color: #a3a3a3; font-family: monospace; font-size: 12px;">
+        // SEARCHING SATELLITE FREQUENCIES FOR: "${query}"...
+      </div>`;
+
+    try {
+      let fetchedTracks = [];
+
+      // Primary: Public unblocked Saavn API mirror
+      try {
+        const response = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=15`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result && result.success && result.data && result.data.results && result.data.results.length > 0) {
+            fetchedTracks = result.data.results.map(item => {
+              const downloadUrls = item.downloadUrl || [];
+              const bestAudio = downloadUrls[downloadUrls.length - 1]?.url || downloadUrls[0]?.url;
+              const images = item.image || [];
+              const bestImage = images[images.length - 1]?.url || images[0]?.url || 'assets/images/album-art.png';
+
+              return {
+                id: item.id,
+                title: item.name.replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
+                artist: (item.artists?.primary?.map(a => a.name).join(', ')) || "Unknown Artist",
+                duration: formatSeconds(item.duration),
+                cover: bestImage,
+                streamUrl: bestAudio
+              };
+            }).filter(t => t.streamUrl);
+          }
         }
+      } catch (e) {
+        console.warn("Saavn primary mirror unreachable, using live zero-CORS satellite fallback:", e);
+      }
+
+      // Secondary: Zero-CORS live music satellite stream fallback if Saavn DNS/endpoint is down
+      if (fetchedTracks.length === 0) {
+        try {
+          const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=15`);
+          if (itunesRes.ok) {
+            const itunesData = await itunesRes.json();
+            if (itunesData.results && itunesData.results.length > 0) {
+              fetchedTracks = itunesData.results.map((item, idx) => ({
+                id: item.trackId || idx,
+                title: (item.trackName || "Unknown Track").replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
+                artist: item.artistName || "Unknown Artist",
+                duration: formatSeconds(Math.floor((item.trackTimeMillis || 0) / 1000)),
+                cover: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : 'assets/images/album-art.png',
+                streamUrl: item.previewUrl
+              })).filter(t => t.streamUrl);
+            }
+          }
+        } catch (fbErr) {
+          console.warn("Satellite query error:", fbErr);
+        }
+      }
+
+      if (fetchedTracks.length === 0) {
+        container.innerHTML = `<div class="text-xs text-neutral-500 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #737373; font-family: monospace; font-size: 12px;">// NO SIGNALS FOUND ON FREQUENCY.</div>`;
+        return;
+      }
+
+      renderTracksList(fetchedTracks);
+
+    } catch (error) {
+      console.error("Audio Signal Error:", error);
+      container.innerHTML = `<div class="text-xs text-red-400 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #f87171; font-family: monospace; font-size: 12px;">// TRANSMISSION FAILED. CHECK CONNECTION.</div>`;
+    }
+  }
+
+  function formatSeconds(sec) {
+    const total = parseInt(sec, 10) || 0;
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  // Render dynamic track list
+  function renderTracksList(tracks) {
+    const container = document.getElementById('playlist-container') || trackListContainer;
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (trackCountEl) trackCountEl.textContent = `${tracks.length} ${tracks.length === 1 ? 'Track' : 'Tracks'}`;
+
+    tracks.forEach((track, index) => {
+      const row = document.createElement('div');
+      row.className = "void-track-row flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 cursor-pointer transition group";
+      row.innerHTML = `
+        <div class="void-track-row-left flex items-center gap-3 overflow-hidden">
+          <div class="void-track-thumb-box">
+            <img src="${track.cover}" class="void-track-thumb-img w-10 h-10 rounded-lg object-cover border border-white/5" alt="cover">
+          </div>
+          <div class="void-track-row-meta truncate">
+            <div class="void-track-title text-sm text-white font-medium truncate group-hover:text-emerald-400 transition">${track.title}</div>
+            <div class="void-track-artist text-xs text-neutral-400 truncate">${track.artist}</div>
+          </div>
+        </div>
+        <div class="void-track-row-right text-xs text-neutral-500 font-mono pl-3">
+          <span class="void-track-dur">${track.duration}</span>
+        </div>
+      `;
+
+      row.addEventListener('click', () => {
+        document.querySelectorAll('.void-track-row').forEach(r => r.classList.remove('active'));
+        row.classList.add('active');
+        playTrack(track);
+      });
+      container.appendChild(row);
+    });
+  }
+
+  // Play selected track
+  function playTrack(track) {
+    if (!track.streamUrl) return;
+
+    const audio = window.voidAudioPlayer;
+    audio.src = track.streamUrl;
+    audio.play().catch(e => console.warn("Audio playback error:", e));
+
+    // Update Left Panel UI
+    const titleEl = document.getElementById('current-track-title') || modalTrackTitle;
+    const artistEl = document.getElementById('current-track-artist') || modalArtistTag;
+    const coverEl = document.getElementById('album-cover-img');
+
+    if (titleEl) titleEl.innerText = track.title;
+    if (artistEl) artistEl.innerText = track.artist;
+    if (coverEl) coverEl.src = track.cover;
+
+    // Sync other widgets if present
+    if (cardTrackTitle) cardTrackTitle.textContent = track.title;
+    if (cardArtistTag) cardArtistTag.textContent = track.artist;
+    if (ambientTrackName) ambientTrackName.textContent = track.title;
+    if (ambientTrackSub) ambientTrackSub.textContent = track.artist;
+    if (timeDuration) timeDuration.textContent = track.duration;
+
+    syncAllUI(true);
+    initWebAudioNodes();
+  }
+
+  // Force Input Event Attachment (Wipe cloned listeners, bind Enter key)
+  const searchBar = document.querySelector('input[type="text"][placeholder*="Search"]');
+  if (searchBar) {
+    const newSearchBar = searchBar.cloneNode(true);
+    searchBar.parentNode.replaceChild(newSearchBar, searchBar);
+
+    newSearchBar.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const query = newSearchBar.value.trim();
+        if (query.length > 0) {
+          executeGlobalSearch(query);
+        } else {
+          renderPlaylist();
+        }
+      }
+      if (e.key === 'Escape') {
+        newSearchBar.value = '';
+        renderPlaylist();
       }
     });
   }
