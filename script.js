@@ -1667,24 +1667,76 @@
   // ==========================================
   // SAAVN DIRECT LIVE SEARCH ENGINE (ZERO-CORS)
   // ==========================================
-  function extractBestAudioUrl(downloadUrlArray) {
-    if (!downloadUrlArray || downloadUrlArray.length === 0) return null;
-    
-    // Prefer 320kbps or 160kbps, fallback to highest available
-    const sorted = [...downloadUrlArray].sort((a, b) => {
-      const qA = parseInt(a.quality) || 0;
-      const qB = parseInt(b.quality) || 0;
-      return qB - qA;
-    });
-
-    let targetUrl = sorted[0]?.url || sorted[0]?.link || (typeof downloadUrlArray === 'string' ? downloadUrlArray : null);
-    
-    if (targetUrl) {
-      // Force HTTPS to prevent mixed-content blocks on Vercel
-      targetUrl = targetUrl.replace(/^http:\/\//i, 'https://');
+  // Extract Full-Length Audio (Banish Preview Snippets)
+  function getFullStreamUrl(track) {
+    if (!track) return null;
+    // If downloadUrl array exists from Saavn API
+    if (track.downloadUrl && Array.isArray(track.downloadUrl)) {
+      // Find the highest quality link (320kbps, then 160kbps, then 96kbps)
+      const priority = ["320kbps", "160kbps", "96kbps", "48kbps", "12kbps"];
+      for (const q of priority) {
+        const match = track.downloadUrl.find(item => item.quality === q);
+        if (match && match.url) {
+          return match.url.replace(/^http:\/\//i, 'https://');
+        }
+      }
+      // Fallback to the last element if quality tags are missing
+      const lastItem = track.downloadUrl[track.downloadUrl.length - 1];
+      const lastUrl = lastItem?.url || lastItem?.link || '';
+      if (lastUrl) return lastUrl.replace(/^http:\/\//i, 'https://');
     }
-    return targetUrl;
+
+    // Fallback to direct streamUrl if valid (strictly reject previews)
+    const directUrl = track.streamUrl || track.url || track.src;
+    if (directUrl && !directUrl.includes('preview')) {
+      return directUrl.replace(/^http:\/\//i, 'https://');
+    }
+
+    return null;
   }
+
+  // Bi-directional Play/Pause Button State Sync
+  const audio = window.voidAudioPlayer || coreAudio;
+  const playPauseBtn = document.getElementById('play-pause-btn');
+
+  // Toggle click handler
+  if (playPauseBtn) {
+    playPauseBtn.onclick = () => {
+      if (!audio.src) {
+        if (typeof TRACKS !== 'undefined' && TRACKS.length > 0) {
+          playTrack(TRACKS[0]);
+        }
+        return;
+      }
+      if (audio.paused) {
+        audio.play().catch(e => console.error("Play resume failed:", e));
+      } else {
+        audio.pause();
+      }
+    };
+  }
+
+  // Global state sync listeners
+  audio.onplay = () => {
+    if (playPauseBtn) {
+      playPauseBtn.innerHTML = `
+        <svg class="w-5 h-5 fill-current text-black" viewBox="0 0 24 24">
+          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+        </svg>`;
+    }
+    syncAllUI(true);
+    if (typeof initWebAudioNodes === 'function') initWebAudioNodes();
+  };
+
+  audio.onpause = () => {
+    if (playPauseBtn) {
+      playPauseBtn.innerHTML = `
+        <svg class="w-5 h-5 fill-current text-black ml-0.5" viewBox="0 0 24 24">
+          <path d="M8 5v14l11-7z"/>
+        </svg>`;
+    }
+    syncAllUI(false);
+  };
 
   async function executeGlobalSearch(query) {
     const container = document.getElementById('playlist-container') || trackListContainer;
@@ -1698,52 +1750,61 @@
     try {
       let fetchedTracks = [];
 
-      // Primary: Public unblocked Saavn API mirror
+      // Primary: Saavn Full-Length Fast mirror
       try {
-        const response = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=15`);
+        const response = await fetch(`https://saavn-api.vercel.app/search/${encodeURIComponent(query)}`);
         if (response.ok) {
           const result = await response.json();
-          if (result && result.success && result.data && result.data.results && result.data.results.length > 0) {
-            fetchedTracks = result.data.results.map(item => {
-              const coverImg = (item.image && (item.image[2]?.url || item.image[0]?.url)) || (item.image?.[item.image.length - 1]?.url) || 'assets/images/album-art.png';
-              const resolvedStream = extractBestAudioUrl(item.downloadUrl);
+          if (Array.isArray(result) && result.length > 0) {
+            fetchedTracks = result.map(item => {
+              const coverImg = item.image || 'assets/images/album-art.png';
+              const directUrl = item.url ? item.url.replace(/^http:\/\//i, 'https://') : null;
+              const dList = directUrl ? [
+                { quality: '320kbps', url: directUrl },
+                { quality: '160kbps', url: directUrl.replace(/_320\.mp4$/, '_160.mp4') },
+                { quality: '96kbps', url: directUrl.replace(/_320\.mp4$/, '_96.mp4') }
+              ] : [];
 
               return {
                 id: item.id,
-                title: item.name.replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
-                artist: (item.artists?.primary?.map(a => a.name).join(', ')) || "Unknown Artist",
+                title: (item.title || "Unknown").replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
+                artist: item.artists || item.subtitle || "Unknown Artist",
                 duration: formatSeconds(item.duration),
                 cover: coverImg.replace(/^http:\/\//i, 'https://'),
-                downloadUrl: item.downloadUrl,
-                streamUrl: resolvedStream
+                downloadUrl: dList,
+                streamUrl: directUrl
               };
             }).filter(t => t.streamUrl);
           }
         }
       } catch (e) {
-        console.warn("Saavn primary mirror unreachable, using live zero-CORS satellite fallback:", e);
+        console.warn("Saavn primary fast mirror unreachable:", e);
       }
 
-      // Secondary: Zero-CORS live music satellite stream fallback if Saavn DNS/endpoint is down
+      // Secondary fallback mirror
       if (fetchedTracks.length === 0) {
         try {
-          const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=15`);
-          if (itunesRes.ok) {
-            const itunesData = await itunesRes.json();
-            if (itunesData.results && itunesData.results.length > 0) {
-              fetchedTracks = itunesData.results.map((item, idx) => ({
-                id: item.trackId || idx,
-                title: (item.trackName || "Unknown Track").replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
-                artist: item.artistName || "Unknown Artist",
-                duration: formatSeconds(Math.floor((item.trackTimeMillis || 0) / 1000)),
-                cover: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : 'assets/images/album-art.png',
-                downloadUrl: [{ quality: '256kbps', url: item.previewUrl }],
-                streamUrl: item.previewUrl
-              })).filter(t => t.streamUrl);
+          const response2 = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=15`);
+          if (response2.ok) {
+            const result2 = await response2.json();
+            if (result2 && result2.success && result2.data && result2.data.results && result2.data.results.length > 0) {
+              fetchedTracks = result2.data.results.map(item => {
+                const coverImg = (item.image && (item.image[2]?.url || item.image[0]?.url)) || (item.image?.[item.image.length - 1]?.url) || 'assets/images/album-art.png';
+                const dList = (item.downloadUrl && Array.isArray(item.downloadUrl)) ? item.downloadUrl : [];
+                return {
+                  id: item.id,
+                  title: (item.name || item.title || "Unknown").replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
+                  artist: (item.artists?.primary?.map(a => a.name).join(', ')) || item.subtitle || "Unknown Artist",
+                  duration: formatSeconds(item.duration),
+                  cover: coverImg.replace(/^http:\/\//i, 'https://'),
+                  downloadUrl: dList,
+                  streamUrl: getFullStreamUrl({ downloadUrl: dList })
+                };
+              }).filter(t => t.streamUrl);
             }
           }
-        } catch (fbErr) {
-          console.warn("Satellite query error:", fbErr);
+        } catch (e2) {
+          console.warn("Saavn secondary mirror unreachable:", e2);
         }
       }
 
@@ -1800,93 +1861,44 @@
         });
         row.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'active');
 
-        playTrack({
-          id: item.id,
-          title: item.title,
-          artist: item.artist,
-          cover: item.cover,
-          duration: item.duration,
-          downloadUrl: item.downloadUrl,
-          streamUrl: item.streamUrl || extractBestAudioUrl(item.downloadUrl)
-        });
+        playTrack(item);
       });
 
       container.appendChild(row);
     });
   }
 
-  // Audio Playback Handler with Error Handling & Fallback
+  // Audio Playback Handler with Full Stream Resolution & CORS Fallback
   function playTrack(track) {
-    // Clear any existing audio completely
-    if (window.voidAudioPlayer) {
-      window.voidAudioPlayer.pause();
-      window.voidAudioPlayer.removeAttribute('src');
-      window.voidAudioPlayer.load();
-    } else {
-      window.voidAudioPlayer = new Audio();
-    }
-
-    const audio = window.voidAudioPlayer;
-    audio.crossOrigin = "anonymous";
-
-    // Pick audio URL
-    let rawUrl = track.streamUrl || track.url;
-    if (!rawUrl && track.downloadUrl) {
-      const list = track.downloadUrl;
-      rawUrl = list[list.length - 1]?.url || list[list.length - 1]?.link || list[0]?.url || list[0]?.link;
-    }
-
-    if (!rawUrl) {
-      console.error("No valid audio source found for:", track.title);
+    const fullUrl = getFullStreamUrl(track);
+    if (!fullUrl) {
+      console.error("Full stream URL unavailable for:", track);
       return;
     }
-
-    // Force HTTPS
-    rawUrl = rawUrl.replace(/^http:\/\//i, 'https://');
 
     // Update UI Metadata
     const titleEl = document.getElementById('current-track-title') || modalTrackTitle;
     const artistEl = document.getElementById('current-track-artist') || modalArtistTag;
     const coverEl = document.getElementById('album-cover-img');
-    const playBtn = document.getElementById('play-pause-btn') || document.getElementById('void-modal-play-btn');
-
-    if (titleEl) titleEl.innerText = track.title;
-    if (artistEl) artistEl.innerText = track.artist;
-    if (coverEl && track.cover) {
-      coverEl.src = track.cover;
-    }
-
-    // Update Max Duration Display
     const durationEl = document.getElementById('total-duration-display') || document.getElementById('void-time-duration');
-    if (durationEl && track.duration) {
-      durationEl.innerText = track.duration;
-    }
 
-    // Attach real audio timeupdate events
+    if (titleEl && track.title) titleEl.innerText = track.title;
+    if (artistEl && track.artist) artistEl.innerText = track.artist;
+    if (coverEl && track.cover) coverEl.src = track.cover;
+    if (durationEl && track.duration) durationEl.innerText = track.duration;
+
     attachAudioEvents(audio);
 
-    // Set real audio source and play
-    audio.src = rawUrl;
-    
-    audio.play()
-      .then(() => {
-        console.log("Transmission playing successfully:", track.title);
-        if (playBtn) playBtn.innerHTML = '❚❚';
-        syncAllUI(true);
-        initWebAudioNodes();
-      })
-      .catch(err => {
-        console.warn("Direct stream failed, falling back to audio pipe:", err);
-        // Fallback: Pass through wsrv/cors proxy if direct CDN throws CORS
-        audio.src = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
-        audio.play()
-          .then(() => {
-            console.log("Audio pipe stream playing successfully:", track.title);
-            if (playBtn) playBtn.innerHTML = '❚❚';
-            syncAllUI(true);
-          })
-          .catch(e => console.error("Critical: Playback failed across all pipes", e));
-      });
+    audio.pause();
+    audio.src = fullUrl;
+    audio.currentTime = 0;
+    audio.load();
+
+    audio.play().catch(err => {
+      console.warn("Direct play failed, retrying via CORS proxy:", err);
+      audio.src = `https://api.allorigins.win/raw?url=${encodeURIComponent(fullUrl)}`;
+      audio.play().catch(e => console.error("CORS proxy stream failed:", e));
+    });
 
     // Sync other widgets if present
     if (cardTrackTitle) cardTrackTitle.textContent = track.title;
