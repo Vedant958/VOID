@@ -1517,16 +1517,28 @@
     });
   }
 
-  // Audio Event Listeners for seamless state sync
-  coreAudio.addEventListener('play', () => syncAllUI(true));
-  coreAudio.addEventListener('pause', () => syncAllUI(false));
-  coreAudio.addEventListener('timeupdate', () => {
-    if (!coreAudio.duration) return;
-    const progress = (coreAudio.currentTime / coreAudio.duration) * 100;
-    if (scrubberFill) scrubberFill.style.width = `${progress}%`;
-    if (scrubberThumb) scrubberThumb.style.left = `${progress}%`;
-    if (timeCurrent) timeCurrent.textContent = formatTime(coreAudio.currentTime);
-  });
+  // Audio Event Listeners for seamless state sync (strictly driven by timeupdate)
+  function attachAudioEvents(targetAudio) {
+    if (targetAudio._voidAttached) return;
+    targetAudio._voidAttached = true;
+
+    targetAudio.addEventListener('timeupdate', () => {
+      if (!targetAudio.duration) return;
+      const progressPercent = (targetAudio.currentTime / targetAudio.duration) * 100;
+      const progressBar = document.getElementById('audio-progress-bar') || scrubberFill;
+      const timerText = document.getElementById('current-time-display') || timeCurrent;
+      const thumb = document.getElementById('void-scrubber-thumb') || scrubberThumb;
+      
+      if (progressBar) progressBar.style.width = `${progressPercent}%`;
+      if (thumb) thumb.style.left = `${progressPercent}%`;
+      if (timerText) timerText.innerText = formatSeconds(targetAudio.currentTime);
+    });
+
+    targetAudio.addEventListener('play', () => syncAllUI(true));
+    targetAudio.addEventListener('pause', () => syncAllUI(false));
+  }
+
+  attachAudioEvents(coreAudio);
 
   // Render Modern Sleek Playlist
   function renderPlaylist() {
@@ -1610,15 +1622,16 @@
   if (modalPrevBtn) modalPrevBtn.addEventListener('click', () => loadTrack(currentTrackIndex - 1, true));
   if (modalNextBtn) modalNextBtn.addEventListener('click', () => loadTrack(currentTrackIndex + 1, true));
 
-  // Scrubber Seek
-  if (scrubberTrack) {
-    scrubberTrack.addEventListener('click', (e) => {
-      const rect = scrubberTrack.getBoundingClientRect();
+  // Connect Native Seek Scrubber
+  const progressTrack = document.getElementById('progress-track-container') || scrubberTrack;
+  if (progressTrack) {
+    progressTrack.addEventListener('click', (e) => {
+      const audio = window.voidAudioPlayer || coreAudio;
+      if (!audio || !audio.duration) return;
+      const rect = progressTrack.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
-      const pct = Math.max(0, Math.min(1, clickX / rect.width));
-      if (coreAudio.duration) {
-        coreAudio.currentTime = pct * coreAudio.duration;
-      }
+      const percent = Math.max(0, Math.min(1, clickX / rect.width));
+      audio.currentTime = percent * audio.duration;
     });
   }
 
@@ -1804,15 +1817,34 @@
 
   // Audio Playback Handler with Error Handling & Fallback
   function playTrack(track) {
-    const audio = window.voidAudioPlayer;
-    const streamUrl = track.streamUrl || extractBestAudioUrl(track.downloadUrl);
+    // Clear any existing audio completely
+    if (window.voidAudioPlayer) {
+      window.voidAudioPlayer.pause();
+      window.voidAudioPlayer.removeAttribute('src');
+      window.voidAudioPlayer.load();
+    } else {
+      window.voidAudioPlayer = new Audio();
+    }
 
-    if (!streamUrl) {
-      console.error("No valid stream URL found for track:", track);
+    const audio = window.voidAudioPlayer;
+    audio.crossOrigin = "anonymous";
+
+    // Pick audio URL
+    let rawUrl = track.streamUrl || track.url;
+    if (!rawUrl && track.downloadUrl) {
+      const list = track.downloadUrl;
+      rawUrl = list[list.length - 1]?.url || list[list.length - 1]?.link || list[0]?.url || list[0]?.link;
+    }
+
+    if (!rawUrl) {
+      console.error("No valid audio source found for:", track.title);
       return;
     }
 
-    // Update UI Elements
+    // Force HTTPS
+    rawUrl = rawUrl.replace(/^http:\/\//i, 'https://');
+
+    // Update UI Metadata
     const titleEl = document.getElementById('current-track-title') || modalTrackTitle;
     const artistEl = document.getElementById('current-track-artist') || modalArtistTag;
     const coverEl = document.getElementById('album-cover-img');
@@ -1820,36 +1852,40 @@
 
     if (titleEl) titleEl.innerText = track.title;
     if (artistEl) artistEl.innerText = track.artist;
-    if (coverEl && track.cover) coverEl.src = track.cover;
+    if (coverEl && track.cover) {
+      coverEl.src = track.cover;
+    }
 
-    // Load and play
-    audio.pause();
-    audio.src = streamUrl;
-    audio.load();
+    // Update Max Duration Display
+    const durationEl = document.getElementById('total-duration-display') || document.getElementById('void-time-duration');
+    if (durationEl && track.duration) {
+      durationEl.innerText = track.duration;
+    }
 
+    // Attach real audio timeupdate events
+    attachAudioEvents(audio);
+
+    // Set real audio source and play
+    audio.src = rawUrl;
+    
     audio.play()
       .then(() => {
-        console.log("Audio playback started:", track.title);
+        console.log("Transmission playing successfully:", track.title);
         if (playBtn) playBtn.innerHTML = '❚❚';
         syncAllUI(true);
         initWebAudioNodes();
       })
-      .catch((err) => {
-        console.warn("Autoplay blocked or audio format error, trying fallback stream:", err);
-        // Fallback: try next available bitrate if available
-        if (track.downloadUrl && track.downloadUrl.length > 1) {
-          const fallbackUrl = (track.downloadUrl[0]?.url || track.downloadUrl[0]?.link || '').replace(/^http:\/\//i, 'https://');
-          if (fallbackUrl) {
-            audio.src = fallbackUrl;
-            audio.load();
-            audio.play()
-              .then(() => {
-                syncAllUI(true);
-                initWebAudioNodes();
-              })
-              .catch(e => console.error("Fallback playback failed:", e));
-          }
-        }
+      .catch(err => {
+        console.warn("Direct stream failed, falling back to audio pipe:", err);
+        // Fallback: Pass through wsrv/cors proxy if direct CDN throws CORS
+        audio.src = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
+        audio.play()
+          .then(() => {
+            console.log("Audio pipe stream playing successfully:", track.title);
+            if (playBtn) playBtn.innerHTML = '❚❚';
+            syncAllUI(true);
+          })
+          .catch(e => console.error("Critical: Playback failed across all pipes", e));
       });
 
     // Sync other widgets if present

@@ -167,12 +167,12 @@
           <!-- Sleek Thin Scrubber & Timers -->
           <div class="mb-5">
             <div class="flex items-center gap-3 font-mono text-xs text-neutral-500">
-              <span id="scrubber-current" class="min-w-[36px] text-neutral-400">00:00</span>
-              <div id="scrubber-track" class="scrubber-track flex-1 h-1 bg-neutral-800 hover:h-1.5 rounded-full relative cursor-pointer transition-all">
-                <div id="scrubber-fill" class="h-full bg-emerald-500 rounded-full" style="width: 0%;"></div>
+              <span id="current-time-display" class="min-w-[36px] text-neutral-400">00:00</span>
+              <div id="progress-track-container" class="scrubber-track flex-1 h-1 bg-neutral-800 hover:h-1.5 rounded-full relative cursor-pointer transition-all">
+                <div id="audio-progress-bar" class="h-full bg-emerald-500 rounded-full" style="width: 0%;"></div>
                 <div id="scrubber-thumb" class="scrubber-thumb absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)] pointer-events-none opacity-0 transition-opacity" style="left: 0%;"></div>
               </div>
-              <span id="scrubber-duration" class="min-w-[36px] text-neutral-400 text-right">03:45</span>
+              <span id="total-duration-display" class="min-w-[36px] text-neutral-400 text-right">03:45</span>
             </div>
           </div>
 
@@ -193,7 +193,7 @@
             </button>
 
             <!-- Play / Pause: Large circular white/emerald button -->
-            <button id="ctrl-play" class="w-14 h-14 bg-white text-black hover:bg-emerald-500 hover:text-black rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(255,255,255,0.2)] hover:shadow-[0_6px_24px_rgba(16,185,129,0.5)] hover:scale-105 active:scale-95 transition-all cursor-pointer" title="Play / Pause">
+            <button id="play-pause-btn" class="w-14 h-14 bg-white text-black hover:bg-emerald-500 hover:text-black rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(255,255,255,0.2)] hover:shadow-[0_6px_24px_rgba(16,185,129,0.5)] hover:scale-105 active:scale-95 transition-all cursor-pointer" title="Play / Pause">
               <svg id="icon-play" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M8 5.14v14l11-7-11-7z"/>
               </svg>
@@ -362,12 +362,9 @@
     function onYtStateChange(event) {
       if (event.data === YT.PlayerState.PLAYING) {
         syncPlaybackUI(true);
-        startScrubPoll();
       } else if (event.data === YT.PlayerState.PAUSED) {
         syncPlaybackUI(false);
-        stopScrubPoll();
       } else if (event.data === YT.PlayerState.ENDED) {
-        stopScrubPoll();
         if (!isLooping) {
           isShuffle
             ? loadTrack(Math.floor(Math.random() * TRACKS.length), true)
@@ -378,40 +375,24 @@
       }
     }
 
-    // Scrubber polling for YouTube (HTML5 has native timeupdate)
-    function startScrubPoll() {
-      stopScrubPoll();
-      scrubInterval = setInterval(() => {
-        if (!ytPlayer || currentMode !== 'youtube') return;
-        const cur = ytPlayer.getCurrentTime() || 0;
-        const dur = ytPlayer.getDuration()    || 0;
-        updateScrubberDisplay(cur, dur);
-      }, 250);
-    }
-
-    function stopScrubPoll() {
-      clearInterval(scrubInterval);
-      scrubInterval = null;
-    }
-
     // ─────────────────────────────────────────────────────────────
     // UI REFS
     // ─────────────────────────────────────────────────────────────
     const mainTitle     = document.getElementById('current-track-title') || document.getElementById('main-track-title');
     const mainArtist    = document.getElementById('current-track-artist') || document.getElementById('main-track-artist');
     const mainAlbumImg  = document.getElementById('album-cover-img') || document.getElementById('main-album-img');
-    const ctrlPlay      = document.getElementById('ctrl-play');
+    const ctrlPlay      = document.getElementById('play-pause-btn') || document.getElementById('ctrl-play');
     const iconPlay      = document.getElementById('icon-play');
     const iconPause     = document.getElementById('icon-pause');
     const ctrlPrev      = document.getElementById('ctrl-prev');
     const ctrlNext      = document.getElementById('ctrl-next');
     const ctrlLoop      = document.getElementById('ctrl-loop');
     const ctrlShuffle   = document.getElementById('ctrl-shuffle');
-    const scrubCurrent  = document.getElementById('scrubber-current');
-    const scrubDuration = document.getElementById('scrubber-duration');
-    const scrubFill     = document.getElementById('scrubber-fill');
+    const scrubCurrent  = document.getElementById('current-time-display') || document.getElementById('scrubber-current');
+    const scrubDuration = document.getElementById('total-duration-display') || document.getElementById('scrubber-duration');
+    const scrubFill     = document.getElementById('audio-progress-bar') || document.getElementById('scrubber-fill');
     const scrubThumb    = document.getElementById('scrubber-thumb');
-    const scrubTrack    = document.getElementById('scrubber-track');
+    const scrubTrack    = document.getElementById('progress-track-container') || document.getElementById('scrubber-track');
     const volSlider     = document.getElementById('volume-slider');
     const volLabel      = document.getElementById('volume-label');
     const trackListEl   = document.getElementById('playlist-container') || document.getElementById('track-list');
@@ -896,18 +877,37 @@
 
     // Audio Playback Handler with Error Handling & Fallback
     function playTrack(track) {
-      const playerAudio = window.voidAudioPlayer;
-      const streamUrl = track.streamUrl || extractBestAudioUrl(track.downloadUrl);
-
-      if (!streamUrl) {
-        console.error("No valid stream URL found for track:", track);
-        return;
+      // Clear any existing audio completely
+      if (window.voidAudioPlayer) {
+        window.voidAudioPlayer.pause();
+        window.voidAudioPlayer.removeAttribute('src');
+        window.voidAudioPlayer.load();
+      } else {
+        window.voidAudioPlayer = new Audio();
       }
+
+      const audio = window.voidAudioPlayer;
+      audio.crossOrigin = "anonymous";
 
       currentMode = 'local';
       if (ytReady && ytPlayer && ytPlaying) ytPlayer.pauseVideo();
 
-      // Update Left Panel UI
+      // Pick audio URL
+      let rawUrl = track.streamUrl || track.url;
+      if (!rawUrl && track.downloadUrl) {
+        const list = track.downloadUrl;
+        rawUrl = list[list.length - 1]?.url || list[list.length - 1]?.link || list[0]?.url || list[0]?.link;
+      }
+
+      if (!rawUrl) {
+        console.error("No valid audio source found for:", track.title);
+        return;
+      }
+
+      // Force HTTPS
+      rawUrl = rawUrl.replace(/^http:\/\//i, 'https://');
+
+      // Update UI Metadata
       const titleEl = document.getElementById('current-track-title');
       const artistEl = document.getElementById('current-track-artist');
       const coverEl = document.getElementById('album-cover-img');
@@ -915,17 +915,27 @@
 
       if (titleEl) titleEl.innerText = track.title;
       if (artistEl) artistEl.innerText = track.artist;
-      if (coverEl && track.cover) coverEl.src = track.cover;
+      if (coverEl && track.cover) {
+        coverEl.src = track.cover;
+      }
 
-      // Load and play
-      playerAudio.pause();
-      playerAudio.src = streamUrl;
-      playerAudio.load();
+      // Update Max Duration Display
+      const durationEl = document.getElementById('total-duration-display') || document.getElementById('scrubber-duration');
+      if (durationEl && track.duration) {
+        durationEl.innerText = track.duration;
+      }
 
-      playerAudio.play()
+      // Attach real timeupdate events
+      attachAudioEvents(audio);
+
+      // Set real audio source and play
+      audio.src = rawUrl;
+      
+      audio.play()
         .then(() => {
-          console.log("Audio playback started:", track.title);
+          console.log("Transmission playing successfully:", track.title);
           if (playBtn) {
+            playBtn.innerHTML = '❚❚';
             const iconP = document.getElementById('icon-play');
             const iconPause = document.getElementById('icon-pause');
             if (iconP) iconP.classList.add('hidden');
@@ -934,23 +944,64 @@
           syncPlaybackUI(true);
           initWebAudio();
         })
-        .catch((err) => {
-          console.warn("Autoplay blocked or audio format error, trying fallback stream:", err);
-          // Fallback: try next available bitrate if available
-          if (track.downloadUrl && track.downloadUrl.length > 1) {
-            const fallbackUrl = (track.downloadUrl[0]?.url || track.downloadUrl[0]?.link || '').replace(/^http:\/\//i, 'https://');
-            if (fallbackUrl) {
-              playerAudio.src = fallbackUrl;
-              playerAudio.load();
-              playerAudio.play()
-                .then(() => {
-                  syncPlaybackUI(true);
-                  initWebAudio();
-                })
-                .catch(e => console.error("Fallback playback failed:", e));
-            }
-          }
+        .catch(err => {
+          console.warn("Direct stream failed, falling back to audio pipe:", err);
+          // Fallback: Pass through wsrv/cors proxy if direct CDN throws CORS
+          audio.src = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
+          audio.play()
+            .then(() => {
+              console.log("Audio pipe stream playing successfully:", track.title);
+              if (playBtn) {
+                playBtn.innerHTML = '❚❚';
+                const iconP = document.getElementById('icon-play');
+                const iconPause = document.getElementById('icon-pause');
+                if (iconP) iconP.classList.add('hidden');
+                if (iconPause) iconPause.classList.remove('hidden');
+              }
+              syncPlaybackUI(true);
+            })
+            .catch(e => console.error("Critical: Playback failed across all pipes", e));
         });
+    }
+
+    function attachAudioEvents(targetAudio) {
+      if (targetAudio._voidAttached) return;
+      targetAudio._voidAttached = true;
+
+      targetAudio.addEventListener('timeupdate', () => {
+        if (!targetAudio.duration) return;
+        const progressPercent = (targetAudio.currentTime / targetAudio.duration) * 100;
+        const progressBar = document.getElementById('audio-progress-bar') || document.getElementById('scrubber-fill');
+        const timerText = document.getElementById('current-time-display') || document.getElementById('scrubber-current');
+        const thumb = document.getElementById('scrubber-thumb');
+        
+        if (progressBar) progressBar.style.width = `${progressPercent}%`;
+        if (thumb) thumb.style.left = `${progressPercent}%`;
+        if (timerText) timerText.innerText = formatSeconds(targetAudio.currentTime);
+      });
+
+      targetAudio.addEventListener('play', () => syncPlaybackUI(true));
+      targetAudio.addEventListener('pause', () => syncPlaybackUI(false));
+      targetAudio.addEventListener('ended', () => {
+        if (!isLooping) {
+          isShuffle
+            ? loadTrack(Math.floor(Math.random() * TRACKS.length), true)
+            : loadTrack(currentIndex + 1, true);
+        }
+      });
+    }
+
+    // Connect Native Seek Scrubber
+    const progressTrackEl = document.getElementById('progress-track-container') || document.getElementById('scrubber-track');
+    if (progressTrackEl) {
+      progressTrackEl.addEventListener('click', (e) => {
+        const targetAudio = window.voidAudioPlayer;
+        if (!targetAudio || !targetAudio.duration) return;
+        const rect = progressTrackEl.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percent = Math.max(0, Math.min(1, clickX / rect.width));
+        targetAudio.currentTime = percent * targetAudio.duration;
+      });
     }
 
     function exitSearchMode() {

@@ -500,12 +500,12 @@
 
           <!-- Sleek Thin Scrubber & Timers -->
           <div class="void-scrubber-wrap">
-            <span class="void-time-label" id="void-time-current">00:00</span>
-            <div class="void-scrubber-track" id="void-scrubber-track">
-              <div class="void-scrubber-fill" id="void-scrubber-fill" style="width: 0%;"></div>
+            <span class="void-time-label" id="current-time-display">00:00</span>
+            <div class="void-scrubber-track" id="progress-track-container">
+              <div class="void-scrubber-fill" id="audio-progress-bar" style="width: 0%;"></div>
               <div class="void-scrubber-thumb" id="void-scrubber-thumb" style="left: 0%;"></div>
             </div>
-            <span class="void-time-label" id="void-time-duration">03:45</span>
+            <span class="void-time-label" id="total-duration-display">03:45</span>
           </div>
 
           <!-- Minimal Transport Controls Cluster -->
@@ -522,7 +522,7 @@
               </svg>
             </button>
 
-            <button class="void-ctrl-btn void-ctrl-btn--play" id="void-modal-play-btn" title="Play / Pause">
+            <button class="void-ctrl-btn void-ctrl-btn--play" id="play-pause-btn" title="Play / Pause">
               <svg class="void-modal-play-icon void-modal-icon--play" viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
                 <path d="M8 5.14v14l11-7-11-7z"/>
               </svg>
