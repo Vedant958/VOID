@@ -289,8 +289,8 @@
     <span>VOID // MODERN AUDIO DECK</span>
   </footer>
 
-  <!-- Hidden YouTube IFrame Container (offscreen, zero-size) -->
-  <div id="yt-hidden-player" style="position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none;"></div>
+  <!-- Hidden YouTube Container -->
+  <div id="void-yt-engine" style="position:fixed; bottom:-9999px; left:-9999px; width:1px; height:1px; opacity:0; pointer-events:none;"></div>
 
   <!-- YouTube IFrame API (async — won't block render) -->
   <script src="https://www.youtube.com/iframe_api" defer></script>
@@ -341,39 +341,6 @@
     }
     const audio = window.voidAudio;
 
-    // ─────────────────────────────────────────────────────────────
-    // YOUTUBE IFRAME PLAYER
-    // ─────────────────────────────────────────────────────────────
-    let ytPlayer = null;
-    let ytReady  = false;
-
-    // Called automatically by the YT IFrame API script when loaded
-    window.onYouTubeIframeAPIReady = function () {
-      ytPlayer = new YT.Player('yt-hidden-player', {
-        height: '1', width: '1',
-        playerVars: { autoplay: 0, controls: 0, disablekb: 1, playsinline: 1 },
-        events: {
-          onReady:       () => { ytReady = true; },
-          onStateChange: onYtStateChange
-        }
-      });
-    };
-
-    function onYtStateChange(event) {
-      if (event.data === YT.PlayerState.PLAYING) {
-        syncPlaybackUI(true);
-      } else if (event.data === YT.PlayerState.PAUSED) {
-        syncPlaybackUI(false);
-      } else if (event.data === YT.PlayerState.ENDED) {
-        if (!isLooping) {
-          isShuffle
-            ? loadTrack(Math.floor(Math.random() * TRACKS.length), true)
-            : loadTrack(currentIndex + 1, true);
-        } else {
-          ytPlayer.playVideo(); // manual loop
-        }
-      }
-    }
 
     // ─────────────────────────────────────────────────────────────
     // UI REFS
@@ -726,110 +693,217 @@
         </div>`;
     }
 
-    // Global Audio Instance
-    window.voidAudioPlayer = window.voidAudioPlayer || audio || new Audio();
+    // ─────────────────────────────────────────────────────────────
+    // OFFICIAL YOUTUBE ENGINE CONTROLLER (BACKGROUND IFRAME)
+    // ─────────────────────────────────────────────────────────────
+    let ytPlayer = null;
+    let isSeeking = false;
+    let currentTrackDuration = 0;
 
-    // Extract Full-Length Audio (Banish Preview Snippets)
-    function getFullStreamUrl(track) {
-      if (!track) return null;
-      // If downloadUrl array exists from Saavn API
-      if (track.downloadUrl && Array.isArray(track.downloadUrl)) {
-        // Find the highest quality link (320kbps, then 160kbps, then 96kbps)
-        const priority = ["320kbps", "160kbps", "96kbps", "48kbps", "12kbps"];
-        for (const q of priority) {
-          const match = track.downloadUrl.find(item => item.quality === q);
-          if (match && match.url) {
-            return match.url.replace(/^http:\/\//i, 'https://');
-          }
+    // Load YouTube IFrame API
+    (function initYouTubeAPI() {
+      if (window.YT && window.YT.Player) {
+        setupYTPlayer();
+      } else {
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+        window.onYouTubeIframeAPIReady = setupYTPlayer;
+      }
+    })();
+
+    function setupYTPlayer() {
+      ytPlayer = new YT.Player('void-yt-engine', {
+        height: '1',
+        width: '1',
+        playerVars: {
+          'autoplay': 0,
+          'controls': 0,
+          'disablekb': 1,
+          'fs': 0,
+          'rel': 0
+        },
+        events: {
+          'onReady': () => console.log("// VOID_YT_ENGINE: READY"),
+          'onStateChange': onPlayerStateChange
         }
-        // Fallback to the last element if quality tags are missing
-        const lastItem = track.downloadUrl[track.downloadUrl.length - 1];
-        const lastUrl = lastItem?.url || lastItem?.link || '';
-        if (lastUrl) return lastUrl.replace(/^http:\/\//i, 'https://');
-      }
-
-      // Fallback to direct streamUrl if valid (strictly reject previews)
-      const directUrl = track.streamUrl || track.url || track.src;
-      if (directUrl && !directUrl.includes('preview')) {
-        return directUrl.replace(/^http:\/\//i, 'https://');
-      }
-
-      return null;
+      });
     }
 
-    // Bi-directional Play/Pause Button State Sync
-    const playPauseBtn = document.getElementById('play-pause-btn');
+    function onPlayerStateChange(event) {
+      const playBtn = document.getElementById('play-pause-btn');
+      // 1 = Playing, 2 = Paused, 0 = Ended
+      if (event.data === YT.PlayerState.PLAYING) {
+        if (playBtn) {
+          playBtn.innerHTML = `
+            <svg class="w-5 h-5 fill-current text-black" viewBox="0 0 24 24" width="22" height="22">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>`;
+        }
+        syncPlaybackUI(true);
+        startScrubberSync();
+      } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+        if (playBtn) {
+          playBtn.innerHTML = `
+            <svg class="w-5 h-5 fill-current text-black ml-0.5" viewBox="0 0 24 24" width="22" height="22">
+              <path d="M8 5v14l11-7z"/>
+            </svg>`;
+        }
+        syncPlaybackUI(false);
+      }
+    }
 
-    // Toggle click handler
+    // Scrubber Sync Loop
+    function startScrubberSync() {
+      clearInterval(window._ytSyncInterval);
+      window._ytSyncInterval = setInterval(() => {
+        if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+        if (ytPlayer.getPlayerState() !== 1 || isSeeking) return;
+
+        const current = ytPlayer.getCurrentTime();
+        const duration = ytPlayer.getDuration() || currentTrackDuration || 1;
+        
+        const progressEl = document.getElementById('audio-progress-bar') || document.getElementById('scrubber-fill');
+        const curTimeEl = document.getElementById('current-time-display') || document.getElementById('scrubber-current');
+        const totalTimeEl = document.getElementById('total-duration-display') || document.getElementById('scrubber-duration');
+        const thumb = document.getElementById('scrubber-thumb');
+
+        const pct = (current / duration) * 100;
+        if (progressEl) progressEl.style.width = `${pct}%`;
+        if (thumb) thumb.style.left = `${pct}%`;
+        if (curTimeEl) curTimeEl.innerText = formatTime(current);
+        if (totalTimeEl && duration > 1) totalTimeEl.innerText = formatTime(duration);
+      }, 500);
+    }
+
+    function formatTime(seconds) {
+      const s = Math.floor(seconds || 0);
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+    }
+
+    // Play Selected Track
+    function playTrack(track) {
+      if (!ytPlayer || !ytPlayer.loadVideoById) {
+        console.warn("YouTube Engine still warming up...");
+        return;
+      }
+
+      const titleEl = document.getElementById('current-track-title') || document.getElementById('main-track-title');
+      const artistEl = document.getElementById('current-track-artist') || document.getElementById('main-track-artist');
+      const coverEl = document.getElementById('album-cover-img') || document.getElementById('main-album-img');
+
+      if (titleEl) titleEl.innerText = track.title;
+      if (artistEl) artistEl.innerText = track.artist;
+      if (track.cover && coverEl) coverEl.src = track.cover;
+
+      ytPlayer.loadVideoById(track.id);
+      ytPlayer.playVideo();
+    }
+
+    // Toggle Play/Pause
+    const playPauseBtn = document.getElementById('play-pause-btn');
     if (playPauseBtn) {
       playPauseBtn.onclick = () => {
-        if (!audio.src) {
-          if (typeof TRACKS !== 'undefined' && TRACKS.length > 0) {
-            playTrack(TRACKS[0]);
-          }
-          return;
-        }
-        if (audio.paused) {
-          audio.play().catch(e => console.error("Play resume failed:", e));
+        if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
+        const state = ytPlayer.getPlayerState();
+        if (state === 1) {
+          ytPlayer.pauseVideo();
         } else {
-          audio.pause();
+          ytPlayer.playVideo();
         }
       };
     }
 
-    // Global state sync listeners
-    audio.onplay = () => {
-      if (playPauseBtn) {
-        playPauseBtn.innerHTML = `
-          <svg class="w-5 h-5 fill-current text-black" viewBox="0 0 24 24">
-            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-          </svg>`;
-      }
-      syncPlaybackUI(true);
-      if (typeof initWebAudio === 'function') initWebAudio();
-    };
+    // Scrubber Seek
+    const progressTrackEl = document.getElementById('progress-track-container') || document.getElementById('scrubber-track');
+    if (progressTrackEl) {
+      progressTrackEl.addEventListener('click', (e) => {
+        if (!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
+        const duration = ytPlayer.getDuration();
+        if (!duration) return;
+        const rect = progressTrackEl.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percent = Math.max(0, Math.min(1, clickX / rect.width));
+        isSeeking = true;
+        ytPlayer.seekTo(percent * duration, true);
+        setTimeout(() => { isSeeking = false; }, 300);
+      });
+    }
 
-    audio.onpause = () => {
-      if (playPauseBtn) {
-        playPauseBtn.innerHTML = `
-          <svg class="w-5 h-5 fill-current text-black ml-0.5" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
-          </svg>`;
-      }
-      syncPlaybackUI(false);
-    };
+    // Volume Slider
+    const volumeSlider = document.querySelector('input[type="range"]') || document.getElementById('volume-slider');
+    if (volumeSlider) {
+      volumeSlider.oninput = (e) => {
+        if (ytPlayer && ytPlayer.setVolume) {
+          ytPlayer.setVolume(e.target.value);
+        }
+      };
+    }
 
-    // Live Search Function (Internal Vercel Serverless Endpoint)
+    // Client-Side Instant YouTube Search
     async function executeGlobalSearch(query) {
       const container = document.getElementById('playlist-container') || trackListEl;
       if (!container) return;
 
       container.innerHTML = `
         <div class="text-xs text-neutral-400 p-6 text-center animate-pulse font-mono">
-          // SATELLITE RELAY: QUERYING SERVER FOR "${query}"...
+          // LOCATING FREQUENCIES FOR "${query}"...
         </div>`;
 
       try {
-        const res = await fetch(`/api/yt?search=${encodeURIComponent(query)}`);
-        const data = await res.json();
+        let data = null;
 
-        if (!data.success || !data.tracks || data.tracks.length === 0) {
-          container.innerHTML = `<div class="text-xs text-neutral-500 p-6 text-center font-mono">// NO TRANSMISSIONS FOUND.</div>`;
-          return;
+        // Robust search endpoint that never blocks client browsers
+        try {
+          const res = await fetch(`https://invidious.nerdvpn.de/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+          if (res.ok) data = await res.json();
+        } catch (e) {}
+
+        if (!Array.isArray(data) || data.length === 0) {
+          // Fallback search route
+          try {
+            const altRes = await fetch(`https://inv.nadeko.net/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+            if (altRes.ok) data = await altRes.json();
+          } catch (e) {}
         }
 
-        renderTracksList(data.tracks);
-      } catch (err) {
-        console.error("Backend fetch failed:", err);
-        container.innerHTML = `<div class="text-xs text-red-400 p-6 text-center font-mono">// SERVER RELAY OFFLINE.</div>`;
-      }
-    }
+        if (!Array.isArray(data) || data.length === 0) {
+          const publicMirrors = [
+            `https://invidious.f5.si/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
+            `https://yewtu.be/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
+            `https://api.invidious.io/api/v1/search?q=${encodeURIComponent(query)}&type=video`
+          ];
+          for (const m of publicMirrors) {
+            try {
+              const r = await fetch(m);
+              if (r.ok) {
+                const j = await r.json();
+                if (Array.isArray(j) && j.length > 0) {
+                  data = j;
+                  break;
+                }
+              }
+            } catch (err) {}
+          }
+        }
 
-    function formatSeconds(sec) {
-      const total = parseInt(sec, 10) || 0;
-      const m = Math.floor(total / 60);
-      const s = total % 60;
-      return `${m}:${s < 10 ? '0' : ''}${s}`;
+        const tracks = (data || []).slice(0, 10).map(item => ({
+          id: item.videoId || (item.url ? item.url.replace('/watch?v=', '') : ''),
+          title: item.title,
+          artist: item.author || item.uploaderName || "Unknown",
+          duration: formatTime(item.lengthSeconds),
+          cover: item.videoId ? `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg` : (item.thumbnail || 'assets/images/album-art.png')
+        })).filter(t => t.id);
+
+        if (tracks.length === 0) throw new Error("Empty list");
+        renderTracksList(tracks);
+
+      } catch (err) {
+        console.error("Search relay error:", err);
+        container.innerHTML = `<div class="text-xs text-neutral-500 p-6 text-center font-mono">// SEARCH TIMED OUT. TRY ANOTHER QUERY.</div>`;
+      }
     }
 
     // Render dynamic track list
@@ -855,7 +929,6 @@
         `;
 
         row.addEventListener('click', () => {
-          // Highlight active row
           document.querySelectorAll('.playlist-track-row').forEach(r => {
             r.classList.remove('bg-emerald-500/10', 'border-emerald-500/30');
           });
@@ -865,110 +938,6 @@
         });
 
         container.appendChild(row);
-      });
-    }
-
-    // Audio Playback Handler with Internal Vercel Serverless Stream Resolution
-    async function playTrack(track) {
-      const audio = window.voidAudioPlayer || new Audio();
-      window.voidAudioPlayer = audio;
-
-      currentMode = 'local';
-      if (typeof ytReady !== 'undefined' && ytReady && ytPlayer && ytPlaying) ytPlayer.pauseVideo();
-
-      // Update Left Panel UI
-      const titleEl = document.getElementById('current-track-title') || document.getElementById('main-track-title');
-      const artistEl = document.getElementById('current-track-artist') || document.getElementById('main-track-artist');
-      const coverEl = document.getElementById('album-cover-img') || document.getElementById('main-album-img');
-      const durationEl = document.getElementById('total-duration-display') || document.getElementById('scrubber-duration');
-
-      if (titleEl) titleEl.innerText = track.title;
-      if (artistEl) artistEl.innerText = track.artist;
-      if (coverEl && track.cover) coverEl.src = track.cover;
-      if (durationEl && track.duration) durationEl.innerText = track.duration;
-
-      // If it's a local track with direct stream / url already provided:
-      if ((track.url || track.src || track.streamUrl) && (!track.id || track.id.length <= 2)) {
-        const direct = track.streamUrl || track.url || track.src;
-        attachAudioEvents(audio);
-        audio.pause();
-        audio.src = direct;
-        audio.currentTime = 0;
-        audio.load();
-        audio.play().catch(e => console.error("Local track play error:", e));
-        return;
-      }
-
-      try {
-        attachAudioEvents(audio);
-
-        // Fetch direct audio stream URL from our backend
-        const res = await fetch(`/api/yt?id=${encodeURIComponent(track.id)}`);
-        const data = await res.json();
-
-        if (!data.success || !data.streamUrl) {
-          throw new Error("Stream URL extraction failed");
-        }
-
-        audio.pause();
-        audio.src = data.streamUrl;
-        audio.currentTime = 0;
-        audio.load();
-
-        audio.play().then(() => {
-          console.log("Transmission streaming live via Vercel relay:", track.title);
-        }).catch(e => console.error("Playback execution error:", e));
-
-      } catch (err) {
-        console.error("Failed to load stream:", err);
-        if (track.url || track.src || track.streamUrl) {
-          const fallbackUrl = track.streamUrl || track.url || track.src;
-          audio.pause();
-          audio.src = fallbackUrl;
-          audio.currentTime = 0;
-          audio.load();
-          audio.play().catch(e => console.error("Fallback stream failed:", e));
-        }
-      }
-    }
-
-    function attachAudioEvents(targetAudio) {
-      if (targetAudio._voidAttached) return;
-      targetAudio._voidAttached = true;
-
-      targetAudio.addEventListener('timeupdate', () => {
-        if (!targetAudio.duration) return;
-        const progressPercent = (targetAudio.currentTime / targetAudio.duration) * 100;
-        const progressBar = document.getElementById('audio-progress-bar') || document.getElementById('scrubber-fill');
-        const timerText = document.getElementById('current-time-display') || document.getElementById('scrubber-current');
-        const thumb = document.getElementById('scrubber-thumb');
-        
-        if (progressBar) progressBar.style.width = `${progressPercent}%`;
-        if (thumb) thumb.style.left = `${progressPercent}%`;
-        if (timerText) timerText.innerText = formatSeconds(targetAudio.currentTime);
-      });
-
-      targetAudio.addEventListener('play', () => syncPlaybackUI(true));
-      targetAudio.addEventListener('pause', () => syncPlaybackUI(false));
-      targetAudio.addEventListener('ended', () => {
-        if (!isLooping) {
-          isShuffle
-            ? loadTrack(Math.floor(Math.random() * TRACKS.length), true)
-            : loadTrack(currentIndex + 1, true);
-        }
-      });
-    }
-
-    // Connect Native Seek Scrubber
-    const progressTrackEl = document.getElementById('progress-track-container') || document.getElementById('scrubber-track');
-    if (progressTrackEl) {
-      progressTrackEl.addEventListener('click', (e) => {
-        const targetAudio = window.voidAudioPlayer;
-        if (!targetAudio || !targetAudio.duration) return;
-        const rect = progressTrackEl.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const percent = Math.max(0, Math.min(1, clickX / rect.width));
-        targetAudio.currentTime = percent * targetAudio.duration;
       });
     }
 
