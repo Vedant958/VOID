@@ -1744,80 +1744,22 @@
 
     container.innerHTML = `
       <div class="text-xs text-neutral-400 p-6 text-center animate-pulse font-mono" style="padding: 24px; text-align: center; color: #a3a3a3; font-family: monospace; font-size: 12px;">
-        // SEARCHING SATELLITE FREQUENCIES FOR: "${query}"...
+        // SATELLITE RELAY: QUERYING SERVER FOR "${query}"...
       </div>`;
 
     try {
-      let fetchedTracks = [];
+      const res = await fetch(`/api/yt?search=${encodeURIComponent(query)}`);
+      const data = await res.json();
 
-      // Primary: Saavn Full-Length Fast mirror
-      try {
-        const response = await fetch(`https://saavn-api.vercel.app/search/${encodeURIComponent(query)}`);
-        if (response.ok) {
-          const result = await response.json();
-          if (Array.isArray(result) && result.length > 0) {
-            fetchedTracks = result.map(item => {
-              const coverImg = item.image || 'assets/images/album-art.png';
-              const directUrl = item.url ? item.url.replace(/^http:\/\//i, 'https://') : null;
-              const dList = directUrl ? [
-                { quality: '320kbps', url: directUrl },
-                { quality: '160kbps', url: directUrl.replace(/_320\.mp4$/, '_160.mp4') },
-                { quality: '96kbps', url: directUrl.replace(/_320\.mp4$/, '_96.mp4') }
-              ] : [];
-
-              return {
-                id: item.id,
-                title: (item.title || "Unknown").replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
-                artist: item.artists || item.subtitle || "Unknown Artist",
-                duration: formatSeconds(item.duration),
-                cover: coverImg.replace(/^http:\/\//i, 'https://'),
-                downloadUrl: dList,
-                streamUrl: directUrl
-              };
-            }).filter(t => t.streamUrl);
-          }
-        }
-      } catch (e) {
-        console.warn("Saavn primary fast mirror unreachable:", e);
-      }
-
-      // Secondary fallback mirror
-      if (fetchedTracks.length === 0) {
-        try {
-          const response2 = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=15`);
-          if (response2.ok) {
-            const result2 = await response2.json();
-            if (result2 && result2.success && result2.data && result2.data.results && result2.data.results.length > 0) {
-              fetchedTracks = result2.data.results.map(item => {
-                const coverImg = (item.image && (item.image[2]?.url || item.image[0]?.url)) || (item.image?.[item.image.length - 1]?.url) || 'assets/images/album-art.png';
-                const dList = (item.downloadUrl && Array.isArray(item.downloadUrl)) ? item.downloadUrl : [];
-                return {
-                  id: item.id,
-                  title: (item.name || item.title || "Unknown").replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
-                  artist: (item.artists?.primary?.map(a => a.name).join(', ')) || item.subtitle || "Unknown Artist",
-                  duration: formatSeconds(item.duration),
-                  cover: coverImg.replace(/^http:\/\//i, 'https://'),
-                  downloadUrl: dList,
-                  streamUrl: getFullStreamUrl({ downloadUrl: dList })
-                };
-              }).filter(t => t.streamUrl);
-            }
-          }
-        } catch (e2) {
-          console.warn("Saavn secondary mirror unreachable:", e2);
-        }
-      }
-
-      if (fetchedTracks.length === 0) {
-        container.innerHTML = `<div class="text-xs text-neutral-500 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #737373; font-family: monospace; font-size: 12px;">// NO SIGNALS FOUND ON FREQUENCY.</div>`;
+      if (!data.success || !data.tracks || data.tracks.length === 0) {
+        container.innerHTML = `<div class="text-xs text-neutral-500 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #737373; font-family: monospace; font-size: 12px;">// NO TRANSMISSIONS FOUND.</div>`;
         return;
       }
 
-      renderTracksList(fetchedTracks);
-
-    } catch (error) {
-      console.error("Audio Signal Error:", error);
-      container.innerHTML = `<div class="text-xs text-red-400 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #f87171; font-family: monospace; font-size: 12px;">// TRANSMISSION FAILED. CHECK CONNECTION.</div>`;
+      renderTracksList(data.tracks);
+    } catch (err) {
+      console.error("Backend fetch failed:", err);
+      container.innerHTML = `<div class="text-xs text-red-400 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #f87171; font-family: monospace; font-size: 12px;">// SERVER RELAY OFFLINE.</div>`;
     }
   }
 
@@ -1868,37 +1810,21 @@
     });
   }
 
-  // Audio Playback Handler with Full Stream Resolution & CORS Fallback
-  function playTrack(track) {
-    const fullUrl = getFullStreamUrl(track);
-    if (!fullUrl) {
-      console.error("Full stream URL unavailable for:", track);
-      return;
-    }
+  // Audio Playback Handler with Internal Vercel Serverless Stream Resolution
+  async function playTrack(track) {
+    const audio = window.voidAudioPlayer || coreAudio || new Audio();
+    window.voidAudioPlayer = audio;
 
-    // Update UI Metadata
+    // Update Left Panel UI
     const titleEl = document.getElementById('current-track-title') || modalTrackTitle;
     const artistEl = document.getElementById('current-track-artist') || modalArtistTag;
     const coverEl = document.getElementById('album-cover-img');
     const durationEl = document.getElementById('total-duration-display') || document.getElementById('void-time-duration');
 
-    if (titleEl && track.title) titleEl.innerText = track.title;
-    if (artistEl && track.artist) artistEl.innerText = track.artist;
+    if (titleEl) titleEl.innerText = track.title;
+    if (artistEl) artistEl.innerText = track.artist;
     if (coverEl && track.cover) coverEl.src = track.cover;
     if (durationEl && track.duration) durationEl.innerText = track.duration;
-
-    attachAudioEvents(audio);
-
-    audio.pause();
-    audio.src = fullUrl;
-    audio.currentTime = 0;
-    audio.load();
-
-    audio.play().catch(err => {
-      console.warn("Direct play failed, retrying via CORS proxy:", err);
-      audio.src = `https://api.allorigins.win/raw?url=${encodeURIComponent(fullUrl)}`;
-      audio.play().catch(e => console.error("CORS proxy stream failed:", e));
-    });
 
     // Sync other widgets if present
     if (cardTrackTitle) cardTrackTitle.textContent = track.title;
@@ -1906,6 +1832,50 @@
     if (ambientTrackName) ambientTrackName.textContent = track.title;
     if (ambientTrackSub) ambientTrackSub.textContent = track.artist;
     if (timeDuration) timeDuration.textContent = track.duration;
+
+    // If it's a local track with direct stream / url already provided:
+    if ((track.url || track.src || track.streamUrl) && (!track.id || track.id.length <= 2)) {
+      const direct = track.streamUrl || track.url || track.src;
+      attachAudioEvents(audio);
+      audio.pause();
+      audio.src = direct;
+      audio.currentTime = 0;
+      audio.load();
+      audio.play().catch(e => console.error("Local track play error:", e));
+      return;
+    }
+
+    try {
+      attachAudioEvents(audio);
+
+      // Fetch direct audio stream URL from our backend
+      const res = await fetch(`/api/yt?id=${encodeURIComponent(track.id)}`);
+      const data = await res.json();
+
+      if (!data.success || !data.streamUrl) {
+        throw new Error("Stream URL extraction failed");
+      }
+
+      audio.pause();
+      audio.src = data.streamUrl;
+      audio.currentTime = 0;
+      audio.load();
+
+      audio.play().then(() => {
+        console.log("Transmission streaming live via Vercel relay:", track.title);
+      }).catch(e => console.error("Playback execution error:", e));
+
+    } catch (err) {
+      console.error("Failed to load stream:", err);
+      if (track.url || track.src || track.streamUrl) {
+        const fallbackUrl = track.streamUrl || track.url || track.src;
+        audio.pause();
+        audio.src = fallbackUrl;
+        audio.currentTime = 0;
+        audio.load();
+        audio.play().catch(e => console.error("Fallback stream failed:", e));
+      }
+    }
   }
 
   // Force Input Event Attachment (Wipe cloned listeners, bind Enter key)
