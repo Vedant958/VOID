@@ -1654,6 +1654,25 @@
   // ==========================================
   // SAAVN DIRECT LIVE SEARCH ENGINE (ZERO-CORS)
   // ==========================================
+  function extractBestAudioUrl(downloadUrlArray) {
+    if (!downloadUrlArray || downloadUrlArray.length === 0) return null;
+    
+    // Prefer 320kbps or 160kbps, fallback to highest available
+    const sorted = [...downloadUrlArray].sort((a, b) => {
+      const qA = parseInt(a.quality) || 0;
+      const qB = parseInt(b.quality) || 0;
+      return qB - qA;
+    });
+
+    let targetUrl = sorted[0]?.url || sorted[0]?.link || (typeof downloadUrlArray === 'string' ? downloadUrlArray : null);
+    
+    if (targetUrl) {
+      // Force HTTPS to prevent mixed-content blocks on Vercel
+      targetUrl = targetUrl.replace(/^http:\/\//i, 'https://');
+    }
+    return targetUrl;
+  }
+
   async function executeGlobalSearch(query) {
     const container = document.getElementById('playlist-container') || trackListContainer;
     if (!container) return;
@@ -1673,18 +1692,17 @@
           const result = await response.json();
           if (result && result.success && result.data && result.data.results && result.data.results.length > 0) {
             fetchedTracks = result.data.results.map(item => {
-              const downloadUrls = item.downloadUrl || [];
-              const bestAudio = downloadUrls[downloadUrls.length - 1]?.url || downloadUrls[0]?.url;
-              const images = item.image || [];
-              const bestImage = images[images.length - 1]?.url || images[0]?.url || 'assets/images/album-art.png';
+              const coverImg = (item.image && (item.image[2]?.url || item.image[0]?.url)) || (item.image?.[item.image.length - 1]?.url) || 'assets/images/album-art.png';
+              const resolvedStream = extractBestAudioUrl(item.downloadUrl);
 
               return {
                 id: item.id,
                 title: item.name.replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
                 artist: (item.artists?.primary?.map(a => a.name).join(', ')) || "Unknown Artist",
                 duration: formatSeconds(item.duration),
-                cover: bestImage,
-                streamUrl: bestAudio
+                cover: coverImg.replace(/^http:\/\//i, 'https://'),
+                downloadUrl: item.downloadUrl,
+                streamUrl: resolvedStream
               };
             }).filter(t => t.streamUrl);
           }
@@ -1706,6 +1724,7 @@
                 artist: item.artistName || "Unknown Artist",
                 duration: formatSeconds(Math.floor((item.trackTimeMillis || 0) / 1000)),
                 cover: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : 'assets/images/album-art.png',
+                downloadUrl: [{ quality: '256kbps', url: item.previewUrl }],
                 streamUrl: item.previewUrl
               })).filter(t => t.streamUrl);
             }
@@ -1743,49 +1762,95 @@
 
     if (trackCountEl) trackCountEl.textContent = `${tracks.length} ${tracks.length === 1 ? 'Track' : 'Tracks'}`;
 
-    tracks.forEach((track, index) => {
+    tracks.forEach((item, index) => {
       const row = document.createElement('div');
-      row.className = "void-track-row flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 cursor-pointer transition group";
+      row.className = "playlist-track-row void-track-row flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 cursor-pointer transition group border border-transparent";
       row.innerHTML = `
         <div class="void-track-row-left flex items-center gap-3 overflow-hidden">
           <div class="void-track-thumb-box">
-            <img src="${track.cover}" class="void-track-thumb-img w-10 h-10 rounded-lg object-cover border border-white/5" alt="cover">
+            <img src="${item.cover}" class="void-track-thumb-img w-10 h-10 rounded-lg object-cover border border-white/5" alt="cover" onerror="this.src='assets/images/album-art.png'">
           </div>
           <div class="void-track-row-meta truncate">
-            <div class="void-track-title text-sm text-white font-medium truncate group-hover:text-emerald-400 transition">${track.title}</div>
-            <div class="void-track-artist text-xs text-neutral-400 truncate">${track.artist}</div>
+            <div class="void-track-title text-sm text-white font-medium truncate group-hover:text-emerald-400 transition">${item.title}</div>
+            <div class="void-track-artist text-xs text-neutral-400 truncate">${item.artist}</div>
           </div>
         </div>
         <div class="void-track-row-right text-xs text-neutral-500 font-mono pl-3">
-          <span class="void-track-dur">${track.duration}</span>
+          <span class="void-track-dur">${item.duration}</span>
         </div>
       `;
 
       row.addEventListener('click', () => {
-        document.querySelectorAll('.void-track-row').forEach(r => r.classList.remove('active'));
-        row.classList.add('active');
-        playTrack(track);
+        // Highlight active row
+        document.querySelectorAll('.playlist-track-row').forEach(r => {
+          r.classList.remove('bg-emerald-500/10', 'border-emerald-500/30', 'active');
+        });
+        row.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'active');
+
+        playTrack({
+          id: item.id,
+          title: item.title,
+          artist: item.artist,
+          cover: item.cover,
+          duration: item.duration,
+          downloadUrl: item.downloadUrl,
+          streamUrl: item.streamUrl || extractBestAudioUrl(item.downloadUrl)
+        });
       });
+
       container.appendChild(row);
     });
   }
 
-  // Play selected track
+  // Audio Playback Handler with Error Handling & Fallback
   function playTrack(track) {
-    if (!track.streamUrl) return;
-
     const audio = window.voidAudioPlayer;
-    audio.src = track.streamUrl;
-    audio.play().catch(e => console.warn("Audio playback error:", e));
+    const streamUrl = track.streamUrl || extractBestAudioUrl(track.downloadUrl);
 
-    // Update Left Panel UI
+    if (!streamUrl) {
+      console.error("No valid stream URL found for track:", track);
+      return;
+    }
+
+    // Update UI Elements
     const titleEl = document.getElementById('current-track-title') || modalTrackTitle;
     const artistEl = document.getElementById('current-track-artist') || modalArtistTag;
     const coverEl = document.getElementById('album-cover-img');
+    const playBtn = document.getElementById('play-pause-btn') || document.getElementById('void-modal-play-btn');
 
     if (titleEl) titleEl.innerText = track.title;
     if (artistEl) artistEl.innerText = track.artist;
-    if (coverEl) coverEl.src = track.cover;
+    if (coverEl && track.cover) coverEl.src = track.cover;
+
+    // Load and play
+    audio.pause();
+    audio.src = streamUrl;
+    audio.load();
+
+    audio.play()
+      .then(() => {
+        console.log("Audio playback started:", track.title);
+        if (playBtn) playBtn.innerHTML = '❚❚';
+        syncAllUI(true);
+        initWebAudioNodes();
+      })
+      .catch((err) => {
+        console.warn("Autoplay blocked or audio format error, trying fallback stream:", err);
+        // Fallback: try next available bitrate if available
+        if (track.downloadUrl && track.downloadUrl.length > 1) {
+          const fallbackUrl = (track.downloadUrl[0]?.url || track.downloadUrl[0]?.link || '').replace(/^http:\/\//i, 'https://');
+          if (fallbackUrl) {
+            audio.src = fallbackUrl;
+            audio.load();
+            audio.play()
+              .then(() => {
+                syncAllUI(true);
+                initWebAudioNodes();
+              })
+              .catch(e => console.error("Fallback playback failed:", e));
+          }
+        }
+      });
 
     // Sync other widgets if present
     if (cardTrackTitle) cardTrackTitle.textContent = track.title;
@@ -1793,9 +1858,6 @@
     if (ambientTrackName) ambientTrackName.textContent = track.title;
     if (ambientTrackSub) ambientTrackSub.textContent = track.artist;
     if (timeDuration) timeDuration.textContent = track.duration;
-
-    syncAllUI(true);
-    initWebAudioNodes();
   }
 
   // Force Input Event Attachment (Wipe cloned listeners, bind Enter key)
