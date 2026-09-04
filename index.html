@@ -29,8 +29,9 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Background Music (autoplay, looping) -->
-  <audio id="bg-music" src="music.mp3" autoplay muted loop preload="auto"></audio>
+  <!-- Background Music & Persistent VOID Core Audio Engine -->
+  <audio id="void-core-audio" src="music.mp3" loop preload="auto"></audio>
+  <audio id="bg-music" src="music.mp3" loop preload="auto" style="display:none;"></audio>
 
   <!-- Night Mode Video Background -->
   <div id="night-bg-wrap">
@@ -104,7 +105,8 @@
         <span class="pills-label">// DIRECT ACCESS:</span>
         <a href="worldfm.html" class="access-pill">[📻 WORLD_FM]</a>
         <a href="eyes.html" class="access-pill">[👁️ EYES_OF_THE_WORLD]</a>
-        <a href="shady.html" class="access-pill access-pill--highlight">[🎬 SHADY_VOID]</a>
+        <a href="shady.html" class="access-pill">[🎬 SHADY_VOID]</a>
+        <a href="voidbeats.html" class="access-pill access-pill--highlight">[🎵 VOID_BEATS]</a>
         <a href="datasys.html" class="access-pill">[📊 DATA.SYS]</a>
       </div>
     </div>
@@ -258,26 +260,67 @@
           </div>
         </a>
 
-        <!-- MOD_05: GLITCH MATRIX — CRT interference / matrix code -->
-        <div class="feature-card module-card group" data-reveal>
+        <!-- MOD_05: VOID_BEATS — Neural Audio Deck & Frequency Stream -->
+        <div class="feature-card module-card void-beats-card group" id="mod-05-void-beats" data-reveal>
           <div class="card-laser"></div>
           <div class="card-corner corner-tl"></div>
           <div class="card-corner corner-tr"></div>
           <div class="card-corner corner-bl"></div>
           <div class="card-corner corner-br"></div>
-          <video class="module-video" autoplay loop muted playsinline>
-            <source src="assets/videos/glitch.mp4" type="video/mp4">
-          </video>
-          <div class="module-scrim"></div>
-          <div class="module-content">
-            <div class="card-header">
-              <span class="card-id">MOD_05</span>
-              <span class="card-status">● ACTIVE</span>
+          
+          <!-- Background Visual / Video with Oscilloscope Fallback -->
+          <div class="void-beats-bg-wrap">
+            <video class="module-video void-beats-video" id="void-beats-card-video" autoplay loop muted playsinline>
+              <source src="assets/videos/void_beats.mp4" type="video/mp4">
+              <source src="assets/videos/glitch.mp4" type="video/mp4">
+            </video>
+            <canvas id="void-card-oscilloscope" class="void-card-oscilloscope"></canvas>
+            <div class="module-scrim void-beats-scrim"></div>
+          </div>
+
+          <div class="module-content void-beats-content">
+            <!-- Header Tag -->
+            <div class="card-header void-beats-header">
+              <div class="void-live-tag">
+                <span class="void-live-dot"></span>
+                <span class="void-live-text">// LIVE_STREAM</span>
+              </div>
+              <span class="card-id void-mod-id">MOD_05</span>
             </div>
-            <h3 class="card-title">GLITCH MATRIX</h3>
-            <p class="card-body type-effect" data-type-text="Subtle scanline and noise effects add depth to the interface. The aesthetic draws from CRT monitors, circuit boards, and neon-lit cityscapes."></p>
-            <div class="card-footer">
-              <span class="card-metric">LOAD: 2%</span>
+
+            <!-- Title & Subtext -->
+            <h3 class="card-title void-beats-title">VOID MUSIC DECK</h3>
+            <p class="card-body void-beats-subtext">REAL-TIME FREQUENCY FEED // LO-FI &amp; AMBIENT SYNTH</p>
+
+            <!-- Embedded Now Playing Pill -->
+            <div class="void-now-playing-pill" id="void-card-pill">
+              <button class="void-pill-play-btn" id="void-card-play-btn" aria-label="Toggle Playback">
+                <svg class="void-pill-icon void-pill-icon--play" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5.14v14l11-7-11-7z"/>
+                </svg>
+                <svg class="void-pill-icon void-pill-icon--pause hidden" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="5" width="4" height="14" rx="1"/>
+                  <rect x="14" y="5" width="4" height="14" rx="1"/>
+                </svg>
+              </button>
+              <div class="void-pill-meta">
+                <div class="void-pill-track" id="void-card-track-title">SYNTHETIC_HORIZON_04</div>
+                <div class="void-pill-artist" id="void-card-artist-tag">NEURAL_DRIFT // 320kbps</div>
+              </div>
+              <div class="void-pill-eq" id="void-card-eq">
+                <span class="void-eq-bar bar-1"></span>
+                <span class="void-eq-bar bar-2"></span>
+                <span class="void-eq-bar bar-3"></span>
+              </div>
+            </div>
+
+            <!-- Action CTA Button -->
+            <div class="card-footer void-beats-footer">
+              <button class="void-launch-btn" id="void-launch-modal-btn">
+                <span class="void-launch-bracket">[</span>
+                <span class="void-launch-text">LAUNCH AUDIO INTERFACE</span>
+                <span class="void-launch-bracket">]</span>
+              </button>
             </div>
           </div>
         </div>
@@ -412,6 +455,151 @@
         <span class="eq-bar"></span>
       </div>
     </button>
+  </div>
+
+  <!-- ==========================================
+       MOD_05 EXPANDED MODAL // SLEEK AUDIO DECK
+       ========================================== -->
+  <div id="void-music-modal" class="void-modal-backdrop" aria-hidden="true" role="dialog" aria-label="VOID BEATS Audio Deck">
+    <div class="void-modal-window" id="void-modal-window">
+      
+      <!-- Minimalist Top Bar -->
+      <div class="void-modal-topbar">
+        <div class="void-brand-group">
+          <span class="void-brand-dot"></span>
+          <span class="void-brand-title">VOID_BEATS</span>
+          <span class="void-brand-tag">DECK</span>
+        </div>
+        <button class="void-modal-close-btn" id="void-modal-close-btn" aria-label="Close Interface" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Two-Column Audio Deck Layout -->
+      <div class="void-modal-body">
+        
+        <!-- Left Panel: High-End Album Art & Clean Controls -->
+        <div class="void-modal-deck-panel">
+          
+          <!-- Square Album Artwork -->
+          <div class="void-album-art-wrap">
+            <img src="assets/album_art.jpg" alt="Now Playing Album Art" id="void-modal-album-img" class="void-album-img">
+            <div class="void-album-vinyl-glow"></div>
+            <!-- Subtle live visualizer overlay at bottom of album art -->
+            <canvas id="void-deck-visualizer-canvas" class="void-album-vis-canvas" width="400" height="70"></canvas>
+          </div>
+
+          <!-- Track Info -->
+          <div class="void-deck-track-info">
+            <h2 class="void-deck-track-title" id="void-modal-track-title">CYBER_DRIFT_808</h2>
+            <p class="void-deck-track-artist" id="void-modal-artist-tag">NEO_TOKYO_ARCHIVE</p>
+          </div>
+
+          <!-- Sleek Thin Scrubber & Timers -->
+          <div class="void-scrubber-wrap">
+            <span class="void-time-label" id="void-time-current">00:00</span>
+            <div class="void-scrubber-track" id="void-scrubber-track">
+              <div class="void-scrubber-fill" id="void-scrubber-fill" style="width: 0%;"></div>
+              <div class="void-scrubber-thumb" id="void-scrubber-thumb" style="left: 0%;"></div>
+            </div>
+            <span class="void-time-label" id="void-time-duration">03:45</span>
+          </div>
+
+          <!-- Minimal Transport Controls Cluster -->
+          <div class="void-controls-cluster">
+            <button class="void-ctrl-btn void-ctrl-btn--aux" id="void-shuffle-btn" title="Shuffle">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 3h5v5M4 20l17-17M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+              </svg>
+            </button>
+
+            <button class="void-ctrl-btn void-ctrl-btn--skip" id="void-prev-track-btn" title="Previous Track">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+              </svg>
+            </button>
+
+            <button class="void-ctrl-btn void-ctrl-btn--play" id="void-modal-play-btn" title="Play / Pause">
+              <svg class="void-modal-play-icon void-modal-icon--play" viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+                <path d="M8 5.14v14l11-7-11-7z"/>
+              </svg>
+              <svg class="void-modal-play-icon void-modal-icon--pause hidden" viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+                <rect x="6" y="5" width="4" height="14" rx="1"/>
+                <rect x="14" y="5" width="4" height="14" rx="1"/>
+              </svg>
+            </button>
+
+            <button class="void-ctrl-btn void-ctrl-btn--skip" id="void-next-track-btn" title="Next Track">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+              </svg>
+            </button>
+
+            <button class="void-ctrl-btn void-ctrl-btn--aux active" id="void-loop-toggle" title="Repeat Loop">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Bottom Volume Bar -->
+          <div class="void-aux-bar">
+            <div class="void-vol-wrap">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              </svg>
+              <input type="range" min="0" max="100" value="80" class="void-vol-slider" id="void-volume-slider" aria-label="Volume">
+              <span class="void-vol-val" id="void-volume-label">80%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel: Clean Modern Playlist & Search -->
+        <div class="void-modal-playlist-panel">
+          
+          <!-- Search Bar: Minimal rounded pill input -->
+          <div class="void-search-wrap">
+            <div class="void-search-inner">
+              <svg class="void-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" 
+                     id="void-search-terminal" 
+                     placeholder="Search songs, artists, channels..." 
+                     class="void-search-terminal" 
+                     autocomplete="off" 
+                     spellcheck="false">
+            </div>
+          </div>
+
+          <!-- Filter Pills: Sleek modern rounded chips -->
+          <div class="void-filter-tabs">
+            <button class="void-filter-tab active" data-filter="all">All</button>
+            <button class="void-filter-tab" data-filter="lofi">Lo-Fi</button>
+            <button class="void-filter-tab" data-filter="synthwave">Synthwave</button>
+            <button class="void-filter-tab" data-filter="ambient">Ambient</button>
+          </div>
+
+          <!-- Track List Items: Spacious modern rows with hover effect -->
+          <div class="void-track-list-scroll" id="void-track-list">
+            <!-- Injected dynamically -->
+          </div>
+
+          <!-- Playlist Footer Status -->
+          <div class="void-playlist-footer">
+            <span id="void-track-count">6 Tracks</span>
+            <span>VOID_BEATS</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

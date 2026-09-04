@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <meta name="description" content="VOID // VOID_BEATS — Sleek Dark Minimalist Audio Deck."/>
+  <title>VOID_BEATS // Modern Audio Deck</title>
+  
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-void.png">
+  <link rel="shortcut icon" type="image/png" href="assets/icon-void.png">
+
+  <!-- Typography & Icons -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+
+  <!-- Tailwind CSS Framework -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "emerald-accent": "#10b981",
+            "deck-bg": "#0b0b0f",
+            "deck-surface": "#121216",
+            "deck-card": "#17171d",
+            "deck-border": "rgba(255, 255, 255, 0.08)"
+          },
+          fontFamily: {
+            "sans": ["Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+            "display": ["Space Grotesk", "sans-serif"],
+            "mono": ["JetBrains Mono", "monospace"]
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #070709;
+      color: #f1f5f9;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Razor-thin transparent custom scrollbar */
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Range slider custom styling */
+    input[type="range"] {
+      accent-color: #10b981;
+    }
+
+    /* Scrubber hover thumb */
+    .scrubber-track:hover .scrubber-thumb {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+
+    /* Vinyl artwork glow */
+    .album-vinyl-glow {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 55%, rgba(11, 11, 15, 0.8) 100%);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="selection:bg-emerald-500 selection:text-black">
+
+  <!-- Persistent Root Audio Engine -->
+  <audio id="void-core-audio" src="music.mp3" loop preload="auto"></audio>
+
+  <!-- ==========================================
+       MINIMALIST TOP HEADER
+       ========================================== -->
+  <header class="h-16 w-full px-6 md:px-12 border-b border-white/[0.06] bg-[#0b0b0f]/80 backdrop-blur-xl sticky top-0 z-40 flex items-center justify-between">
+    <!-- Brand -->
+    <div class="flex items-center gap-3">
+      <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]"></span>
+      <a href="index.html" class="font-display font-bold text-lg tracking-wide text-white hover:text-emerald-400 transition-colors">
+        VOID_BEATS
+      </a>
+      <span class="text-[10px] font-mono tracking-wider px-2 py-0.5 rounded bg-white/[0.05] text-neutral-400 border border-white/[0.06]">DECK</span>
+    </div>
+
+    <!-- Return Link -->
+    <a href="index.html#features" class="px-4 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-xs text-neutral-300 hover:text-white hover:bg-white/[0.08] hover:border-white/[0.15] transition-all flex items-center gap-2">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      <span>Return to Core</span>
+    </a>
+  </header>
+
+  <!-- ==========================================
+       MAIN AUDIO DECK
+       ========================================== -->
+  <main class="flex-1 max-w-[1080px] w-full mx-auto p-4 md:p-8 flex flex-col justify-center">
+    
+    <!-- Outer Deck Window: Subtle dark glass border & rounded-2xl -->
+    <div class="relative bg-[#0b0b0f] border border-white/[0.08] rounded-2xl shadow-[0_30px_70px_rgba(0,0,0,0.85),0_0_40px_rgba(16,185,129,0.06)] overflow-hidden flex flex-col">
+      
+      <!-- Deck Top Bar -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+          <span class="text-xs font-semibold text-white tracking-wide">High-Fidelity Audio Deck</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="text-xs font-mono text-neutral-400" id="deck-status-text">Playing</span>
+        </div>
+      </div>
+
+      <!-- Two-Column Audio Deck Layout -->
+      <div class="grid grid-cols-1 md:grid-cols-12 items-stretch min-h-[500px]">
+        
+        <!-- ==========================================
+             LEFT PANEL: ALBUM ART & MINIMAL CONTROLS
+             ========================================== -->
+        <div class="md:col-span-6 lg:col-span-6 p-6 md:p-8 flex flex-col justify-between border-b md:border-b-0 md:border-r border-white/[0.06] bg-[#0b0b0f]">
+          
+          <!-- Square Album Artwork -->
+          <div class="relative w-full max-w-[280px] aspect-square mx-auto mb-6 rounded-2xl overflow-hidden shadow-2xl border border-white/[0.08] bg-[#121216]">
+            <img src="assets/album_art.jpg" alt="Album Artwork" id="main-album-img" class="w-full h-full object-cover block">
+            <div class="album-vinyl-glow"></div>
+            <!-- Subtle live visualizer overlay at bottom of album art -->
+            <canvas id="deck-visualizer-canvas" class="absolute bottom-0 left-0 w-full h-[65px] pointer-events-none opacity-70 z-10" width="400" height="70"></canvas>
+          </div>
+
+          <!-- Track Metadata -->
+          <div class="mb-5 text-left">
+            <h2 class="text-2xl md:text-3xl font-bold text-white tracking-normal mb-1 truncate" id="main-track-title">CYBER_DRIFT_808</h2>
+            <p class="text-sm text-neutral-400 font-normal truncate" id="main-track-artist">NEO_TOKYO_ARCHIVE</p>
+          </div>
+
+          <!-- Sleek Thin Scrubber & Timers -->
+          <div class="mb-5">
+            <div class="flex items-center gap-3 font-mono text-xs text-neutral-500">
+              <span id="scrubber-current" class="min-w-[36px] text-neutral-400">00:00</span>
+              <div id="scrubber-track" class="scrubber-track flex-1 h-1 bg-neutral-800 hover:h-1.5 rounded-full relative cursor-pointer transition-all">
+                <div id="scrubber-fill" class="h-full bg-emerald-500 rounded-full" style="width: 0%;"></div>
+                <div id="scrubber-thumb" class="scrubber-thumb absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)] pointer-events-none opacity-0 transition-opacity" style="left: 0%;"></div>
+              </div>
+              <span id="scrubber-duration" class="min-w-[36px] text-neutral-400 text-right">03:45</span>
+            </div>
+          </div>
+
+          <!-- Minimal Transport Controls Cluster -->
+          <div class="flex items-center justify-center gap-4 mb-4">
+            <!-- Shuffle -->
+            <button id="ctrl-shuffle" class="w-9 h-9 text-neutral-400 hover:text-white rounded-full flex items-center justify-center transition-colors cursor-pointer" title="Shuffle">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 3h5v5M4 20l17-17M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+              </svg>
+            </button>
+
+            <!-- Previous -->
+            <button id="ctrl-prev" class="w-10 h-10 text-neutral-300 hover:text-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer" title="Previous Track">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+              </svg>
+            </button>
+
+            <!-- Play / Pause: Large circular white/emerald button -->
+            <button id="ctrl-play" class="w-14 h-14 bg-white text-black hover:bg-emerald-500 hover:text-black rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(255,255,255,0.2)] hover:shadow-[0_6px_24px_rgba(16,185,129,0.5)] hover:scale-105 active:scale-95 transition-all cursor-pointer" title="Play / Pause">
+              <svg id="icon-play" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5.14v14l11-7-11-7z"/>
+              </svg>
+              <svg id="icon-pause" class="w-6 h-6 hidden" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="5" width="4" height="14" rx="1"/>
+                <rect x="14" y="5" width="4" height="14" rx="1"/>
+              </svg>
+            </button>
+
+            <!-- Next -->
+            <button id="ctrl-next" class="w-10 h-10 text-neutral-300 hover:text-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer" title="Next Track">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+              </svg>
+            </button>
+
+            <!-- Loop -->
+            <button id="ctrl-loop" class="w-9 h-9 text-emerald-400 hover:text-emerald-300 rounded-full flex items-center justify-center transition-colors cursor-pointer" title="Repeat: On">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Bottom Volume Bar -->
+          <div class="flex items-center justify-end gap-2 text-neutral-400 text-xs">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            <input id="volume-slider" type="range" min="0" max="100" value="80" class="w-20 h-1 bg-neutral-800 rounded-full cursor-pointer accent-emerald-500">
+            <span id="volume-label" class="w-7 text-right font-mono text-neutral-400">80%</span>
+          </div>
+
+        </div>
+
+        <!-- ==========================================
+             RIGHT PANEL: CLEAN MODERN PLAYLIST & SEARCH
+             ========================================== -->
+        <div class="md:col-span-6 lg:col-span-6 p-6 md:p-7 bg-white/[0.015] flex flex-col justify-between">
+          
+          <div>
+            <!-- Minimal Search Pill -->
+            <div class="relative mb-3.5">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </div>
+              <input type="text" 
+                     id="search-input" 
+                     placeholder="Search local or press Enter to search YouTube..." 
+                     class="w-full bg-neutral-900/80 border border-neutral-800 rounded-full pl-9 pr-4 py-2.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-500 transition-colors" 
+                     autocomplete="off" 
+                     spellcheck="false">
+            </div>
+
+            <!-- Filter Pills: Sleek modern rounded chips -->
+            <div class="flex flex-wrap gap-2 mb-4" id="filter-tabs">
+              <button class="filter-tab active px-3.5 py-1 text-xs rounded-full bg-white text-black font-semibold cursor-pointer transition-colors" data-filter="all">All</button>
+              <button class="filter-tab px-3.5 py-1 text-xs rounded-full bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white cursor-pointer transition-colors" data-filter="lofi">Lo-Fi</button>
+              <button class="filter-tab px-3.5 py-1 text-xs rounded-full bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white cursor-pointer transition-colors" data-filter="synthwave">Synthwave</button>
+              <button class="filter-tab px-3.5 py-1 text-xs rounded-full bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white cursor-pointer transition-colors" data-filter="ambient">Ambient</button>
+            </div>
+
+            <!-- Spacious Track Rows Container -->
+            <div id="track-list" class="custom-scrollbar space-y-1 max-h-[380px] overflow-y-auto pr-1">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Playlist Footer Status -->
+          <div class="pt-3 mt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-neutral-500">
+            <span id="track-library-count">3 Tracks</span>
+            <span class="font-mono text-[11px] text-neutral-400 flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              VOID_BEATS
+            </span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ==========================================
+       MINIMAL FOOTER
+       ========================================== -->
+  <footer class="w-full py-4 text-center text-xs text-neutral-600 font-mono">
+    <span>VOID // MODERN AUDIO DECK</span>
+  </footer>
+
+  <!-- Hidden YouTube IFrame Container (offscreen, zero-size) -->
+  <div id="yt-hidden-player" style="position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none;"></div>
+
+  <!-- YouTube IFrame API (async — won't block render) -->
+  <script src="https://www.youtube.com/iframe_api" defer></script>
+
+  <!-- ==========================================
+       VOID_BEATS ENGINE v3 — Dual-Mode Player
+       Local (HTML5) + YouTube IFrame API
+       ========================================== -->
+  <script>
+  (() => {
+    'use strict';
+
+    // ─────────────────────────────────────────────────────────────
+    // CONSTANTS
+    // ─────────────────────────────────────────────────────────────
+
+    // Search API cascade: Piped first (returns items[]), then Invidious instances
+    const SEARCH_APIS = [
+      q => `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(q)}&filter=music_songs`,
+      q => `https://yt.artemislena.eu/api/v1/search?q=${encodeURIComponent(q)}&type=video`,
+      q => `https://invidious.io.lol/api/v1/search?q=${encodeURIComponent(q)}&type=video`,
+      q => `https://iv.datura.network/api/v1/search?q=${encodeURIComponent(q)}&type=video`
+    ];
+
+    const FALLBACK_COVER = 'assets/images/album-art.png';
+    const DEBOUNCE_MS    = 480;
+
+    // ─────────────────────────────────────────────────────────────
+    // STATE
+    // ─────────────────────────────────────────────────────────────
+    let LOCAL_TRACKS  = [];          // stable set from tracks.json
+    let TRACKS        = [];          // active displayed set
+    let currentIndex  = 0;
+    let isLooping     = true;
+    let isShuffle     = false;
+    let activeFilter  = 'all';
+    let searchQuery   = '';
+    let isSearchMode  = false;       // true → showing YT results
+    let debounceTimer = null;
+    let scrubInterval = null;        // polls YT player for scrubber
+    let currentMode   = 'local';     // 'local' | 'youtube'
+
+    // ─────────────────────────────────────────────────────────────
+    // HTML5 AUDIO (local tracks)
+    // ─────────────────────────────────────────────────────────────
+    if (!window.voidAudio) {
+      window.voidAudio = document.getElementById('void-core-audio');
+    }
+    const audio = window.voidAudio;
+
+    // ─────────────────────────────────────────────────────────────
+    // YOUTUBE IFRAME PLAYER
+    // ─────────────────────────────────────────────────────────────
+    let ytPlayer = null;
+    let ytReady  = false;
+
+    // Called automatically by the YT IFrame API script when loaded
+    window.onYouTubeIframeAPIReady = function () {
+      ytPlayer = new YT.Player('yt-hidden-player', {
+        height: '1', width: '1',
+        playerVars: { autoplay: 0, controls: 0, disablekb: 1, playsinline: 1 },
+        events: {
+          onReady:       () => { ytReady = true; },
+          onStateChange: onYtStateChange
+        }
+      });
+    };
+
+    function onYtStateChange(event) {
+      if (event.data === YT.PlayerState.PLAYING) {
+        syncPlaybackUI(true);
+        startScrubPoll();
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        syncPlaybackUI(false);
+        stopScrubPoll();
+      } else if (event.data === YT.PlayerState.ENDED) {
+        stopScrubPoll();
+        if (!isLooping) {
+          isShuffle
+            ? loadTrack(Math.floor(Math.random() * TRACKS.length), true)
+            : loadTrack(currentIndex + 1, true);
+        } else {
+          ytPlayer.playVideo(); // manual loop
+        }
+      }
+    }
+
+    // Scrubber polling for YouTube (HTML5 has native timeupdate)
+    function startScrubPoll() {
+      stopScrubPoll();
+      scrubInterval = setInterval(() => {
+        if (!ytPlayer || currentMode !== 'youtube') return;
+        const cur = ytPlayer.getCurrentTime() || 0;
+        const dur = ytPlayer.getDuration()    || 0;
+        updateScrubberDisplay(cur, dur);
+      }, 250);
+    }
+
+    function stopScrubPoll() {
+      clearInterval(scrubInterval);
+      scrubInterval = null;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // UI REFS
+    // ─────────────────────────────────────────────────────────────
+    const mainTitle     = document.getElementById('main-track-title');
+    const mainArtist    = document.getElementById('main-track-artist');
+    const mainAlbumImg  = document.getElementById('main-album-img');
+    const ctrlPlay      = document.getElementById('ctrl-play');
+    const iconPlay      = document.getElementById('icon-play');
+    const iconPause     = document.getElementById('icon-pause');
+    const ctrlPrev      = document.getElementById('ctrl-prev');
+    const ctrlNext      = document.getElementById('ctrl-next');
+    const ctrlLoop      = document.getElementById('ctrl-loop');
+    const ctrlShuffle   = document.getElementById('ctrl-shuffle');
+    const scrubCurrent  = document.getElementById('scrubber-current');
+    const scrubDuration = document.getElementById('scrubber-duration');
+    const scrubFill     = document.getElementById('scrubber-fill');
+    const scrubThumb    = document.getElementById('scrubber-thumb');
+    const scrubTrack    = document.getElementById('scrubber-track');
+    const volSlider     = document.getElementById('volume-slider');
+    const volLabel      = document.getElementById('volume-label');
+    const trackListEl   = document.getElementById('track-list');
+    const searchInput   = document.getElementById('search-input');
+    const filterTabs    = document.querySelectorAll('.filter-tab');
+    const trackCountEl  = document.getElementById('track-library-count');
+    const statusText    = document.getElementById('deck-status-text');
+
+    // ─────────────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────────────
+    function fmt(sec) {
+      if (!sec || isNaN(sec) || sec < 0) return '00:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    }
+
+    function esc(s) {
+      return String(s||'')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function cover(c) { return c || FALLBACK_COVER; }
+
+    // Normalise tracks.json entry
+    function normaliseLocal(t, i) {
+      return {
+        id:      String(t.id || i),
+        title:   t.title   || 'Unknown',
+        artist:  t.artist  || 'Unknown',
+        channel: (t.category || 'all').toLowerCase().replace(/[-\s]/g,''),
+        cover:   cover(t.cover),
+        duration:t.duration || '00:00',
+        src:     t.url || t.src || 'music.mp3',
+        isYt:    false
+      };
+    }
+
+    // Normalise Piped API result (items[])
+    function normalisePiped(item) {
+      const vid = (item.url || '').replace('/watch?v=','').split('&')[0] || item.videoId || '';
+      return {
+        id:      vid,
+        title:   item.title || 'YouTube Track',
+        artist:  item.uploaderName || item.author || 'Unknown',
+        channel: 'yt',
+        cover:   item.thumbnail || FALLBACK_COVER,
+        duration:typeof item.duration === 'number'
+                   ? fmt(item.duration)
+                   : (item.duration || '03:30'),
+        src:     vid, // video ID used by YT IFrame
+        isYt:    true
+      };
+    }
+
+    // Normalise Invidious API result
+    function normaliseInvidious(item) {
+      const thumb = (item.videoThumbnails || []).find(t => t.quality==='medium')
+                 || (item.videoThumbnails||[])[0] || {};
+      return {
+        id:      item.videoId || '',
+        title:   item.title  || 'YouTube Track',
+        artist:  item.author || 'Unknown',
+        channel: 'yt',
+        cover:   thumb.url   || FALLBACK_COVER,
+        duration:fmt(item.lengthSeconds || 0),
+        src:     item.videoId || '',
+        isYt:    true
+      };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // PLAYBACK CORE
+    // ─────────────────────────────────────────────────────────────
+    function loadTrack(index, autoPlay = false) {
+      if (!TRACKS.length) return;
+      currentIndex = ((index % TRACKS.length) + TRACKS.length) % TRACKS.length;
+      const t = TRACKS[currentIndex];
+
+      // Left panel update
+      if (mainTitle)    mainTitle.textContent  = t.title;
+      if (mainArtist)   mainArtist.textContent = t.artist;
+      if (mainAlbumImg) {
+        mainAlbumImg.src = cover(t.cover);
+        mainAlbumImg.onerror = () => { mainAlbumImg.src = FALLBACK_COVER; };
+      }
+      if (scrubDuration) scrubDuration.textContent = t.duration;
+      resetScrubber();
+
+      if (t.isYt) {
+        currentMode = 'youtube';
+        audio.pause(); // stop any local playback
+        stopScrubPoll();
+        if (autoPlay) playYt(t.src);
+      } else {
+        currentMode = 'local';
+        stopScrubPoll();
+        if (ytReady && ytPlayer) ytPlayer.stopVideo();
+        audio.src  = t.src;
+        audio.loop = isLooping;
+        if (autoPlay) playLocal();
+      }
+
+      renderTrackList();
+      if (!autoPlay) syncPlaybackUI(false);
+    }
+
+    function playLocal() {
+      initWebAudio();
+      audio.play()
+        .then(() => syncPlaybackUI(true))
+        .catch(e => { console.warn('[VOID] Local playback blocked:', e); syncPlaybackUI(false); });
+    }
+
+    function playYt(videoId) {
+      if (!videoId) return;
+      if (!ytReady || !ytPlayer) {
+        // YT API not ready yet — retry in 800ms
+        setTimeout(() => playYt(videoId), 800);
+        return;
+      }
+      ytPlayer.loadVideoById(videoId);
+      // onStateChange(PLAYING) will call syncPlaybackUI(true) + startScrubPoll()
+    }
+
+    function pauseActive() {
+      if (currentMode === 'youtube' && ytReady && ytPlayer) {
+        ytPlayer.pauseVideo();
+      } else {
+        audio.pause();
+        syncPlaybackUI(false);
+      }
+    }
+
+    function resumeActive() {
+      if (currentMode === 'youtube' && ytReady && ytPlayer) {
+        ytPlayer.playVideo();
+      } else {
+        playLocal();
+      }
+    }
+
+    function togglePlay() {
+      if (currentMode === 'youtube') {
+        const state = ytReady && ytPlayer ? ytPlayer.getPlayerState() : -1;
+        state === YT.PlayerState.PLAYING ? pauseActive() : resumeActive();
+      } else {
+        audio.paused ? resumeActive() : pauseActive();
+      }
+    }
+
+    function syncPlaybackUI(playing) {
+      if (iconPlay)   iconPlay.classList.toggle('hidden', playing);
+      if (iconPause)  iconPause.classList.toggle('hidden', !playing);
+      if (statusText) statusText.textContent = playing ? 'Playing' : 'Paused';
+      document.querySelectorAll('.active-track-dot').forEach(d => {
+        d.style.opacity   = playing ? '1' : '0.35';
+        d.style.boxShadow = playing ? '0 0 10px #10b981' : 'none';
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SCRUBBER
+    // ─────────────────────────────────────────────────────────────
+    function resetScrubber() {
+      if (scrubFill)    scrubFill.style.width  = '0%';
+      if (scrubThumb)   scrubThumb.style.left  = '0%';
+      if (scrubCurrent) scrubCurrent.textContent = '00:00';
+    }
+
+    function updateScrubberDisplay(cur, dur) {
+      const pct = dur > 0 ? (cur / dur) * 100 : 0;
+      if (scrubFill)    scrubFill.style.width  = `${pct}%`;
+      if (scrubThumb)   scrubThumb.style.left  = `${pct}%`;
+      if (scrubCurrent) scrubCurrent.textContent = fmt(cur);
+      if (scrubDuration) scrubDuration.textContent = fmt(dur);
+    }
+
+    // HTML5 audio scrubber (local tracks)
+    audio.addEventListener('timeupdate', () => {
+      if (currentMode !== 'local') return;
+      updateScrubberDisplay(audio.currentTime, audio.duration);
+    });
+    audio.addEventListener('play',  () => { if (currentMode==='local') syncPlaybackUI(true); });
+    audio.addEventListener('pause', () => { if (currentMode==='local') syncPlaybackUI(false); });
+    audio.addEventListener('ended', () => {
+      if (currentMode !== 'local') return;
+      if (!isLooping) {
+        isShuffle
+          ? loadTrack(Math.floor(Math.random() * TRACKS.length), true)
+          : loadTrack(currentIndex + 1, true);
+      }
+    });
+
+    // Scrubber click seek
+    if (scrubTrack) {
+      scrubTrack.addEventListener('click', e => {
+        const pct = Math.max(0, Math.min(1, (e.clientX - scrubTrack.getBoundingClientRect().left) / scrubTrack.offsetWidth));
+        if (currentMode === 'youtube' && ytReady && ytPlayer) {
+          const dur = ytPlayer.getDuration() || 0;
+          if (dur) ytPlayer.seekTo(pct * dur, true);
+        } else if (audio.duration) {
+          audio.currentTime = pct * audio.duration;
+        }
+      });
+    }
+
+    // Volume
+    if (volSlider) {
+      volSlider.addEventListener('input', e => {
+        const v = e.target.value;
+        audio.volume = v / 100;
+        if (ytReady && ytPlayer) ytPlayer.setVolume(Number(v));
+        if (volLabel) volLabel.textContent = `${v}%`;
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // TRANSPORT CONTROLS
+    // ─────────────────────────────────────────────────────────────
+    if (ctrlPlay)    ctrlPlay.addEventListener('click',    togglePlay);
+    if (ctrlPrev)    ctrlPrev.addEventListener('click',    () => isShuffle ? loadTrack(Math.floor(Math.random()*TRACKS.length),true) : loadTrack(currentIndex-1,true));
+    if (ctrlNext)    ctrlNext.addEventListener('click',    () => isShuffle ? loadTrack(Math.floor(Math.random()*TRACKS.length),true) : loadTrack(currentIndex+1,true));
+    if (ctrlLoop)    ctrlLoop.addEventListener('click',    () => {
+      isLooping = !isLooping;
+      audio.loop = isLooping;
+      ctrlLoop.classList.toggle('text-emerald-400', isLooping);
+      ctrlLoop.classList.toggle('text-neutral-400', !isLooping);
+      ctrlLoop.title = isLooping ? 'Repeat: On' : 'Repeat: Off';
+    });
+    if (ctrlShuffle) ctrlShuffle.addEventListener('click', () => {
+      isShuffle = !isShuffle;
+      ctrlShuffle.classList.toggle('text-emerald-400', isShuffle);
+      ctrlShuffle.classList.toggle('text-neutral-400', !isShuffle);
+      ctrlShuffle.title = isShuffle ? 'Shuffle: On' : 'Shuffle: Off';
+    });
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' && e.target.tagName !== 'INPUT') { e.preventDefault(); togglePlay(); }
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // RENDER PLAYLIST
+    // ─────────────────────────────────────────────────────────────
+    function renderTrackList(override) {
+      if (!trackListEl) return;
+      const list = override || TRACKS;
+
+      const filtered = isSearchMode ? list : list.filter(t => {
+        const catOk = activeFilter === 'all' || t.channel === activeFilter;
+        const q = searchQuery.toLowerCase();
+        const qOk = !q || t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q);
+        return catOk && qOk;
+      });
+
+      if (trackCountEl) {
+        trackCountEl.textContent = isSearchMode
+          ? `${filtered.length} YouTube Results`
+          : `${filtered.length} ${filtered.length===1?'Track':'Tracks'}`;
+      }
+
+      if (filtered.length === 0) {
+        trackListEl.innerHTML = `<div class="py-10 text-center text-sm text-neutral-500">No tracks found.</div>`;
+        return;
+      }
+
+      trackListEl.innerHTML = '';
+      filtered.forEach(track => {
+        const origIdx  = TRACKS.findIndex(t => t.id === track.id);
+        const isActive = origIdx !== -1 && origIdx === currentIndex;
+
+        const row = document.createElement('div');
+        row.className = `flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 group ${isActive ? 'bg-emerald-500/10' : 'hover:bg-white/5'}`;
+        row.innerHTML = `
+          <div class="flex items-center gap-3 overflow-hidden min-w-0">
+            <div class="relative w-10 h-10 rounded-lg overflow-hidden bg-neutral-900 shrink-0">
+              <img src="${esc(cover(track.cover))}" alt="${esc(track.title)}"
+                   class="w-full h-full object-cover" onerror="this.src='${FALLBACK_COVER}'">
+              ${isActive ? `<div class="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <span class="active-track-dot w-2 h-2 rounded-full bg-emerald-500" style="box-shadow:0 0 10px #10b981"></span>
+              </div>` : ''}
+            </div>
+            <div class="min-w-0 overflow-hidden">
+              <div class="text-sm font-semibold truncate ${isActive?'text-emerald-400':'text-white group-hover:text-emerald-300 transition-colors'}">${esc(track.title)}</div>
+              <div class="text-xs text-neutral-400 truncate mt-0.5">${esc(track.artist)}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0 pl-2">
+            ${track.isYt ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/20">YT</span>` : ''}
+            <span class="text-xs font-mono ${isActive?'text-emerald-400':'text-neutral-500'}">${esc(track.duration)}</span>
+          </div>`;
+
+        row.addEventListener('click', () => {
+          if (origIdx === -1) {
+            // New YT result — add to TRACKS, play it
+            TRACKS.push(track);
+            loadTrack(TRACKS.length - 1, true);
+          } else {
+            loadTrack(origIdx, true);
+          }
+        });
+
+        trackListEl.appendChild(row);
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // LIVE YOUTUBE SEARCH — Piped + Invidious cascade
+    // ─────────────────────────────────────────────────────────────
+    function showSearchSpinner(query) {
+      if (!trackListEl) return;
+      trackListEl.innerHTML = `
+        <div class="py-10 flex flex-col items-center gap-3 text-neutral-500">
+          <svg class="animate-spin w-5 h-5 text-emerald-500" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+          </svg>
+          <span class="text-sm">Searching YouTube for <span class="text-emerald-400">"${esc(query)}"</span>…</span>
+          <span class="text-xs text-neutral-600 font-mono">// QUERYING FREQUENCIES</span>
+        </div>`;
+    }
+
+    function showSearchError() {
+      if (!trackListEl) return;
+      trackListEl.innerHTML = `
+        <div class="py-10 text-center">
+          <div class="text-sm text-red-400 font-mono mb-1">// STREAM_ERROR: ALL FREQUENCIES OFFLINE</div>
+          <div class="text-xs text-neutral-500 mt-2">All search APIs timed out. Check your connection and retry.</div>
+          <button onclick="document.getElementById('search-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))"
+                  class="mt-4 px-4 py-1.5 text-xs rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 hover:border-emerald-500 hover:text-emerald-400 transition-colors cursor-pointer">
+            Retry
+          </button>
+        </div>`;
+    }
+
+    async function executeOnlineSearch(query) {
+      showSearchSpinner(query);
+      if (trackCountEl) trackCountEl.textContent = 'Searching…';
+
+      for (const getUrl of SEARCH_APIS) {
+        try {
+          const res = await fetch(getUrl(query), {
+            signal: AbortSignal.timeout(7000),
+            headers: { 'Accept': 'application/json' }
+          });
+          if (!res.ok) continue;
+
+          const data = await res.json();
+
+          // Handle both Piped (data.items) and Invidious (data = array)
+          const rawItems = Array.isArray(data) ? data : (data.items || []);
+          if (!rawItems.length) continue;
+
+          const tracks = rawItems
+            .slice(0, 10)
+            .map(item => Array.isArray(data) ? normaliseInvidious(item) : normalisePiped(item))
+            .filter(t => t.id && t.title);
+
+          if (tracks.length > 0) {
+            isSearchMode = true;
+            renderTrackList(tracks);
+            if (trackCountEl) trackCountEl.textContent = `${tracks.length} YouTube Results`;
+            return; // success — stop trying
+          }
+        } catch (e) {
+          console.warn('[VOID_BEATS] Search endpoint failed, trying next…', e.message || e);
+        }
+      }
+
+      // All APIs failed
+      showSearchError();
+      if (trackCountEl) trackCountEl.textContent = '0 Results';
+    }
+
+    function exitSearchMode() {
+      isSearchMode = false;
+      TRACKS = [...LOCAL_TRACKS];
+      searchQuery = '';
+      if (searchInput) searchInput.value = '';
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SEARCH INPUT WIRING
+    // ─────────────────────────────────────────────────────────────
+    if (searchInput) {
+      // Real-time: filter local tracks instantly while typing
+      searchInput.addEventListener('input', e => {
+        const q = e.target.value.trim();
+        searchQuery = q;
+        clearTimeout(debounceTimer);
+
+        if (!q) {
+          exitSearchMode();
+          renderTrackList();
+          return;
+        }
+
+        // Immediately filter local set
+        isSearchMode = false;
+        renderTrackList();
+
+        // After debounce: hit live APIs
+        debounceTimer = setTimeout(() => executeOnlineSearch(q), DEBOUNCE_MS);
+      });
+
+      // Enter: fire immediately without debounce wait
+      searchInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          const q = searchInput.value.trim();
+          if (q) { clearTimeout(debounceTimer); executeOnlineSearch(q); }
+        }
+        if (e.key === 'Escape') {
+          exitSearchMode();
+          renderTrackList();
+        }
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // CATEGORY FILTER CHIPS
+    // ─────────────────────────────────────────────────────────────
+    filterTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        if (isSearchMode) exitSearchMode();
+
+        filterTabs.forEach(t => {
+          t.classList.remove('bg-white','text-black','font-semibold');
+          t.classList.add('bg-neutral-900','border','border-neutral-800','text-neutral-400');
+        });
+        tab.classList.add('bg-white','text-black','font-semibold');
+        tab.classList.remove('bg-neutral-900','border','border-neutral-800','text-neutral-400');
+
+        activeFilter = tab.dataset.filter;
+        renderTrackList();
+      });
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // WEB AUDIO API — Visualizer (local playback only)
+    // ─────────────────────────────────────────────────────────────
+    const canvas = document.getElementById('deck-visualizer-canvas');
+    const vCtx   = canvas?.getContext('2d') || null;
+    let audioCtx = null, analyser = null, srcNode = null;
+
+    function initWebAudio() {
+      if (audioCtx) { if (audioCtx.state==='suspended') audioCtx.resume(); return; }
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        srcNode = audioCtx.createMediaElementSource(audio);
+        srcNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      } catch(e) { console.warn('[VOID] Web Audio init:', e); }
+    }
+
+    function resizeCanvas() {
+      if (!canvas) return;
+      canvas.width  = canvas.parentElement?.clientWidth || 300;
+      canvas.height = 70;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function renderVisualizer() {
+      requestAnimationFrame(renderVisualizer);
+      if (!vCtx) return;
+      const W = canvas.width, H = canvas.height;
+      vCtx.clearRect(0,0,W,H);
+
+      if (!analyser || audio.paused || currentMode==='youtube') {
+        const t = Date.now() * 0.003;
+        vCtx.beginPath();
+        vCtx.lineWidth=1.5; vCtx.strokeStyle='#10b981';
+        vCtx.shadowBlur=6; vCtx.shadowColor='rgba(16,185,129,.4)';
+        for (let x=0;x<W;x+=2) {
+          const y = H/2 + Math.sin(x*.035+t)*10*Math.abs(Math.sin(t*.4)) + Math.cos(x*.06+t)*5;
+          x===0 ? vCtx.moveTo(x,y) : vCtx.lineTo(x,y);
+        }
+        vCtx.stroke(); vCtx.shadowBlur=0; return;
+      }
+
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteTimeDomainData(buf);
+      vCtx.lineWidth=1.5; vCtx.strokeStyle='#10b981';
+      vCtx.shadowBlur=8; vCtx.shadowColor='rgba(16,185,129,.65)';
+      vCtx.beginPath();
+      const step = W/buf.length;
+      let x=0;
+      for (let i=0;i<buf.length;i++) {
+        const y=(buf[i]/128)*(H/2);
+        i===0 ? vCtx.moveTo(x,y) : vCtx.lineTo(x,y);
+        x+=step;
+      }
+      vCtx.lineTo(W,H/2); vCtx.stroke(); vCtx.shadowBlur=0;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // BOOT — load tracks.json → render → start visualizer
+    // ─────────────────────────────────────────────────────────────
+    async function init() {
+      try {
+        const res = await fetch('assets/data/tracks.json');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        LOCAL_TRACKS = (await res.json()).map(normaliseLocal);
+      } catch (e) {
+        console.warn('[VOID] tracks.json unavailable, using fallback.', e);
+        LOCAL_TRACKS = [
+          { id:'1', title:'Neon Rain Cyberpunk', artist:'Cybermind',    channel:'lofi',     cover:FALLBACK_COVER, duration:'03:45', src:'music.mp3', isYt:false },
+          { id:'2', title:'Synthetic Horizon',   artist:'Neural Drift', channel:'synthwave', cover:FALLBACK_COVER, duration:'04:12', src:'music.mp3', isYt:false },
+          { id:'3', title:'Static Rain 99',       artist:'Void Entity',  channel:'ambient',   cover:FALLBACK_COVER, duration:'05:10', src:'music.mp3', isYt:false }
+        ];
+      }
+      TRACKS = [...LOCAL_TRACKS];
+      loadTrack(0, false);
+      renderVisualizer();
+    }
+
+    init();
+
+  })();
+  </script>
+</body>
+</html>

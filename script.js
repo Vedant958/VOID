@@ -1275,104 +1275,563 @@
 })();
 
 // ==========================================
+// VOID_BEATS (MOD_05) & GLOBAL PERSISTENT AUDIO ENGINE
+// Controls root persistent audio (#void-core-audio)
+// Bi-directionally synchronized with AMBIENT.SYNC widget,
+// MOD_05 card, and DECIBEL MATRIX v1.0 modal overlay.
 // ==========================================
-// MUSIC PLAYER — HTML Audio Control
-// Controls background music (music.mp3)
-// ==========================================
-(function initMusic() {
-  const btn = document.getElementById('music-toggle');
-  const bgMusic = document.getElementById('bg-music');
-  const iconPlay = document.getElementById('music-icon-play');
-  const iconPause = document.getElementById('music-icon-pause');
-  const trackPanel = document.getElementById('music-track-panel');
-  const playerWrap = document.getElementById('music-player');
-  if (!btn || !bgMusic) return;
+(function initVoidBeatsEngine() {
+  'use strict';
 
+  // Core Audio Element (Root persistent level)
+  const coreAudio = document.getElementById('void-core-audio') || document.getElementById('bg-music');
+  const bgMusicAlias = document.getElementById('bg-music');
+  if (!coreAudio) return;
+
+  // Floating AMBIENT.SYNC widget elements
+  const ambientBtn = document.getElementById('music-toggle');
+  const ambientIconPlay = document.getElementById('music-icon-play');
+  const ambientIconPause = document.getElementById('music-icon-pause');
+  const ambientTrackPanel = document.getElementById('music-track-panel');
+  const ambientPlayerWrap = document.getElementById('music-player');
+  const ambientTrackName = document.getElementById('mtp-track-name');
+  const ambientTrackSub = document.getElementById('mtp-track-sub');
+
+  // MOD_05 Card elements
+  const cardPlayBtn = document.getElementById('void-card-play-btn');
+  const cardTrackTitle = document.getElementById('void-card-track-title');
+  const cardArtistTag = document.getElementById('void-card-artist-tag');
+  const cardEqBars = document.querySelectorAll('#void-card-eq .void-eq-bar');
+  const launchModalBtn = document.getElementById('void-launch-modal-btn');
+  const cardVideo = document.getElementById('void-beats-card-video');
+  const cardOscCanvas = document.getElementById('void-card-oscilloscope');
+
+  // DECIBEL MATRIX Modal elements
+  const modal = document.getElementById('void-music-modal');
+  const modalWindow = document.getElementById('void-modal-window');
+  const modalCloseBtn = document.getElementById('void-modal-close-btn');
+  const modalPlayBtn = document.getElementById('void-modal-play-btn');
+  const modalPrevBtn = document.getElementById('void-prev-track-btn');
+  const modalNextBtn = document.getElementById('void-next-track-btn');
+  const modalTrackTitle = document.getElementById('void-modal-track-title');
+  const modalArtistTag = document.getElementById('void-modal-artist-tag');
+  const scrubberTrack = document.getElementById('void-scrubber-track');
+  const scrubberFill = document.getElementById('void-scrubber-fill');
+  const scrubberThumb = document.getElementById('void-scrubber-thumb');
+  const timeCurrent = document.getElementById('void-time-current');
+  const timeDuration = document.getElementById('void-time-duration');
+  const volumeSlider = document.getElementById('void-volume-slider');
+  const volumeLabel = document.getElementById('void-volume-label');
+  const loopToggleBtn = document.getElementById('void-loop-toggle');
+  const searchTerminal = document.getElementById('void-search-terminal');
+  const filterTabs = document.querySelectorAll('.void-filter-tab');
+  const trackListContainer = document.getElementById('void-track-list');
+  const visualizerCanvas = document.getElementById('void-deck-visualizer-canvas');
+  const trackCountEl = document.getElementById('void-track-count');
+
+  // Track Database
+  const TRACKS = [
+    {
+      id: '01',
+      title: 'CYBER_DRIFT_808',
+      artist: 'NEO_TOKYO_ARCHIVE',
+      channel: 'lofi',
+      channelLabel: 'LO-FI CYBERPUNK',
+      duration: '03:45',
+      durationSec: 225,
+      bitrate: '320kbps FLAC',
+      src: 'music.mp3'
+    },
+    {
+      id: '02',
+      title: 'SYNTHETIC_HORIZON_04',
+      artist: 'NEURAL_DRIFT',
+      channel: 'synthwave',
+      channelLabel: 'SYNTHWAVE',
+      duration: '04:12',
+      durationSec: 252,
+      bitrate: '320kbps / 48kHz',
+      src: 'music.mp3'
+    },
+    {
+      id: '03',
+      title: 'STATIC_RAIN_99',
+      artist: 'VOID_ENTITY',
+      channel: 'ambient',
+      channelLabel: 'AMBIENT VOID',
+      duration: '05:10',
+      durationSec: 310,
+      bitrate: '320kbps / 44.1kHz',
+      src: 'music.mp3'
+    },
+    {
+      id: '04',
+      title: 'NEURAL_AWAKENING',
+      artist: 'SYS_ADMIN',
+      channel: 'lofi',
+      channelLabel: 'LO-FI CYBERPUNK',
+      duration: '03:32',
+      durationSec: 212,
+      bitrate: '48kHz FLAC',
+      src: 'music.mp3'
+    },
+    {
+      id: '05',
+      title: 'CORE_DUMP_LULLABY',
+      artist: 'GHOST_IN_RAM',
+      channel: 'ambient',
+      channelLabel: 'AMBIENT VOID',
+      duration: '04:48',
+      durationSec: 288,
+      bitrate: '320kbps / 48kHz',
+      src: 'music.mp3'
+    },
+    {
+      id: '06',
+      title: 'RETRO_GRID_OVERDRIVE',
+      artist: 'SECTOR_09',
+      channel: 'synthwave',
+      channelLabel: 'SYNTHWAVE',
+      duration: '03:58',
+      durationSec: 238,
+      bitrate: '320kbps MP3',
+      src: 'music.mp3'
+    }
+  ];
+
+  let currentTrackIndex = 0;
+  let isLooping = true;
+  let activeFilter = 'all';
+  let searchQuery = '';
   let hasUserInteracted = false;
 
-  function openPanel() {
-    if (trackPanel) trackPanel.classList.add('open');
-    if (playerWrap) playerWrap.classList.add('panel-open');
+  // Format MM:SS helper
+  function formatTime(sec) {
+    if (isNaN(sec) || sec < 0) return '00:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
   }
 
-  function closePanel() {
-    if (trackPanel) trackPanel.classList.remove('open');
-    if (playerWrap) playerWrap.classList.remove('panel-open');
+  // Unified Play / Pause Trigger
+  function playAudio() {
+    initWebAudioNodes();
+    coreAudio.play().then(() => {
+      syncAllUI(true);
+    }).catch(err => {
+      console.warn('[VOID_BEATS] Playback request blocked or awaiting user gesture:', err);
+      syncAllUI(false);
+    });
   }
 
-  // ------------------------------------------
-  // Try to autoplay music
-  // ------------------------------------------
-  function attemptAutoplay() {
-    if (bgMusic.muted) {
-      bgMusic.muted = false;
+  function pauseAudio() {
+    coreAudio.pause();
+    syncAllUI(false);
+  }
+
+  function togglePlay() {
+    hasUserInteracted = true;
+    if (coreAudio.muted) coreAudio.muted = false;
+    if (coreAudio.paused) {
+      playAudio();
+    } else {
+      pauseAudio();
     }
-    if (bgMusic.paused) {
-      bgMusic.play().catch(err => {
-        console.warn('Autoplay blocked by browser policy. Click anywhere to play.');
+  }
+
+  // Load and apply track
+  function loadTrack(index, autoPlay = false) {
+    currentTrackIndex = (index + TRACKS.length) % TRACKS.length;
+    const track = TRACKS[currentTrackIndex];
+
+    coreAudio.src = track.src;
+    coreAudio.loop = isLooping;
+
+    // Update metadata across all panels
+    if (cardTrackTitle) cardTrackTitle.textContent = track.title;
+    if (cardArtistTag) cardArtistTag.textContent = `${track.artist} // ${track.bitrate}`;
+
+    if (modalTrackTitle) modalTrackTitle.textContent = track.title;
+    if (modalArtistTag) modalArtistTag.textContent = track.artist;
+    if (timeDuration) timeDuration.textContent = track.duration;
+
+    if (ambientTrackName) ambientTrackName.textContent = track.title;
+    if (ambientTrackSub) ambientTrackSub.textContent = `${track.artist} // LOOP ∞`;
+
+    renderPlaylist();
+
+    if (autoPlay) {
+      playAudio();
+    } else {
+      syncAllUI(!coreAudio.paused);
+    }
+  }
+
+  // Synchronize UI across all components
+  function syncAllUI(isPlaying) {
+    // 1. Floating AMBIENT.SYNC widget
+    if (ambientBtn) {
+      if (isPlaying) {
+        ambientBtn.classList.add('playing');
+        if (ambientIconPlay) ambientIconPlay.classList.add('hidden');
+        if (ambientIconPause) ambientIconPause.classList.remove('hidden');
+        if (ambientTrackPanel) ambientTrackPanel.classList.add('open');
+        if (ambientPlayerWrap) ambientPlayerWrap.classList.add('panel-open');
+      } else {
+        ambientBtn.classList.remove('playing');
+        if (ambientIconPlay) ambientIconPlay.classList.remove('hidden');
+        if (ambientIconPause) ambientIconPause.classList.remove('hidden');
+        if (ambientTrackPanel) ambientTrackPanel.classList.remove('open');
+        if (ambientPlayerWrap) ambientPlayerWrap.classList.remove('panel-open');
+      }
+    }
+
+    // 2. MOD_05 Card
+    if (cardPlayBtn) {
+      const playIcon = cardPlayBtn.querySelector('.void-pill-icon--play');
+      const pauseIcon = cardPlayBtn.querySelector('.void-pill-icon--pause');
+      if (playIcon) playIcon.classList.toggle('hidden', isPlaying);
+      if (pauseIcon) pauseIcon.classList.toggle('hidden', !isPlaying);
+    }
+    cardEqBars.forEach(bar => {
+      bar.style.animationPlayState = isPlaying ? 'running' : 'paused';
+    });
+
+    // 3. DECIBEL MATRIX Modal
+    if (modalPlayBtn) {
+      const modalPlayIcon = modalPlayBtn.querySelector('.void-modal-icon--play');
+      const modalPauseIcon = modalPlayBtn.querySelector('.void-modal-icon--pause');
+      if (modalPlayIcon) modalPlayIcon.classList.toggle('hidden', isPlaying);
+      if (modalPauseIcon) modalPauseIcon.classList.toggle('hidden', !isPlaying);
+    }
+
+    // Update playlist active item meters / dots
+    const activeDots = document.querySelectorAll('.void-track-playing-dot');
+    activeDots.forEach(dot => {
+      dot.style.boxShadow = isPlaying ? '0 0 10px #10b981' : 'none';
+      dot.style.opacity = isPlaying ? '1' : '0.4';
+    });
+  }
+
+  // Audio Event Listeners for seamless state sync
+  coreAudio.addEventListener('play', () => syncAllUI(true));
+  coreAudio.addEventListener('pause', () => syncAllUI(false));
+  coreAudio.addEventListener('timeupdate', () => {
+    if (!coreAudio.duration) return;
+    const progress = (coreAudio.currentTime / coreAudio.duration) * 100;
+    if (scrubberFill) scrubberFill.style.width = `${progress}%`;
+    if (scrubberThumb) scrubberThumb.style.left = `${progress}%`;
+    if (timeCurrent) timeCurrent.textContent = formatTime(coreAudio.currentTime);
+  });
+
+  // Render Modern Sleek Playlist with Live Search & Filter
+  function renderPlaylist() {
+    if (!trackListContainer) return;
+    trackListContainer.innerHTML = '';
+
+    const filtered = TRACKS.filter(t => {
+      const matchesFilter = activeFilter === 'all' || t.channel === activeFilter;
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q ||
+        t.title.toLowerCase().includes(q) ||
+        t.artist.toLowerCase().includes(q) ||
+        t.channelLabel.toLowerCase().includes(q);
+      return matchesFilter && matchesSearch;
+    });
+
+    if (trackCountEl) trackCountEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'Track' : 'Tracks'}`;
+
+    if (filtered.length === 0) {
+      trackListContainer.innerHTML = `
+        <div style="padding: 32px 16px; text-align: center; font-size: 13px; color: #64748b;">
+          No tracks found matching "${searchQuery}"
+        </div>
+      `;
+      return;
+    }
+
+    filtered.forEach(track => {
+      const origIndex = TRACKS.findIndex(t => t.id === track.id);
+      const isActive = origIndex === currentTrackIndex;
+
+      const item = document.createElement('div');
+      item.className = `void-track-row ${isActive ? 'active' : ''}`;
+      item.innerHTML = `
+        <div class="void-track-row-left">
+          <div class="void-track-thumb-box">
+            <img src="assets/album_art.jpg" class="void-track-thumb-img" alt="${track.title}">
+            ${isActive ? '<div class="void-track-playing-badge"><span class="void-track-playing-dot"></span></div>' : ''}
+          </div>
+          <div class="void-track-row-meta">
+            <div class="void-track-title">${track.title}</div>
+            <div class="void-track-artist">${track.artist}</div>
+          </div>
+        </div>
+        <div class="void-track-row-right">
+          <span class="void-track-dur">${track.duration}</span>
+        </div>
+      `;
+
+      item.addEventListener('click', () => {
+        loadTrack(origIndex, true);
       });
+
+      trackListContainer.appendChild(item);
+    });
+  }
+
+  // Modal Open & Close Logic (Decoupled from audio: CLOSING NEVER PAUSES)
+  function openModal() {
+    if (!modal) return;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    resizeVisualizerCanvas();
+    renderPlaylist();
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  if (launchModalBtn) launchModalBtn.addEventListener('click', openModal);
+  if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+  }
+
+  // Keyboard Shortcuts (Escape to close modal; Space to toggle play)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal && modal.classList.contains('open')) {
+      closeModal();
+    }
+    if ((e.code === 'Space' || e.key === 'm' || e.key === 'M') && e.target.tagName !== 'INPUT') {
+      e.preventDefault();
+      togglePlay();
+    }
+  });
+
+  // Buttons Event Handlers
+  if (ambientBtn) ambientBtn.addEventListener('click', togglePlay);
+  if (cardPlayBtn) cardPlayBtn.addEventListener('click', togglePlay);
+  if (modalPlayBtn) modalPlayBtn.addEventListener('click', togglePlay);
+  if (modalPrevBtn) modalPrevBtn.addEventListener('click', () => loadTrack(currentTrackIndex - 1, true));
+  if (modalNextBtn) modalNextBtn.addEventListener('click', () => loadTrack(currentTrackIndex + 1, true));
+
+  // Scrubber Seek
+  if (scrubberTrack) {
+    scrubberTrack.addEventListener('click', (e) => {
+      const rect = scrubberTrack.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, clickX / rect.width));
+      if (coreAudio.duration) {
+        coreAudio.currentTime = pct * coreAudio.duration;
+      }
+    });
+  }
+
+  // Volume Slider
+  if (volumeSlider) {
+    volumeSlider.addEventListener('input', (e) => {
+      const val = e.target.value;
+      coreAudio.volume = val / 100;
+      if (volumeLabel) volumeLabel.textContent = `${val}%`;
+    });
+  }
+
+  // Loop & Shuffle Toggles
+  if (loopToggleBtn) {
+    loopToggleBtn.addEventListener('click', () => {
+      isLooping = !isLooping;
+      coreAudio.loop = isLooping;
+      loopToggleBtn.classList.toggle('active', isLooping);
+      loopToggleBtn.setAttribute('title', isLooping ? 'Repeat: On' : 'Repeat: Off');
+    });
+  }
+
+  const shuffleBtn = document.getElementById('void-shuffle-btn');
+  let isShuffle = false;
+  if (shuffleBtn) {
+    shuffleBtn.addEventListener('click', () => {
+      isShuffle = !isShuffle;
+      shuffleBtn.classList.toggle('active', isShuffle);
+      shuffleBtn.setAttribute('title', isShuffle ? 'Shuffle: On' : 'Shuffle: Off');
+    });
+  }
+
+  // Search Terminal Event Handler
+  if (searchTerminal) {
+    searchTerminal.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderPlaylist();
+    });
+    searchTerminal.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = searchTerminal.value.trim();
+        if (val.startsWith('http://') || val.startsWith('https://')) {
+          TRACKS.unshift({
+            id: '00',
+            title: 'CUSTOM_STREAM_INJECT',
+            artist: 'REMOTE_STREAM',
+            channel: 'all',
+            channelLabel: 'CUSTOM',
+            duration: 'LIVE',
+            durationSec: 300,
+            bitrate: 'REMOTE_NET',
+            src: val
+          });
+          loadTrack(0, true);
+        }
+      }
+    });
+  }
+
+  // Filter Tabs Event Handler
+  filterTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      filterTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeFilter = tab.dataset.filter;
+      renderPlaylist();
+    });
+  });
+
+  // ==========================================
+  // WEB AUDIO API REAL-TIME VISUALIZER
+  // ==========================================
+  let audioCtx = null;
+  let analyser = null;
+  let sourceNode = null;
+
+  function initWebAudioNodes() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        sourceNode = audioCtx.createMediaElementSource(coreAudio);
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      } catch (e) {
+        // Fallback for browser CORS or multiple init
+      }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
     }
   }
 
-  // Attempt autoplay after a short delay
-  setTimeout(attemptAutoplay, 500);
+  function resizeVisualizerCanvas() {
+    if (!visualizerCanvas) return;
+    visualizerCanvas.width = visualizerCanvas.parentElement.clientWidth || 400;
+    visualizerCanvas.height = visualizerCanvas.parentElement.clientHeight || 200;
+  }
+  window.addEventListener('resize', resizeVisualizerCanvas);
 
-  // Ensure music plays on any user interaction
+  function renderVisualizerLoop() {
+    requestAnimationFrame(renderVisualizerLoop);
+
+    // 1. Render Modal Visualizer Canvas
+    if (visualizerCanvas && modal && modal.classList.contains('open')) {
+      const ctx = visualizerCanvas.getContext('2d');
+      const w = visualizerCanvas.width;
+      const h = visualizerCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      if (!analyser || coreAudio.paused) {
+        // Generative Idle Holographic Wave
+        const t = Date.now() * 0.003;
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#10b981';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'rgba(16, 185, 129, 0.6)';
+
+        for (let x = 0; x < w; x += 3) {
+          const y = h / 2 + Math.sin(x * 0.025 + t) * 18 * Math.sin(t * 0.4) + Math.cos(x * 0.04 + t) * 8;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      } else {
+        const bufferLen = analyser.frequencyBinCount;
+        const dataArr = new Uint8Array(bufferLen);
+        analyser.getByteFrequencyData(dataArr);
+
+        const barWidth = (w / bufferLen) * 2.2;
+        let x = 0;
+
+        for (let i = 0; i < bufferLen; i++) {
+          const barHeight = (dataArr[i] / 255) * h * 0.85;
+          const grad = ctx.createLinearGradient(0, h - barHeight, 0, h);
+          grad.addColorStop(0, '#10b981');
+          grad.addColorStop(1, 'rgba(16, 185, 129, 0.15)');
+
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, h - barHeight, barWidth - 1, barHeight);
+          x += barWidth;
+        }
+      }
+    }
+
+    // 2. Render Card Oscilloscope Fallback Canvas
+    if (cardOscCanvas) {
+      const oCtx = cardOscCanvas.getContext('2d');
+      const ow = cardOscCanvas.width = cardOscCanvas.parentElement.clientWidth || 300;
+      const oh = cardOscCanvas.height = cardOscCanvas.parentElement.clientHeight || 200;
+      oCtx.clearRect(0, 0, ow, oh);
+
+      const t2 = Date.now() * 0.0025;
+      oCtx.beginPath();
+      oCtx.lineWidth = 1.5;
+      oCtx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
+      oCtx.shadowBlur = 8;
+      oCtx.shadowColor = 'rgba(16, 185, 129, 0.5)';
+
+      for (let x = 0; x < ow; x += 4) {
+        const y = oh * 0.65 + Math.sin(x * 0.03 + t2) * 14 * Math.sin(t2 * 0.7);
+        if (x === 0) oCtx.moveTo(x, y);
+        else oCtx.lineTo(x, y);
+      }
+      oCtx.stroke();
+      oCtx.shadowBlur = 0;
+    }
+  }
+
+  // Video Fallback Route
+  if (cardVideo) {
+    cardVideo.addEventListener('error', () => {
+      console.info('[VOID_BEATS] Background video route fell back to live oscilloscope canvas.');
+      if (cardOscCanvas) cardOscCanvas.style.opacity = '0.7';
+    }, true);
+  }
+
+  // Attempt Autoplay on interaction
+  function attemptAutoplay() {
+    if (coreAudio.muted) coreAudio.muted = false;
+    if (coreAudio.paused) {
+      coreAudio.play().then(() => syncAllUI(true)).catch(() => {});
+    }
+  }
   document.addEventListener('click', () => {
     if (!hasUserInteracted) {
       hasUserInteracted = true;
-      attemptAutoplay();
+      initWebAudioNodes();
     }
   }, { once: true });
 
-  // ------------------------------------------
-  // Handle play/pause toggle
-  // ------------------------------------------
-  btn.addEventListener('click', () => {
-    hasUserInteracted = true;
-    if (bgMusic.muted) bgMusic.muted = false;
+  // Initial Boot
+  loadTrack(0, false);
+  renderPlaylist();
+  resizeVisualizerCanvas();
+  renderVisualizerLoop();
 
-    if (bgMusic.paused) {
-      bgMusic.play().catch(err => console.warn('Play failed:', err));
-      btn.classList.add('playing');
-      iconPlay.classList.add('hidden');
-      iconPause.classList.remove('hidden');
-      openPanel();
-    } else {
-      bgMusic.pause();
-      btn.classList.remove('playing');
-      iconPlay.classList.remove('hidden');
-      iconPause.classList.add('hidden');
-      closePanel();
-    }
-  });
-
-  // ------------------------------------------
-  // Sync button state with audio element
-  // Update button appearance when music plays
-  // ------------------------------------------
-  bgMusic.addEventListener('play', () => {
-    btn.classList.add('playing');
-    iconPlay.classList.add('hidden');
-    iconPause.classList.remove('hidden');
-    openPanel();
-  });
-
-  bgMusic.addEventListener('pause', () => {
-    btn.classList.remove('playing');
-    iconPlay.classList.remove('hidden');
-    iconPause.classList.add('hidden');
-    closePanel();
-  });
-
-  // Optional: Add keyboard shortcut (spacebar to toggle)
-  document.addEventListener('keydown', (e) => {
-    if ((e.code === 'Space' || e.key === 'm' || e.key === 'M') && e.target.tagName !== 'INPUT') {
-      e.preventDefault();
-      hasUserInteracted = true;
-      btn.click();
-    }
-  });
 })();
 
 // ==========================================

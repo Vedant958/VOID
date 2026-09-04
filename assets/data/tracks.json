@@ -1,0 +1,29 @@
+[
+    {
+        "id": "1",
+        "title": "Neon Rain Cyberpunk",
+        "artist": "Cybermind",
+        "category": "Lo-Fi",
+        "cover": "assets/images/album-art.png",
+        "duration": "03:45",
+        "url": "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3"
+    },
+    {
+        "id": "2",
+        "title": "Synthetic Horizon",
+        "artist": "Neural Drift",
+        "category": "Synthwave",
+        "cover": "assets/images/album-art.png",
+        "duration": "04:12",
+        "url": "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3"
+    },
+    {
+        "id": "3",
+        "title": "Static Rain 99",
+        "artist": "Void Entity",
+        "category": "Ambient",
+        "cover": "assets/images/album-art.png",
+        "duration": "05:10",
+        "url": "https://cdn.pixabay.com/download/audio/2021/09/06/audio_7314d10e05.mp3"
+    }
+]
