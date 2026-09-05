@@ -1879,24 +1879,34 @@
     async function resolveAndPlayStream(track) {
       const thisToken = ++audioResolverToken;
 
+      // Direct local audio path for track 01 / CYBER_DRIFT_808
+      if (track.id === '1' || track.id === '01' || track.title === 'CYBER_DRIFT_808' || track.isLocal) {
+        player.src = track.src || 'music.mp3';
+        player.currentTime = 0;
+        await player.play().catch(console.error);
+        updateButtonVisual(true);
+        return;
+      }
+
       try {
-        const cleanQuery = encodeURIComponent(`${track.title} ${track.artist}`.replace(/[^\w\s]/gi, ''));
+        const searchStr = track.query || `${track.title} ${track.artist}`;
+        const cleanQuery = encodeURIComponent(searchStr.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim());
         let candidate = null;
         try {
-          const res = await fetch(`https://saavn.dev/api/search/songs?query=${cleanQuery}&limit=3`);
-          if (res.ok) {
-            const data = await res.json();
-            candidate = data.data?.results?.[0];
+          const resMirror = await fetch(`https://saavn-api-one.vercel.app/search/songs?query=${cleanQuery}`);
+          if (resMirror.ok) {
+            const dataMirror = await resMirror.json();
+            candidate = dataMirror.data?.results?.[0] || (Array.isArray(dataMirror.data) ? dataMirror.data[0] : null);
           }
         } catch (e) {}
 
-        // Fallback mirror if saavn.dev is unreachable
+        // Fallback mirror if needed
         if (!candidate) {
           try {
-            const resMirror = await fetch(`https://saavn-api-one.vercel.app/search/songs?query=${cleanQuery}`);
-            if (resMirror.ok) {
-              const dataMirror = await resMirror.json();
-              candidate = dataMirror.data?.results?.[0] || (Array.isArray(dataMirror.data) ? dataMirror.data[0] : null);
+            const res = await fetch(`https://saavn.dev/api/search/songs?query=${cleanQuery}&limit=3`);
+            if (res.ok) {
+              const data = await res.json();
+              candidate = data.data?.results?.[0];
             }
           } catch(e) {}
         }
@@ -2356,17 +2366,21 @@
           id: String(t.id || i),
           title: t.title || 'Unknown Track',
           artist: t.artist || 'Unknown Artist',
+          query: t.query || `${t.title} ${t.artist}`,
           channel: (t.category || 'all').toLowerCase().replace(/[-\s]/g, ''),
           cover: t.cover || FALLBACK_COVER,
           duration: t.duration || '03:45',
-          src: t.url || t.src || 'music.mp3'
+          src: t.url || t.src || (t.id === '1' || t.title === 'CYBER_DRIFT_808' ? 'music.mp3' : '')
         }));
       } catch (e) {
         console.warn('[VOID] tracks.json fallback in effect:', e);
         LOCAL_TRACKS = [
-          { id: '1', title: 'Neon Rain Cyberpunk', artist: 'Cybermind', channel: 'lofi', cover: FALLBACK_COVER, duration: '03:45', src: 'music.mp3' },
-          { id: '2', title: 'Synthetic Horizon', artist: 'Neural Drift', channel: 'synthwave', cover: FALLBACK_COVER, duration: '04:12', src: 'music.mp3' },
-          { id: '3', title: 'Static Rain 99', artist: 'Void Entity', channel: 'ambient', cover: FALLBACK_COVER, duration: '05:10', src: 'music.mp3' }
+          { id: '1', title: 'CYBER_DRIFT_808', artist: 'NEO_TOKYO_ARCHIVE', channel: 'lofi', cover: 'assets/images/album-art.png', duration: '03:45', src: 'music.mp3' },
+          { id: '2', title: 'Resonance', artist: 'HOME', channel: 'synthwave', cover: '', duration: '03:32', query: 'Resonance HOME' },
+          { id: '3', title: 'After Dark', artist: 'Mr.Kitty', channel: 'synthwave', cover: '', duration: '04:19', query: 'After Dark Mr Kitty' },
+          { id: '4', title: 'Memory Reboot', artist: 'VØJ & Narvent', channel: 'synthwave', cover: '', duration: '01:43', query: 'Memory Reboot VOJ Narvent' },
+          { id: '5', title: 'Nightcall', artist: 'Kavinsky', channel: 'synthwave', cover: '', duration: '04:19', query: 'Nightcall Kavinsky' },
+          { id: '6', title: 'Metamorphosis', artist: 'INTERWORLD', channel: 'synthwave', cover: '', duration: '02:22', query: 'Metamorphosis INTERWORLD' }
         ];
       }
 

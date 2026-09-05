@@ -1367,62 +1367,68 @@
       duration: '03:45',
       durationSec: 225,
       bitrate: '320kbps FLAC',
+      cover: 'assets/images/album-art.png',
       src: 'music.mp3'
     },
     {
       id: '02',
-      title: 'SYNTHETIC_HORIZON_04',
-      artist: 'NEURAL_DRIFT',
+      title: 'Resonance',
+      artist: 'HOME',
       channel: 'synthwave',
       channelLabel: 'SYNTHWAVE',
-      duration: '04:12',
-      durationSec: 252,
+      duration: '03:32',
+      durationSec: 212,
       bitrate: '320kbps / 48kHz',
-      src: 'music.mp3'
+      query: 'Resonance HOME',
+      cover: ''
     },
     {
       id: '03',
-      title: 'STATIC_RAIN_99',
-      artist: 'VOID_ENTITY',
-      channel: 'ambient',
-      channelLabel: 'AMBIENT VOID',
-      duration: '05:10',
-      durationSec: 310,
+      title: 'After Dark',
+      artist: 'Mr.Kitty',
+      channel: 'synthwave',
+      channelLabel: 'SYNTHWAVE',
+      duration: '04:19',
+      durationSec: 259,
       bitrate: '320kbps / 44.1kHz',
-      src: 'music.mp3'
+      query: 'After Dark Mr Kitty',
+      cover: ''
     },
     {
       id: '04',
-      title: 'NEURAL_AWAKENING',
-      artist: 'SYS_ADMIN',
-      channel: 'lofi',
-      channelLabel: 'LO-FI CYBERPUNK',
-      duration: '03:32',
-      durationSec: 212,
+      title: 'Memory Reboot',
+      artist: 'VØJ & Narvent',
+      channel: 'synthwave',
+      channelLabel: 'SYNTHWAVE',
+      duration: '01:43',
+      durationSec: 103,
       bitrate: '48kHz FLAC',
-      src: 'music.mp3'
+      query: 'Memory Reboot VOJ Narvent',
+      cover: ''
     },
     {
       id: '05',
-      title: 'CORE_DUMP_LULLABY',
-      artist: 'GHOST_IN_RAM',
-      channel: 'ambient',
-      channelLabel: 'AMBIENT VOID',
-      duration: '04:48',
-      durationSec: 288,
+      title: 'Nightcall',
+      artist: 'Kavinsky',
+      channel: 'synthwave',
+      channelLabel: 'SYNTHWAVE',
+      duration: '04:19',
+      durationSec: 259,
       bitrate: '320kbps / 48kHz',
-      src: 'music.mp3'
+      query: 'Nightcall Kavinsky',
+      cover: ''
     },
     {
       id: '06',
-      title: 'RETRO_GRID_OVERDRIVE',
-      artist: 'SECTOR_09',
+      title: 'Metamorphosis',
+      artist: 'INTERWORLD',
       channel: 'synthwave',
       channelLabel: 'SYNTHWAVE',
-      duration: '03:58',
-      durationSec: 238,
+      duration: '02:22',
+      durationSec: 142,
       bitrate: '320kbps MP3',
-      src: 'music.mp3'
+      query: 'Metamorphosis INTERWORLD',
+      cover: ''
     }
   ];
 
@@ -1539,7 +1545,7 @@
       const data = await res.json();
       const raw = data.results?.[0]?.artworkUrl100;
       if (raw) {
-        const hdUrl = raw.replace('100x100bb', '500x500bb');
+        const hdUrl = raw.replace('100x100bb', '600x600bb');
         artworkCache.set(cacheKey, hdUrl);
         return hdUrl;
       }
@@ -2223,9 +2229,23 @@
     // Active Playback Cover Sync:
     const coverEl = document.getElementById('album-cover-img');
     const cleanArtKey = `${(track.title || '').replace(/\(.*?\)|\[.*?\]/g, '').trim().toLowerCase()}||${(track.artist || '').replace(/\(.*?\)|\[.*?\]/g, '').trim().toLowerCase()}`;
+
+    // Direct local audio path for track 01 / CYBER_DRIFT_808
+    if (track.id === '01' || track.title === 'CYBER_DRIFT_808' || track.isLocal) {
+      track.cover = track.cover || 'assets/images/album-art.png';
+      if (coverEl) coverEl.src = track.cover;
+      document.querySelectorAll('.track-cover-card').forEach(img => { img.src = track.cover; });
+      updateMediaSessionMetadata(track);
+      player.src = track.src || 'music.mp3';
+      player.currentTime = 0;
+      await player.play().catch(console.error);
+      updateButtonVisual(true);
+      return;
+    }
+
     const cachedArt = (!isMissingOrPlaceholderCover(track.cover))
       ? track.cover
-      : (artworkCache.get(cleanArtKey) || null);
+      : (artworkCache.get(cleanArtKey) || (typeof defaultArtworkCache !== 'undefined' ? defaultArtworkCache.get(cleanArtKey) : null) || null);
 
     if (cachedArt) {
       track.cover = cachedArt;
@@ -2234,6 +2254,8 @@
       updateMediaSessionMetadata(track);
     } else {
       if (track.cover && coverEl) coverEl.src = track.cover;
+      document.querySelectorAll('.track-cover-card').forEach(img => { if (track.cover) img.src = track.cover; });
+      updateMediaSessionMetadata(track);
       // Not yet resolved: fetch on the fly so spinning vinyl/cover art never remains blank
       fetchTrackArtwork(track.title, track.artist).then(hdUrl => {
         if (hdUrl) {
@@ -2249,23 +2271,24 @@
     }
 
     try {
-      const cleanQuery = encodeURIComponent(`${track.title} ${track.artist}`.replace(/[^\w\s]/gi, ''));
+      const searchStr = track.query || `${track.title} ${track.artist}`;
+      const cleanQuery = encodeURIComponent(searchStr.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim());
       let candidate = null;
       try {
-        const res = await fetch(`https://saavn.dev/api/search/songs?query=${cleanQuery}&limit=3`);
-        if (res.ok) {
-          const data = await res.json();
-          candidate = data.data?.results?.[0];
+        const resMirror = await fetch(`https://saavn-api-one.vercel.app/search/songs?query=${cleanQuery}`);
+        if (resMirror.ok) {
+          const dataMirror = await resMirror.json();
+          candidate = dataMirror.data?.results?.[0] || (Array.isArray(dataMirror.data) ? dataMirror.data[0] : null);
         }
       } catch (e) {}
 
-      // Fallback mirror if saavn.dev is unreachable
+      // Secondary fallback mirror
       if (!candidate) {
         try {
-          const resMirror = await fetch(`https://saavn-api-one.vercel.app/search/songs?query=${cleanQuery}`);
-          if (resMirror.ok) {
-            const dataMirror = await resMirror.json();
-            candidate = dataMirror.data?.results?.[0] || (Array.isArray(dataMirror.data) ? dataMirror.data[0] : null);
+          const res = await fetch(`https://saavn.dev/api/search/songs?query=${cleanQuery}&limit=3`);
+          if (res.ok) {
+            const data = await res.json();
+            candidate = data.data?.results?.[0];
           }
         } catch(e) {}
       }
@@ -2429,6 +2452,60 @@
     };
   });
 
+  // ─── DEDICATED DEFAULT TRACKLIST ARTWORK CACHE & HYDRATION ────────────────
+  const defaultArtworkCache = new Map();
+  window.defaultArtworkCache = defaultArtworkCache;
+
+  // Background artwork fetcher for default tracks via iTunes
+  function hydrateDefaultTrackArtwork(track, rowImg) {
+    if (!track) return;
+    const cleanKey = `${(track.title || '').trim().toLowerCase()}||${(track.artist || '').trim().toLowerCase()}`;
+
+    // 1. If already resolved in cache, apply immediately
+    if (defaultArtworkCache.has(cleanKey)) {
+      const cached = defaultArtworkCache.get(cleanKey);
+      if (cached) {
+        track.cover = cached;
+        if (rowImg && rowImg.src !== cached) rowImg.src = cached;
+      }
+      return;
+    }
+
+    // 2. If track already has a valid live cover, cache and return
+    if (track.cover && !isMissingOrPlaceholderCover(track.cover)) {
+      defaultArtworkCache.set(cleanKey, track.cover);
+      return;
+    }
+
+    // 3. Query iTunes live: https://itunes.apple.com/search?term=${encodeURIComponent(track.title + ' ' + track.artist)}&entity=song&limit=1
+    const term = encodeURIComponent(`${track.title} ${track.artist}`.trim());
+    fetch(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`)
+      .then(res => {
+        if (!res.ok) throw new Error(`iTunes HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        const raw = data.results?.[0]?.artworkUrl100;
+        if (raw) {
+          const hdCover = raw.replace('100x100bb', '600x600bb');
+          defaultArtworkCache.set(cleanKey, hdCover);
+          if (typeof artworkCache !== 'undefined' && artworkCache) {
+            artworkCache.set(cleanKey, hdCover);
+          }
+          track.cover = hdCover;
+          if (rowImg) rowImg.src = hdCover;
+
+          // If currently selected or active, update #album-cover-img directly
+          if (TRACKS[currentTrackIndex]?.id === track.id || window.currentActiveTrack?.id === track.id) {
+            const coverEl = document.getElementById('album-cover-img');
+            if (coverEl) coverEl.src = hdCover;
+            document.querySelectorAll('.track-cover-card').forEach(img => { img.src = hdCover; });
+          }
+        }
+      })
+      .catch(err => console.warn('// iTunes default track hydration error for', track.title, err));
+  }
+
   // Load and apply track
   function loadTrack(index, autoPlay = false) {
     currentTrackIndex = (index + TRACKS.length) % TRACKS.length;
@@ -2445,6 +2522,11 @@
         const totalTimeEl = document.getElementById('total-duration-display') || document.querySelector('.total-time');
         if (totalTimeEl) totalTimeEl.innerText = track.duration;
       }
+      const coverEl = document.getElementById('album-cover-img');
+      const cleanKey = `${(track.title || '').trim().toLowerCase()}||${(track.artist || '').trim().toLowerCase()}`;
+      const resolvedCover = track.cover || defaultArtworkCache.get(cleanKey) || (typeof artworkCache !== 'undefined' ? artworkCache.get(cleanKey) : null);
+      if (coverEl && resolvedCover) coverEl.src = resolvedCover;
+      document.querySelectorAll('.track-cover-card').forEach(img => { if (resolvedCover) img.src = resolvedCover; });
       player.src = track.src;
     }
     renderPlaylist();
@@ -2463,12 +2545,15 @@
       const origIndex = TRACKS.findIndex(t => t.id === track.id);
       const isActive = origIndex === currentTrackIndex;
 
+      const cleanKey = `${(track.title || '').trim().toLowerCase()}||${(track.artist || '').trim().toLowerCase()}`;
+      const initialCover = track.cover || defaultArtworkCache.get(cleanKey) || (typeof artworkCache !== 'undefined' ? artworkCache.get(cleanKey) : null) || 'assets/images/album-art.png';
+
       const item = document.createElement('div');
       item.className = `void-track-row flex items-center justify-between p-2.5 rounded-xl hover:bg-white/5 cursor-pointer transition group ${isActive ? 'active' : ''}`;
       item.innerHTML = `
         <div class="void-track-row-left flex items-center gap-3 overflow-hidden">
           <div class="void-track-thumb-box">
-            <img src="assets/album_art.jpg" class="void-track-thumb-img w-10 h-10 rounded-lg object-cover border border-white/5" alt="${track.title}">
+            <img src="${initialCover}" class="void-track-thumb-img w-10 h-10 rounded-lg object-cover border border-white/5" alt="${track.title}">
             ${isActive ? '<div class="void-track-playing-badge"><span class="void-track-playing-dot"></span></div>' : ''}
           </div>
           <div class="void-track-row-meta truncate">
@@ -2476,13 +2561,40 @@
             <div class="void-track-artist text-xs text-neutral-400 truncate">${track.artist}</div>
           </div>
         </div>
-        <div class="void-track-row-right text-xs text-neutral-500 font-mono pl-3">
+        <div class="void-track-row-right text-xs text-neutral-500 font-mono pl-3 flex items-center gap-2">
+          <button class="void-row-add-pl text-neutral-500 hover:text-emerald-400 p-1 mr-1 transition" title="Add to Playlist"><i class="fa-solid fa-plus text-xs"></i></button>
           <span class="void-track-dur">${track.duration}</span>
         </div>
       `;
 
-      item.addEventListener('click', () => {
+      // Hydrate artwork for default tracks (index > 0) via iTunes live
+      const rowImg = item.querySelector('.void-track-thumb-img');
+      if (origIndex > 0) {
+        hydrateDefaultTrackArtwork(track, rowImg);
+      }
+
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.void-row-add-pl')) {
+          e.stopPropagation();
+          if (typeof openAddToPlaylistModal === 'function') {
+            openAddToPlaylistModal(track);
+          }
+          return;
+        }
+        currentTrackIndex = origIndex;
+        window.currentTrackIndex = origIndex;
+
+        // Preserve Selection Handling: Pass resolved track.cover straight to #album-cover-img
+        const coverEl = document.getElementById('album-cover-img');
+        const resolvedCover = track.cover || defaultArtworkCache.get(cleanKey) || (typeof artworkCache !== 'undefined' ? artworkCache.get(cleanKey) : null);
+        if (resolvedCover) {
+          track.cover = resolvedCover;
+          if (coverEl) coverEl.src = resolvedCover;
+          document.querySelectorAll('.track-cover-card').forEach(img => { img.src = resolvedCover; });
+        }
+
         playTrackAndStartRadio(track);
+        renderPlaylist();
       });
 
       trackListContainer.appendChild(item);

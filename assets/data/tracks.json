@@ -1,29 +1,56 @@
 [
-    {
-        "id": "1",
-        "title": "Neon Rain Cyberpunk",
-        "artist": "Cybermind",
-        "category": "Lo-Fi",
-        "cover": "assets/images/album-art.png",
-        "duration": "03:45",
-        "url": "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3"
-    },
-    {
-        "id": "2",
-        "title": "Synthetic Horizon",
-        "artist": "Neural Drift",
-        "category": "Synthwave",
-        "cover": "assets/images/album-art.png",
-        "duration": "04:12",
-        "url": "https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3"
-    },
-    {
-        "id": "3",
-        "title": "Static Rain 99",
-        "artist": "Void Entity",
-        "category": "Ambient",
-        "cover": "assets/images/album-art.png",
-        "duration": "05:10",
-        "url": "https://cdn.pixabay.com/download/audio/2021/09/06/audio_7314d10e05.mp3"
-    }
+  {
+    "id": "1",
+    "title": "CYBER_DRIFT_808",
+    "artist": "NEO_TOKYO_ARCHIVE",
+    "category": "Lo-Fi",
+    "cover": "assets/images/album-art.png",
+    "duration": "03:45",
+    "url": "music.mp3"
+  },
+  {
+    "id": "2",
+    "title": "Resonance",
+    "artist": "HOME",
+    "category": "Synthwave",
+    "cover": "",
+    "duration": "03:32",
+    "query": "Resonance HOME"
+  },
+  {
+    "id": "3",
+    "title": "After Dark",
+    "artist": "Mr.Kitty",
+    "category": "Synthwave",
+    "cover": "",
+    "duration": "04:19",
+    "query": "After Dark Mr Kitty"
+  },
+  {
+    "id": "4",
+    "title": "Memory Reboot",
+    "artist": "VØJ & Narvent",
+    "category": "Synthwave",
+    "cover": "",
+    "duration": "01:43",
+    "query": "Memory Reboot VOJ Narvent"
+  },
+  {
+    "id": "5",
+    "title": "Nightcall",
+    "artist": "Kavinsky",
+    "category": "Synthwave",
+    "cover": "",
+    "duration": "04:19",
+    "query": "Nightcall Kavinsky"
+  },
+  {
+    "id": "6",
+    "title": "Metamorphosis",
+    "artist": "INTERWORLD",
+    "category": "Synthwave",
+    "cover": "",
+    "duration": "02:22",
+    "query": "Metamorphosis INTERWORLD"
+  }
 ]
