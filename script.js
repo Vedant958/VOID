@@ -1653,77 +1653,14 @@
   }
 
   // ==========================================
-  // BULLETPROOF HYBRID MUSIC ENGINE (SAAVN SEARCH + YOUTUBE AUDIO)
+  // VOID_BEATS AUDIO ENGINE (ITUNES METADATA + DIRECT STREAMING)
   // ==========================================
-  let ytPlayer = null;
-  let syncInterval = null;
-  let isSeeking = false;
-
-  // Initialize YouTube IFrame API
-  (function initYT() {
-    if (window.YT && window.YT.Player) {
-      onYouTubeIframeAPIReady();
-    } else {
-      const tag = document.createElement('script');
-      tag.src = "https://www.youtube.com/iframe_api";
-      document.head.appendChild(tag);
-    }
-  })();
-
-  window.onYouTubeIframeAPIReady = function() {
-    ytPlayer = new YT.Player('void-yt-engine', {
-      height: '1',
-      width: '1',
-      playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'rel': 0 },
-      events: {
-        'onReady': () => console.log("// VOID_YT_ENGINE: READY"),
-        'onStateChange': (e) => {
-          const playBtn = document.getElementById('play-pause-btn');
-          if (e.data === YT.PlayerState.PLAYING) {
-            if (playBtn) {
-              playBtn.innerHTML = `
-                <svg class="w-5 h-5 fill-current text-black" viewBox="0 0 24 24" width="22" height="22">
-                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                </svg>`;
-            }
-            if (typeof syncAllUI === 'function') syncAllUI(true);
-            startTimelineSync();
-          } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
-            if (playBtn) {
-              playBtn.innerHTML = `
-                <svg class="w-5 h-5 fill-current text-black ml-0.5" viewBox="0 0 24 24" width="22" height="22">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>`;
-            }
-            if (typeof syncAllUI === 'function') syncAllUI(false);
-          }
-        }
-      }
-    });
-  };
-
-  function startTimelineSync() {
-    clearInterval(syncInterval);
-    syncInterval = setInterval(() => {
-      if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
-      if (ytPlayer.getPlayerState() !== 1 || isSeeking) return;
-
-      const cur = ytPlayer.getCurrentTime();
-      const dur = ytPlayer.getDuration() || 1;
-
-      const progressBar = document.getElementById('audio-progress-bar') || scrubberFill;
-      const curTimeEl = document.getElementById('current-time-display') || timeCurrent;
-      const totalTimeEl = document.getElementById('total-duration-display') || timeDuration;
-      const thumb = document.getElementById('void-scrubber-thumb') || scrubberThumb;
-
-      const pct = (cur / dur) * 100;
-      if (progressBar) progressBar.style.width = `${pct}%`;
-      if (thumb) thumb.style.left = `${pct}%`;
-      if (curTimeEl) curTimeEl.innerText = formatTime(cur);
-      if (totalTimeEl && dur > 1) totalTimeEl.innerText = formatTime(dur);
-    }, 500);
+  window.voidDeckAudio = window.voidDeckAudio || new Audio();
+  const deckAudio = window.voidDeckAudio;
+  deckAudio.preload = 'auto';
+  if (typeof attachAudioEvents === 'function') {
+    attachAudioEvents(deckAudio);
   }
-  const startScrubberSync = startTimelineSync;
 
   function formatTime(sec) {
     const s = Math.floor(sec || 0);
@@ -1732,7 +1669,7 @@
     return `${m}:${r < 10 ? '0' : ''}${r}`;
   }
 
-  // 1. Instant Search via Saavn (CORS friendly, high quality album art)
+  // 1. Instant Search via iTunes Open API (Pristine 600x600 HD Album Art, Zero CORS)
   async function executeGlobalSearch(query) {
     const container = document.getElementById('playlist-container') || trackListContainer;
     if (!container) return;
@@ -1743,70 +1680,28 @@
       </div>`;
 
     try {
-      let list = [];
-      try {
-        const res = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=15`);
-        if (res.ok) {
-          const json = await res.json();
-          list = json.data?.results || [];
-        }
-      } catch (e) {}
+      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=12`;
+      const res = await fetch(itunesUrl);
+      if (!res.ok) throw new Error(`iTunes HTTP ${res.status}`);
+      const data = await res.json();
+      const items = data.results || [];
 
-      if (!list || list.length === 0) {
-        const mirrors = [
-          `https://saavn-api.vercel.app/search/songs?query=${encodeURIComponent(query)}`,
-          `https://saavn-api-one.vercel.app/search/songs?query=${encodeURIComponent(query)}`
-        ];
-        for (const mirror of mirrors) {
-          try {
-            const mRes = await fetch(mirror);
-            if (mRes.ok) {
-              const mJson = await mRes.json();
-              if (Array.isArray(mJson) && mJson.length > 0) {
-                list = mJson;
-                break;
-              } else if (mJson.data?.results?.length > 0) {
-                list = mJson.data.results;
-                break;
-              }
-            }
-          } catch (mErr) {}
-        }
-      }
-
-      if (!list || list.length === 0) {
+      if (items.length === 0) {
         container.innerHTML = `<div class="text-xs text-neutral-500 p-6 text-center font-mono" style="padding: 24px; text-align: center; color: #737373; font-family: monospace; font-size: 12px;">// NO SIGNALS FOUND.</div>`;
+        if (trackCountEl) trackCountEl.textContent = '0 Tracks';
         return;
       }
 
-      const tracks = list.map(item => {
-        let bestImg = 'assets/images/album-art.png';
-        if (typeof item.image === 'string') {
-          bestImg = item.image;
-        } else if (Array.isArray(item.image)) {
-          bestImg = item.image[item.image.length - 1]?.url || item.image[0]?.url || bestImg;
-        }
-
-        let artist = "Unknown Artist";
-        if (item.artists?.primary && Array.isArray(item.artists.primary)) {
-          artist = item.artists.primary.map(a => a.name).join(', ');
-        } else if (typeof item.artists === 'string' && item.artists.trim()) {
-          artist = item.artists;
-        } else if (item.primary_artists) {
-          artist = item.primary_artists;
-        } else if (item.subtitle) {
-          artist = item.subtitle;
-        }
-
-        const rawTitle = item.title || item.name || "Unknown Track";
-        const title = rawTitle.replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&amp;/g, '&');
-
+      const tracks = items.map(item => {
+        const rawArt = item.artworkUrl100 || '';
+        const hdArt = rawArt ? rawArt.replace('100x100bb', '600x600bb') : 'assets/images/album-art.png';
         return {
-          id: item.id || '',
-          title: title,
-          artist: artist,
-          duration: formatTime(item.duration),
-          cover: bestImg.replace(/^http:\/\//i, 'https://')
+          id: String(item.trackId || Math.random().toString(36).substring(2)),
+          title: item.trackName || "Unknown Track",
+          artist: item.artistName || "Unknown Artist",
+          duration: formatTime((item.trackTimeMillis || 0) / 1000),
+          cover: hdArt,
+          previewUrl: item.previewUrl || ''
         };
       });
 
@@ -1849,15 +1744,24 @@
         });
         row.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'active');
 
-        playTrackHybrid(track);
+        playTrackDirect(track);
       });
 
       container.appendChild(row);
     });
   }
 
-  // 2. Play Audio via YouTube Engine Using Track Title & Artist
-  function playTrackHybrid(track) {
+  // Direct Audio Playback Engine
+  let scriptResolverToken = 0;
+  async function playTrackDirect(track) {
+    const thisToken = ++scriptResolverToken;
+
+    // Pause ambient background music if active
+    if (coreAudio && !coreAudio.paused) coreAudio.pause();
+    if (window.backgroundAmbientAudio) {
+      try { window.backgroundAmbientAudio.pause(); } catch(e) {}
+    }
+
     const titleEl = document.getElementById('current-track-title') || modalTrackTitle;
     const artistEl = document.getElementById('current-track-artist') || modalArtistTag;
     const coverEl = document.getElementById('album-cover-img');
@@ -1872,41 +1776,82 @@
     if (ambientTrackName) ambientTrackName.textContent = track.title;
     if (ambientTrackSub) ambientTrackSub.textContent = track.artist;
 
-    if (!ytPlayer) {
-      console.warn("YouTube Engine still warming up...");
-      return;
+    // Resolve direct audio stream
+    let streamUrl = null;
+    const searchQuery = `${track.title} ${track.artist}`;
+    const searchEndpoints = [
+      `https://saavn.dev/api/search/songs?query=${encodeURIComponent(searchQuery)}&page=1&limit=1`,
+      `https://saavn-api-one.vercel.app/search/songs?query=${encodeURIComponent(searchQuery)}`,
+      `https://saavn-api.vercel.app/search/songs?query=${encodeURIComponent(searchQuery)}`
+    ];
+
+    for (const endpoint of searchEndpoints) {
+      if (thisToken !== scriptResolverToken) return;
+      try {
+        const res = await fetch(endpoint);
+        if (!res.ok) continue;
+        const json = await res.json();
+        let cand = null;
+
+        if (Array.isArray(json) && json.length > 0) {
+          cand = json[0];
+        } else if (json.data && Array.isArray(json.data.results) && json.data.results.length > 0) {
+          cand = json.data.results[0];
+        } else if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+          cand = json.data[0];
+        }
+
+        if (cand) {
+          if (cand.downloadUrl) {
+            if (Array.isArray(cand.downloadUrl)) {
+              const best = cand.downloadUrl[cand.downloadUrl.length - 1];
+              streamUrl = typeof best === 'string' ? best : (best.link || best.url);
+            } else if (typeof cand.downloadUrl === 'string') {
+              streamUrl = cand.downloadUrl;
+            }
+          } else if (cand.media_url) {
+            streamUrl = cand.media_url;
+          } else if (cand.url && typeof cand.url === 'string' && cand.url.includes('.saavncdn.com')) {
+            streamUrl = cand.url;
+          }
+        }
+        if (streamUrl) break;
+      } catch(e) {}
     }
 
-    if (track.id && typeof track.id === 'string' && track.id.length === 11 && !track.id.includes(' ') && !track.id.startsWith('saavn')) {
-      if (typeof ytPlayer.loadVideoById === 'function') {
-        ytPlayer.loadVideoById(track.id);
-        ytPlayer.playVideo();
-        return;
-      }
+    if (thisToken !== scriptResolverToken) return;
+
+    if (!streamUrl) {
+      streamUrl = track.previewUrl || track.src || 'music.mp3';
     }
 
-    if (typeof ytPlayer.loadPlaylist === 'function') {
-      // Search & load directly via YouTube engine using query
-      ytPlayer.loadPlaylist({
-        listType: 'search',
-        list: `${track.title} ${track.artist} Audio`,
-        index: 0
+    deckAudio.src = streamUrl;
+    deckAudio.play()
+      .then(() => syncAllUI(true))
+      .catch(err => {
+        console.warn("Direct stream blocked:", err);
+        if (track.previewUrl && deckAudio.src !== track.previewUrl) {
+          deckAudio.src = track.previewUrl;
+          deckAudio.play().then(() => syncAllUI(true)).catch(() => syncAllUI(false));
+        } else {
+          syncAllUI(false);
+        }
       });
-      ytPlayer.playVideo();
-    }
   }
-  const playTrack = playTrackHybrid;
+
+  const playTrackHybrid = playTrackDirect;
+  const playTrack = playTrackDirect;
 
   // Toggle Play/Pause
   const playPauseBtn = document.getElementById('play-pause-btn');
   if (playPauseBtn) {
     playPauseBtn.onclick = () => {
-      if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
-      const state = ytPlayer.getPlayerState();
-      if (state === 1) {
-        ytPlayer.pauseVideo();
+      const activeAudio = (deckAudio.src && !deckAudio.paused) || (deckAudio.currentTime > 0) ? deckAudio : coreAudio;
+      if (activeAudio.paused) {
+        activeAudio.play().then(() => syncAllUI(true)).catch(() => {});
       } else {
-        ytPlayer.playVideo();
+        activeAudio.pause();
+        syncAllUI(false);
       }
     };
   }
@@ -1915,15 +1860,12 @@
   const progressTrack = document.getElementById('progress-track-container') || scrubberTrack;
   if (progressTrack) {
     progressTrack.addEventListener('click', (e) => {
-      if (!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
-      const duration = ytPlayer.getDuration();
-      if (!duration) return;
+      const activeAudio = (deckAudio.src && !deckAudio.paused) || (deckAudio.currentTime > 0) ? deckAudio : coreAudio;
+      if (!activeAudio || !activeAudio.duration) return;
       const rect = progressTrack.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const percent = Math.max(0, Math.min(1, clickX / rect.width));
-      isSeeking = true;
-      ytPlayer.seekTo(percent * duration, true);
-      setTimeout(() => { isSeeking = false; }, 300);
+      activeAudio.currentTime = percent * activeAudio.duration;
     });
   }
 
@@ -1931,9 +1873,9 @@
   const volumeSliderInput = document.querySelector('input[type="range"]') || volumeSlider;
   if (volumeSliderInput) {
     volumeSliderInput.oninput = (e) => {
-      if (ytPlayer && ytPlayer.setVolume) {
-        ytPlayer.setVolume(e.target.value);
-      }
+      const val = Number(e.target.value) / 100;
+      if (coreAudio) coreAudio.volume = val;
+      deckAudio.volume = val;
       if (volumeLabel) volumeLabel.textContent = `${e.target.value}%`;
     };
   }
