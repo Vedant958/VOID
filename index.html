@@ -261,7 +261,7 @@
         </a>
 
         <!-- MOD_05: VOID_BEATS — Neural Audio Deck & Frequency Stream -->
-        <div class="feature-card module-card void-beats-card group" id="mod-05-void-beats" data-reveal>
+        <div class="feature-card module-card void-beats-card group" id="music-deck-card" data-reveal>
           <div class="card-laser"></div>
           <div class="card-corner corner-tl"></div>
           <div class="card-corner corner-tr"></div>
@@ -294,7 +294,7 @@
 
             <!-- Embedded Now Playing Pill -->
             <div class="void-now-playing-pill" id="void-card-pill">
-              <button class="void-pill-play-btn" id="void-card-play-btn" aria-label="Toggle Playback">
+              <button class="void-pill-play-btn card-play-btn" id="void-card-play-btn" aria-label="Toggle Playback">
                 <svg class="void-pill-icon void-pill-icon--play" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M8 5.14v14l11-7-11-7z"/>
                 </svg>
@@ -304,8 +304,8 @@
                 </svg>
               </button>
               <div class="void-pill-meta">
-                <div class="void-pill-track" id="void-card-track-title">SYNTHETIC_HORIZON_04</div>
-                <div class="void-pill-artist" id="void-card-artist-tag">NEURAL_DRIFT // 320kbps</div>
+                <div class="void-pill-track track-title-card" id="void-card-track-title">SYNTHETIC_HORIZON_04</div>
+                <div class="void-pill-artist track-artist-card" id="void-card-artist-tag">NEURAL_DRIFT // 320kbps</div>
               </div>
               <div class="void-pill-eq" id="void-card-eq">
                 <span class="void-eq-bar bar-1"></span>
@@ -493,19 +493,35 @@
           </div>
 
           <!-- Track Info -->
-          <div class="void-deck-track-info">
-            <h2 class="void-deck-track-title" id="current-track-title">CYBER_DRIFT_808</h2>
-            <p class="void-deck-track-artist" id="current-track-artist">NEO_TOKYO_ARCHIVE</p>
+          <div class="void-deck-track-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="min-width:0;flex:1;">
+              <h2 class="void-deck-track-title" id="current-track-title">CYBER_DRIFT_808</h2>
+              <p class="void-deck-track-artist" id="current-track-artist">NEO_TOKYO_ARCHIVE</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <button id="void-like-btn" class="void-like-btn" title="Toggle Favorite (Like)"
+                      style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:50%;color:#6b7280;display:flex;align-items:center;justify-content:center;transition:color .2s,transform .15s;">
+                <svg id="void-like-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+              <button id="void-add-to-pl-btn" class="void-add-to-pl-btn" title="Add to Playlist"
+                      style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:50%;color:#6b7280;display:flex;align-items:center;justify-content:center;transition:color .2s,transform .15s;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <!-- Sleek Thin Scrubber & Timers -->
           <div class="void-scrubber-wrap">
-            <span class="void-time-label" id="current-time-display">00:00</span>
+            <span class="void-time-label current-time" id="current-time-display">00:00</span>
             <div class="void-scrubber-track" id="progress-track-container">
-              <div class="void-scrubber-fill" id="audio-progress-bar" style="width: 0%;"></div>
+              <div class="void-scrubber-fill progress-fill" id="audio-progress-bar" style="width: 0%;"></div>
               <div class="void-scrubber-thumb" id="void-scrubber-thumb" style="left: 0%;"></div>
             </div>
-            <span class="void-time-label" id="total-duration-display">03:45</span>
+            <span class="void-time-label total-time" id="total-duration-display">03:45</span>
           </div>
 
           <!-- Minimal Transport Controls Cluster -->
@@ -522,7 +538,7 @@
               </svg>
             </button>
 
-            <button class="void-ctrl-btn void-ctrl-btn--play" id="play-pause-btn" title="Play / Pause">
+            <button class="void-ctrl-btn void-ctrl-btn--play modal-play-btn" id="play-pause-btn" title="Play / Pause">
               <svg class="void-modal-play-icon void-modal-icon--play" viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
                 <path d="M8 5.14v14l11-7-11-7z"/>
               </svg>
@@ -558,43 +574,90 @@
           </div>
         </div>
 
-        <!-- Right Panel: Clean Modern Playlist & Search -->
+        <!-- Right Panel: Search + Queue + Playlists Tab UI -->
         <div class="void-modal-playlist-panel">
-          
-          <!-- Search Bar: Minimal rounded pill input -->
-          <div class="void-search-wrap">
-            <div class="void-search-inner">
-              <svg class="void-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input type="text" 
-                     id="void-search-terminal" 
-                     placeholder="Search songs, artists, channels..." 
-                     class="void-search-terminal" 
-                     autocomplete="off" 
-                     spellcheck="false">
+
+          <!-- Tab Switcher -->
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <button id="deck-tab-search" class="vq-tab-active"
+                    style="font-family:monospace;font-size:11px;padding:5px 12px;border-radius:7px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.07);color:#fff;letter-spacing:.04em;">
+              // SEARCH
+            </button>
+            <button id="deck-tab-queue" class="vq-tab-inactive"
+                    style="font-family:monospace;font-size:11px;padding:5px 12px;border-radius:7px;cursor:pointer;border:1px solid transparent;background:transparent;color:#6b7280;letter-spacing:.04em;display:flex;align-items:center;gap:6px;">
+              // UP NEXT
+              <span id="deck-tab-queue-badge"
+                    style="font-size:10px;min-width:18px;text-align:center;padding:1px 5px;border-radius:99px;background:rgba(16,185,129,0.1);color:rgba(16,185,129,0.6);border:1px solid rgba(16,185,129,0.2);">0</span>
+            </button>
+            <button id="deck-tab-playlists" class="vq-tab-inactive"
+                    style="font-family:monospace;font-size:11px;padding:5px 12px;border-radius:7px;cursor:pointer;border:1px solid transparent;background:transparent;color:#6b7280;letter-spacing:.04em;display:flex;align-items:center;gap:6px;">
+              // PLAYLISTS
+            </button>
+          </div>
+
+          <!-- SEARCH VIEW (visible by default) -->
+          <div id="search-view-wrapper">
+            <!-- Search Bar -->
+            <div class="void-search-wrap">
+              <div class="void-search-inner">
+                <svg class="void-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text"
+                       id="void-search-terminal"
+                       placeholder="Search songs, artists, channels..."
+                       class="void-search-terminal"
+                       autocomplete="off"
+                       spellcheck="false">
+              </div>
+            </div>
+
+            <!-- Filter Pills -->
+            <div class="void-filter-tabs">
+              <button class="void-filter-tab active" data-filter="all">All</button>
+              <button class="void-filter-tab" data-filter="lofi">Lo-Fi</button>
+              <button class="void-filter-tab" data-filter="synthwave">Synthwave</button>
+              <button class="void-filter-tab" data-filter="ambient">Ambient</button>
+            </div>
+
+            <!-- Track List -->
+            <div class="void-track-list-scroll" id="playlist-container">
+              <!-- Injected dynamically -->
             </div>
           </div>
 
-          <!-- Filter Pills: Sleek modern rounded chips -->
-          <div class="void-filter-tabs">
-            <button class="void-filter-tab active" data-filter="all">All</button>
-            <button class="void-filter-tab" data-filter="lofi">Lo-Fi</button>
-            <button class="void-filter-tab" data-filter="synthwave">Synthwave</button>
-            <button class="void-filter-tab" data-filter="ambient">Ambient</button>
+          <!-- QUEUE VIEW (hidden by default) -->
+          <div id="queue-view-container"
+               style="display:none;overflow-y:auto;max-height:340px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;">
+            <div id="queue-items-list">
+              <!-- Injected by renderQueueList() -->
+            </div>
           </div>
 
-          <!-- Track List Items: Spacious modern rows with hover effect -->
-          <div class="void-track-list-scroll" id="playlist-container">
-            <!-- Injected dynamically -->
+          <!-- PLAYLISTS VIEW (hidden by default) -->
+          <div id="playlists-view-container"
+               style="display:none;overflow-y:auto;max-height:340px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;">
+            <!-- Injected by renderPlaylistsView() -->
           </div>
 
-          <!-- Playlist Footer Status -->
+          <!-- Footer -->
           <div class="void-playlist-footer">
             <span id="void-track-count">6 Tracks</span>
             <span>VOID_BEATS</span>
           </div>
+
+          <style>
+            .vq-tab-active  { background:rgba(255,255,255,0.07)!important; color:#fff!important; border-color:rgba(255,255,255,0.1)!important; }
+            .vq-tab-inactive{ background:transparent!important; color:#6b7280!important; border-color:transparent!important; }
+            @keyframes qeq  { from { height:3px } to { height:14px } }
+            .void-like-btn:hover { transform: scale(1.15); }
+            .void-like-btn.liked { color: #10b981 !important; }
+            .void-like-btn.liked svg { fill: #10b981 !important; filter: drop-shadow(0 0 6px rgba(16,185,129,0.7)); }
+            .void-add-to-pl-btn:hover { color: #10b981 !important; transform: scale(1.15); }
+            .void-row-add-pl:hover, .void-q-add-pl:hover { border-color: rgba(16,185,129,0.5) !important; color: #10b981 !important; background: rgba(16,185,129,0.15) !important; }
+            .void-pl-card:hover { border-color: rgba(16,185,129,0.3) !important; background: rgba(255,255,255,0.04) !important; }
+          </style>
         </div>
 
       </div>
