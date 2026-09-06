@@ -1283,9 +1283,18 @@
 (function initVoidBeatsEngine() {
   'use strict';
 
-  // Declare ONE Global Audio Singleton
+  // Declare ONE Global Audio Singleton & ONE Unified Queue
   window.VOID_GLOBAL_AUDIO = window.VOID_GLOBAL_AUDIO || new Audio();
   const player = window.VOID_GLOBAL_AUDIO;
+
+  window.playQueue = window.playQueue || [];
+  window.currentTrackIndex = window.currentTrackIndex || 0;
+  // FIX 1: currentQueueIndex is now a proper independent variable (was a
+  // getter/setter alias for currentTrackIndex, causing both to always mirror
+  // each other — legacy playlist navigation clobbered the radio queue cursor).
+  if (window.currentQueueIndex === undefined) {
+    window.currentQueueIndex = 0;
+  }
 
   // Ensure audio is completely unmuted and full volume
   player.muted = false;
@@ -1433,7 +1442,8 @@
   ];
 
   let currentTrackIndex = 0;
-  let isLooping = true;
+  let isLooping = false;
+  window.isRepeatOneActive = false;
   let activeFilter = 'all';
   let searchQuery = '';
   let hasUserInteracted = false;
@@ -2603,6 +2613,10 @@
 
   // Modal Open & Close Logic (Decoupled from audio: CLOSING NEVER PAUSES)
   function openModal() {
+    if (window.innerWidth < 768) {
+      window.location.href = 'voidbeats.html';
+      return;
+    }
     if (!modal) return;
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
@@ -2671,10 +2685,13 @@
   // Loop & Shuffle Toggles
   if (loopToggleBtn) {
     loopToggleBtn.addEventListener('click', () => {
-      isLooping = !isLooping;
-      coreAudio.loop = isLooping;
-      loopToggleBtn.classList.toggle('active', isLooping);
-      loopToggleBtn.setAttribute('title', isLooping ? 'Repeat: On' : 'Repeat: Off');
+      window.isRepeatOneActive = !window.isRepeatOneActive;
+      isLooping = window.isRepeatOneActive;
+      coreAudio.loop = false;
+      player.loop = false;
+      if (typeof deckAudio !== 'undefined' && deckAudio) deckAudio.loop = false;
+      loopToggleBtn.classList.toggle('active', window.isRepeatOneActive);
+      loopToggleBtn.setAttribute('title', window.isRepeatOneActive ? 'Repeat: On' : 'Repeat: Off');
     });
   }
 
@@ -2707,13 +2724,13 @@
     const LFM_KEY = '77db9b1ef3618ce60cff5c372123ee61';
     const FALLBACK_COVER = 'assets/images/album-art.png';
 
-    // Normalise: strip parentheticals, then strip diacritics, then strip non-ASCII
+    // Normalise punctuation and diacritics without destroying non-Latin titles.
     function norm(s) {
       return (s || '')
         .replace(/\(.*?\)|\[.*?\]/g, '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9 ]/g, ' ')
+        .replace(/[^\p{L}\p{N} ]/gu, ' ')
         .replace(/\s+/g, ' ')
         .trim();
     }
@@ -2734,6 +2751,10 @@
 
       if (likedArtists.length === 0) return tracks;
 
+      // FIX 4: Work on a copy so the caller's array (e.g. _lastSearchTracks)
+      // is never mutated — previously splice() on the shared reference caused
+      // liked-artist duplicates to accumulate on repeated calls.
+      const result = [...tracks];
       const sampleArtists = likedArtists.slice(0, 2);
       for (const likedArt of sampleArtists) {
         try {
@@ -2751,13 +2772,13 @@
                 cover: FALLBACK_COVER
               };
               console.log(`// TASTE ENGINE: Injected "${injected.title}" by liked artist "${likedArt}"`);
-              const insertIdx = Math.min(2, tracks.length);
-              tracks.splice(insertIdx, 0, injected);
+              const insertIdx = Math.min(2, result.length);
+              result.splice(insertIdx, 0, injected);
             }
           }
         } catch (_) {}
       }
-      return tracks;
+      return result;
     }
 
     // ── TIER 1: /api/recommend (Last.fm getsimilar via server proxy) ──────────
@@ -2777,6 +2798,7 @@
     try {
       const simUrl = `https://ws.audioscrobbler.com/2.0/?method=track.getsimilar&artist=${encodeURIComponent(cleanArtist)}&track=${encodeURIComponent(cleanTitle)}&api_key=${LFM_KEY}&format=json&limit=10`;
       const simRes = await fetch(simUrl);
+      if (!simRes.ok) throw new Error(`Last.fm getsimilar HTTP ${simRes.status}`);
       const simData = await simRes.json();
       const simList = simData.similartracks?.track || [];
       if (simList.length > 0) {
@@ -2789,13 +2811,20 @@
         }));
         return await applyTasteWeighting(t2aTracks);
       }
+    } catch (err) {
+      // A transport/HTTP failure must still allow the independent artist tier.
+      console.warn('// RADIO T2a getsimilar failed:', err.message);
+    }
 
-      // getsimilar returned 0 — try artist top tracks instead
-      console.warn(`// RADIO T2a: 0 results, trying artist.gettoptracks for "${cleanArtist}"`);
+    try {
+      console.warn(`// RADIO T2a: no results, trying artist.gettoptracks for "${cleanArtist}"`);
       const topUrl = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&artist=${encodeURIComponent(cleanArtist)}&api_key=${LFM_KEY}&format=json&limit=10`;
       const topRes = await fetch(topUrl);
+      if (!topRes.ok) throw new Error(`Last.fm top tracks HTTP ${topRes.status}`);
       const topData = await topRes.json();
-      const topList = (topData.toptracks?.track || []).filter(t => t.name !== cleanTitle);
+      // FIX 5: Normalize item name before comparing to already-normalized cleanTitle
+      // so the seed track is reliably excluded even when it has accents or symbols.
+      const topList = (topData.toptracks?.track || []).filter(t => norm(t.name) !== cleanTitle);
       if (topList.length > 0) {
         console.log(`// RADIO T2b: ${topList.length} tracks via artist.gettoptracks`);
         const t2bTracks = topList.map(item => ({
@@ -2807,7 +2836,7 @@
         return await applyTasteWeighting(t2bTracks);
       }
     } catch (err) {
-      console.warn('// RADIO T2 failed:', err.message);
+      console.warn('// RADIO T2b artist top tracks failed:', err.message);
     }
 
     // ── TIER 3: Saavn song search on title only ───────────────────────────────
@@ -2885,20 +2914,46 @@
   // ─────────────────────────────────────────────────────────────
   // 2. REWIRE TRACK CLICK TO INITIALIZE SONG RADIO QUEUE
   // ─────────────────────────────────────────────────────────────
-  window.playQueue = [];
-  window.currentQueueIndex = 0;
+
+  // FIX 3: Monotonic token — incremented before every async queue-build.
+  // Each build captures the token at start; if it no longer matches when the
+  // fetch resolves, a newer click has taken over and this result is dropped.
+  let _queueBuildToken = 0;
+
+  function findTrackInQueue(track) {
+    if (!track) return -1;
+    return (window.playQueue || []).findIndex(candidate => {
+      if (!candidate) return false;
+      if (track.id && candidate.id && String(track.id) === String(candidate.id)) return true;
+      return (candidate.title || '').trim().toLowerCase() === (track.title || '').trim().toLowerCase() &&
+        (candidate.artist || '').trim().toLowerCase() === (track.artist || '').trim().toLowerCase();
+    });
+  }
 
   async function playTrackAndStartRadio(seedTrack) {
-    // 1. Play the seed track immediately
-    window.playSelectedTrack(seedTrack);
+    const existingIndex = findTrackInQueue(seedTrack);
+    if (existingIndex >= 0) {
+      // Queue navigation is never a new radio request.
+      window.currentQueueIndex = existingIndex;
+      window.currentTrackIndex = existingIndex;
+      window.playSelectedTrack(window.playQueue[existingIndex]);
+      if (typeof window.renderQueueList === 'function') window.renderQueueList();
+      return;
+    }
 
-    // 2. Clear old search queue and set seed track as index 0
+    // A genuinely new selection becomes the seed for a new radio station.
     window.playQueue = [seedTrack];
     window.currentQueueIndex = 0;
     window.currentTrackIndex = 0;
+    window.playSelectedTrack(seedTrack);
 
     // 3. Immediately pre-fetch the dynamic radio queue
+    const myToken = ++_queueBuildToken;
     const recommendations = await fetchSimilarTracksRadio(seedTrack.title, seedTrack.artist);
+
+    // Abort if a newer play request superseded us
+    if (myToken !== _queueBuildToken) return;
+
     const uniqueRecs = deduplicateTracksAgainstQueue(recommendations);
 
     if (uniqueRecs.length > 0) {
@@ -2919,7 +2974,7 @@
 
   // ─── playQueueNext: the single source of truth for queue advance ─────────
   async function playQueueNext() {
-    if (isLooping) {
+    if (window.isRepeatOneActive || isLooping) {
       player.currentTime = 0;
       player.play().catch(console.error);
       return;
@@ -3054,8 +3109,9 @@
         };
       });
 
-      window.playQueue = tracks;
-      window.currentTrackIndex = 0;
+      // FIX 2: Do NOT overwrite the live radio queue here. Search results are
+      // display-only; they are stored in _lastSearchTracks (set inside
+      // renderTracksList) so Tier 4 radio fallback can still find them.
       renderTracksList(tracks);
     } catch (err) {
       console.error("Search failed:", err);
@@ -3109,28 +3165,13 @@
         });
         row.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'active');
 
-        // Reset queue: this track is index 0
-        window.playQueue = [track];
-        window.currentQueueIndex = 0;
-        window.currentTrackIndex = 0;
         player.loop = false;
 
-        // Start playback immediately
-        window.playSelectedTrack(track);
-
-        // Switch UI to queue tab and show loading state
+        // The shared selector preserves an existing radio queue and only
+        // creates a new one for a genuinely new track.
+        playTrackAndStartRadio(track);
         switchToQueueTab();
         renderQueueList();
-
-        // Fetch recommendations using the full 4-tier cascade in fetchSimilarTracksRadio
-        fetchSimilarTracksRadio(track.title, track.artist).then(recs => {
-          const uniqueRecs = deduplicateTracksAgainstQueue(recs);
-          if (uniqueRecs.length > 0) {
-            window.playQueue = [track, ...uniqueRecs];
-          }
-          renderQueueList();
-          hydrateQueueArtwork();
-        });
       });
 
       container.appendChild(row);
@@ -4204,4 +4245,3 @@
     });
   });
 })();
-

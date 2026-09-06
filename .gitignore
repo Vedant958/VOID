@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Expo & Build artifacts
+.expo/
+dist/
+web-build/
+*.apk
+
+# Environment & logs
+.env*.local
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS files
+.DS_Store
+Thumbs.db

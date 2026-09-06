@@ -555,26 +555,13 @@
     window.playQueue = window.playQueue || [];
     window.currentTrackIndex = window.currentTrackIndex || 0;
     let isAutoplayActive = true;
-    let LOCAL_TRACKS  = [];
-    let TRACKS        = [];
     let currentIndex  = 0;
     let isLooping     = false;
     let isShuffle     = false;
     let activeFilter  = 'all';
     let isSearchMode  = false;
     let activeDeckTab = 'search'; // 'search' | 'queue'
-
-    // When rendering search/playlist results, keep queue in sync
-    function setPlaylistQueue(tracks, startIndex = 0) {
-      window.playQueue = tracks;
-      window.currentTrackIndex = startIndex;
-      currentIndex = startIndex;
-      if (typeof updatePlaylistActiveState === 'function') {
-        updatePlaylistActiveState(startIndex);
-      }
-      playSelectedTrack(window.playQueue[window.currentTrackIndex]);
-    }
-    window.setPlaylistQueue = setPlaylistQueue;
+    // Active deck tab state ('search' | 'queue' | 'playlists')
 
     // ─────────────────────────────────────────────────────────────
     // TAB SWITCHER LOGIC
@@ -859,6 +846,98 @@
       }
     }
     window.updateLikeUI = updateLikeUI;
+
+    // ─────────────────────────────────────────────────────────────
+    // LISTENING HISTORY STORE (void_listening_history)
+    // Records strictly on confirmed playback starts
+    // ─────────────────────────────────────────────────────────────
+    const LISTENING_HISTORY_KEY = 'void_listening_history';
+    const LISTENING_HISTORY_LIMIT = 50;
+
+    function trackIdentity(track) {
+      if (!track) return '';
+      return `${(track.title || '').trim().toLowerCase()}::${(track.artist || '').trim().toLowerCase()}`;
+    }
+
+    function loadListeningHistory() {
+      try {
+        const raw = localStorage.getItem(LISTENING_HISTORY_KEY);
+        const history = raw ? JSON.parse(raw) : [];
+        return Array.isArray(history) ? history : [];
+      } catch (_) {
+        return [];
+      }
+    }
+    window.loadListeningHistory = loadListeningHistory;
+
+    function getRecentlyPlayed(limit = 8) {
+      return loadListeningHistory().slice(0, limit);
+    }
+    window.getRecentlyPlayed = getRecentlyPlayed;
+
+    function getHomeSeedsFromHistory(max = 3) {
+      const history = loadListeningHistory();
+      const seeds = [];
+      const seenArtists = new Set();
+      for (const item of history) {
+        const normArt = (item.artist || '').trim().toLowerCase();
+        if (!seenArtists.has(normArt)) {
+          seenArtists.add(normArt);
+          seeds.push(item);
+          if (seeds.length >= max) break;
+        }
+      }
+      return seeds;
+    }
+    window.getHomeSeedsFromHistory = getHomeSeedsFromHistory;
+
+    function getTopArtistsFromHistory(limit = 5) {
+      const history = loadListeningHistory();
+      const freqs = {};
+      for (const item of history) {
+        const art = (item.artist || '').trim();
+        if (art && art.toLowerCase() !== 'unknown artist') {
+          freqs[art] = (freqs[art] || 0) + (item.playCount || 1);
+        }
+      }
+      return Object.entries(freqs)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([art]) => art);
+    }
+    window.getTopArtistsFromHistory = getTopArtistsFromHistory;
+
+    function recordListeningStart(track) {
+      if (!track || !track.title) return;
+      const now = Date.now();
+      const key = trackIdentity(track);
+      const history = loadListeningHistory();
+      const existing = history.find(item => trackIdentity(item) === key);
+      if (existing) {
+        existing.lastPlayedAt = now;
+        existing.playCount = (existing.playCount || 0) + 1;
+        existing.cover = track.cover || existing.cover || FALLBACK_COVER;
+        existing.duration = track.duration || existing.duration || '03:30';
+        existing.previewUrl = track.previewUrl || existing.previewUrl || '';
+      } else {
+        history.push({
+          id: String(track.id || key),
+          title: track.title,
+          artist: track.artist || 'Unknown Artist',
+          cover: track.cover || FALLBACK_COVER,
+          duration: track.duration || '03:30',
+          previewUrl: track.previewUrl || '',
+          firstPlayedAt: now,
+          lastPlayedAt: now,
+          playCount: 1
+        });
+      }
+      history.sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0));
+      try {
+        localStorage.setItem(LISTENING_HISTORY_KEY, JSON.stringify(history.slice(0, LISTENING_HISTORY_LIMIT)));
+      } catch (_) {}
+    }
+    window.recordListeningStart = recordListeningStart;
 
     // ─────────────────────────────────────────────────────────────
     // CUSTOM PLAYLIST ENGINE (LOCAL PERSISTENCE)
@@ -1369,22 +1448,7 @@
         });
 
         row.addEventListener('click', () => {
-          window.currentQueueIndex = idx;
-          window.currentTrackIndex = idx;
-
-          // Active Playback Cover Sync:
-          const cleanKey = `${(track?.title || '').replace(/\(.*?\)|\[.*?\]/g, '').trim().toLowerCase()}||${(track?.artist || '').replace(/\(.*?\)|\[.*?\]/g, '').trim().toLowerCase()}`;
-          const cached = track?.cover && !isMissingOrPlaceholderCover(track.cover)
-            ? track.cover
-            : (artworkCache.get(cleanKey) || null);
-          const coverEl = document.getElementById('album-cover-img') || mainCover;
-          if (cached && coverEl) {
-            coverEl.src = cached;
-            if (track) track.cover = cached;
-          }
-
-          playSelectedTrack(track);
-          renderQueueView();
+          playExistingQueueItem(idx);
         });
 
         list.appendChild(row);
@@ -1516,6 +1580,7 @@
 
       if (likedArtists.length === 0) return tracks;
 
+      const result = [...tracks];
       const sampleArtists = likedArtists.slice(0, 2);
       const LFM_KEY = "77db9b1ef3618ce60cff5c372123ee61";
       for (const likedArt of sampleArtists) {
@@ -1534,21 +1599,23 @@
                 cover: FALLBACK_COVER
               };
               console.log(`// TASTE ENGINE: Injected "${injected.title}" by liked artist "${likedArt}"`);
-              const insertIdx = Math.min(2, tracks.length);
-              tracks.splice(insertIdx, 0, injected);
+              const insertIdx = Math.min(2, result.length);
+              result.splice(insertIdx, 0, injected);
             }
           }
         } catch (_) {}
       }
-      return tracks;
+      return result;
     }
 
     async function fetchSimilarTracksRadio(trackTitle, artistName) {
-      console.log(`// RADIO: Generating station for "${trackTitle}" by "${artistName}"`);
+      const rawTitle = typeof trackTitle === 'object' ? (trackTitle?.title || '') : (trackTitle || '');
+      const rawArtist = typeof trackTitle === 'object' ? (trackTitle?.artist || '') : (artistName || '');
+      console.log(`// RADIO: Generating station for "${rawTitle}" by "${rawArtist}"`);
       
       // Clean titles (remove versions like '(Piano Solo)', '(Minecraft)', '(Remix)')
-      const cleanTitle = trackTitle.replace(/\(.*?\)|\[.*?\]/g, '').trim();
-      const cleanArtist = artistName.replace(/\(.*?\)|\[.*?\]/g, '').trim();
+      const cleanTitle = rawTitle.replace(/\(.*?\)|\[.*?\]/g, '').trim();
+      const cleanArtist = rawArtist.replace(/\(.*?\)|\[.*?\]/g, '').trim();
 
       // Route 1: Try internal serverless endpoint
       try {
@@ -1590,6 +1657,7 @@
 
       return [];
     }
+    window.fetchSimilarTracksRadio = fetchSimilarTracksRadio;
 
     // ─── UNIVERSAL QUEUE DEDUPLICATION FILTER ────────────────────
     function deduplicateTracksAgainstQueue(freshTracks) {
@@ -1622,51 +1690,135 @@
     window.deduplicateTracksAgainstQueue = deduplicateTracksAgainstQueue;
 
     // ─────────────────────────────────────────────────────────────
-    // 2. REWIRE TRACK CLICK TO INITIALIZE SONG RADIO QUEUE
+    // 2. CANONICAL QUEUE OPERATIONS & RADIO CONTROLLER
     // ─────────────────────────────────────────────────────────────
-    window.playQueue = [];
-    window.currentQueueIndex = 0;
+    window.playQueue = window.playQueue || [];
+    window.currentQueueIndex = typeof window.currentQueueIndex === 'number' ? window.currentQueueIndex : 0;
+    window.currentTrackIndex = typeof window.currentTrackIndex === 'number' ? window.currentTrackIndex : 0;
+    let queueBuildToken = 0;
+    let isExtendingQueue = false;
 
+    function findTrackInActiveQueue(track) {
+      if (!track || !window.playQueue) return -1;
+      const targetId = track.id ? String(track.id) : null;
+      const targetTitle = (track.title || '').trim().toLowerCase();
+      const targetArtist = (track.artist || '').trim().toLowerCase();
+      return window.playQueue.findIndex(candidate => {
+        if (!candidate) return false;
+        if (targetId && candidate.id && String(candidate.id) === targetId) return true;
+        const cTitle = (candidate.title || '').trim().toLowerCase();
+        const cArtist = (candidate.artist || '').trim().toLowerCase();
+        return Boolean(targetTitle && cTitle && targetTitle === cTitle && targetArtist === cArtist);
+      });
+    }
+    window.findTrackInActiveQueue = findTrackInActiveQueue;
+
+    // Operation 1: PLAY_EXISTING_QUEUE_ITEM(index)
+    // Preserves exact queue, updates queue cursor, starts track without fetching recommendations
+    function playExistingQueueItem(index) {
+      if (!window.playQueue || index < 0 || index >= window.playQueue.length) return false;
+      const track = window.playQueue[index];
+      window.currentQueueIndex = index;
+      window.currentTrackIndex = index;
+      playSelectedTrack(track);
+      if (typeof renderQueueView === 'function') renderQueueView();
+      if (typeof updateQueueCounter === 'function') updateQueueCounter();
+      return true;
+    }
+    window.playExistingQueueItem = playExistingQueueItem;
+
+    // Operation 2: ADD_TO_QUEUE(track)
+    // Appends to existing queue without replacing or fetching recommendations
+    function addTrackToQueue(track) {
+      if (!track) return false;
+      window.playQueue = window.playQueue || [];
+      if (findTrackInActiveQueue(track) >= 0) return false;
+      window.playQueue.push(track);
+      if (typeof renderQueueView === 'function') renderQueueView();
+      if (typeof updateQueueCounter === 'function') updateQueueCounter();
+      if (typeof hydrateQueueArtwork === 'function') hydrateQueueArtwork();
+      return true;
+    }
+    window.addTrackToQueue = addTrackToQueue;
+
+    // Operation 3: PLAY_NEW_SESSION(track) / playTrackAndStartRadio
+    // Creates a new queue/session for seedTrack and fetches recommendations asynchronously
     async function playTrackAndStartRadio(seedTrack) {
-      // 1. Play the seed track immediately
-      playSelectedTrack(seedTrack);
+      if (!seedTrack) return;
+      const existingIdx = findTrackInActiveQueue(seedTrack);
+      if (existingIdx >= 0) {
+        return playExistingQueueItem(existingIdx);
+      }
 
-      // 2. Clear old search queue and set seed track as index 0
+      // New radio session
       window.playQueue = [seedTrack];
       window.currentQueueIndex = 0;
       window.currentTrackIndex = 0;
+      const myToken = ++queueBuildToken;
 
-      // Show loading shimmer in queue view while fetching
+      playSelectedTrack(seedTrack);
+
       if (typeof showQueueLoading === 'function') showQueueLoading();
       if (typeof updateQueueCounter === 'function') updateQueueCounter();
 
-      // 3. Immediately pre-fetch the dynamic radio queue in background
-      const recommendations = await fetchSimilarTracksRadio(seedTrack.title, seedTrack.artist);
-      const uniqueRecs = deduplicateTracksAgainstQueue(recommendations);
-
-      if (uniqueRecs.length > 0) {
-        window.playQueue = [seedTrack, ...uniqueRecs];
-        console.log(`// RADIO STATION ACTIVE: ${uniqueRecs.length} tracks queued.`);
-      } else {
-        window.playQueue = [seedTrack];
-        console.log("// RADIO: No similar tracks found.");
+      try {
+        const recommendations = await fetchSimilarTracksRadio(seedTrack.title, seedTrack.artist);
+        if (myToken !== queueBuildToken) return;
+        const uniqueRecs = deduplicateTracksAgainstQueue(recommendations);
+        if (uniqueRecs.length > 0) {
+          window.playQueue = [seedTrack, ...uniqueRecs];
+          console.log(`// RADIO STATION ACTIVE: ${uniqueRecs.length} tracks queued.`);
+        } else {
+          console.log("// RADIO: No similar tracks found.");
+        }
+      } catch (err) {
+        console.warn('// RADIO: recommendation fetch failed', err);
+      } finally {
+        if (myToken !== queueBuildToken) return;
+        if (typeof renderQueueView === 'function') renderQueueView();
+        if (typeof updateQueueCounter === 'function') updateQueueCounter();
+        hydrateQueueArtwork();
       }
 
-      // Re-render queue view and update counter badge
-      if (typeof renderQueueView === 'function') renderQueueView();
-      hydrateQueueArtwork();
-
-      // Auto-switch to the // UP NEXT tab once the queue is ready so the user
-      // can see what's coming without having to click the tab manually
       if (window.playQueue.length > 1 && typeof switchTab === 'function') {
-        // Only auto-switch if user hasn't manually navigated away to search
         if (activeDeckTab === 'search') switchTab('queue');
       }
     }
     window.playTrackAndStartRadio = playTrackAndStartRadio;
 
+    // Operation 4: EXTEND_QUEUE(seedTrack)
+    // Appends to END of existing queue when near exhaustion
+    async function extendQueue(seedTrack) {
+      if (!seedTrack || isExtendingQueue) return;
+      isExtendingQueue = true;
+      try {
+        const recommendations = await fetchSimilarTracksRadio(seedTrack.title, seedTrack.artist);
+        const uniqueRecs = deduplicateTracksAgainstQueue(recommendations);
+        if (uniqueRecs.length > 0) {
+          window.playQueue.push(...uniqueRecs);
+          if (typeof renderQueueView === 'function') renderQueueView();
+          if (typeof updateQueueCounter === 'function') updateQueueCounter();
+          hydrateQueueArtwork();
+        }
+      } catch (err) {
+        console.warn('// RADIO: extend queue failed', err);
+      } finally {
+        isExtendingQueue = false;
+      }
+    }
+    window.extendQueue = extendQueue;
+
+    async function ensureUpcomingQueueTracks(track) {
+      if (!window.playQueue || !track) return;
+      const curIdx = typeof window.currentQueueIndex === 'number' ? window.currentQueueIndex : 0;
+      if (curIdx + 1 >= window.playQueue.length) {
+        await extendQueue(track);
+      }
+    }
+    window.ensureUpcomingQueueTracks = ensureUpcomingQueueTracks;
+
     // ─────────────────────────────────────────────────────────────
-    // SEARCH PIPELINE (iTunes Open API for Pristine 600x600 HD Covers)
+    // SEARCH PIPELINE (iTunes Open API — DISPLAY ONLY, NEVER OVERWRITES QUEUE)
     // ─────────────────────────────────────────────────────────────
     async function executeGlobalSearch(query) {
       if (!playlistBox) return;
@@ -1703,9 +1855,8 @@
           };
         });
 
-        TRACKS = tracks;
-        window.playQueue = tracks;
-        window.currentTrackIndex = 0;
+        // Search results are display-only — DO NOT mutate window.playQueue
+        window.searchResultsTracks = tracks;
         currentIndex = 0;
         renderTracksList(tracks);
       } catch (err) {
@@ -1715,7 +1866,7 @@
     }
 
     // ─────────────────────────────────────────────────────────────
-    // RENDER PLAYLIST TRACKS
+    // RENDER SEARCH RESULT TRACKS
     // ─────────────────────────────────────────────────────────────
     function renderTracksList(tracks) {
       if (!playlistBox) return;
@@ -1760,16 +1911,148 @@
         });
 
         row.addEventListener('click', () => {
-          // Set queue position so the queue view highlights correctly
           currentIndex = idx;
-          window.currentQueueIndex = idx;
-          window.currentTrackIndex = idx;
           playTrackAndStartRadio(track);
         });
 
         playlistBox.appendChild(row);
       });
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // HOME DISCOVERY ENGINE (Personalized feed: History -> Recs -> Likes -> Cold start)
+    // Pure display — NEVER mutates active queue until a card action is clicked
+    // ─────────────────────────────────────────────────────────────
+    let homeDiscoveryToken = 0;
+    window.homeDiscovery = { recent: [], recommended: [], moreLike: [], loading: false };
+
+    function uniqueHomeTracks(tracks, excluded = new Set()) {
+      const seen = new Set(excluded);
+      const queueKeys = new Set((window.playQueue || []).map(trackIdentity));
+      return (tracks || []).filter(track => {
+        const key = trackIdentity(track);
+        if (!key || seen.has(key) || queueKeys.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    async function fetchColdStartTracks() {
+      try {
+        const res = await fetch('https://itunes.apple.com/search?term=electronic%20music&entity=song&limit=12');
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data.results || []).map(item => ({
+          id: String(item.trackId || Math.random().toString(36).slice(2)),
+          title: item.trackName || 'Unknown Track',
+          artist: item.artistName || 'Unknown Artist',
+          duration: formatTime((item.trackTimeMillis || 0) / 1000),
+          cover: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : FALLBACK_COVER,
+          previewUrl: item.previewUrl || ''
+        }));
+      } catch (_) { return []; }
+    }
+
+    async function loadHomeDiscovery() {
+      const token = ++homeDiscoveryToken;
+      const history = loadListeningHistory();
+      const recent = history.slice(0, 8);
+      const historySeeds = getHomeSeedsFromHistory(3);
+      const liked = loadLikedTracks() || [];
+      window.homeDiscovery = { recent, recommended: [], moreLike: [], loading: true };
+      renderHomeDiscovery();
+
+      // Priority:
+      // A. Recently played / history seeds
+      // B. Last.fm recommendations based on history
+      // C. Liked artists/tracks as supplemental signals
+      // D. Cold-start fallback for users with insufficient history
+      const collected = [];
+      for (const seed of historySeeds) {
+        try {
+          const recs = await fetchSimilarTracksRadio(seed);
+          if (Array.isArray(recs)) collected.push(...recs);
+        } catch (_) {}
+        if (collected.length >= 16) break;
+      }
+
+      if (collected.length < 16 && liked.length > 0) {
+        for (const seed of liked.slice(0, 2)) {
+          try {
+            const recs = await fetchSimilarTracksRadio(seed);
+            if (Array.isArray(recs)) collected.push(...recs);
+          } catch (_) {}
+          if (collected.length >= 20) break;
+        }
+      }
+
+      if (collected.length < 8) {
+        try {
+          const cold = await fetchColdStartTracks();
+          if (Array.isArray(cold)) collected.push(...cold);
+        } catch (_) {}
+      }
+
+      if (token !== homeDiscoveryToken) return;
+
+      const recentKeys = new Set(recent.map(trackIdentity));
+      const discovery = uniqueHomeTracks(collected, recentKeys);
+      window.homeDiscovery = {
+        recent,
+        recommended: discovery.slice(0, 8),
+        moreLike: discovery.slice(8, 16),
+        loading: false
+      };
+      renderHomeDiscovery();
+    }
+    window.loadHomeDiscovery = loadHomeDiscovery;
+
+    function homeCardMarkup(track, compact = false) {
+      const cover = esc(track.cover || FALLBACK_COVER);
+      return `<article class="home-track-card ${compact ? 'min-w-[210px]' : ''} rounded-xl border border-white/[0.07] bg-white/[0.025] p-2.5">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <img src="${cover}" class="w-10 h-10 rounded-lg object-cover bg-neutral-900" onerror="this.src='${FALLBACK_COVER}'" alt="">
+          <div class="min-w-0 flex-1"><div class="text-xs font-semibold text-white truncate">${esc(track.title)}</div><div class="text-[11px] text-neutral-500 truncate">${esc(track.artist)}</div></div>
+        </div>
+        <div class="mt-2 flex gap-1.5"><button class="home-play flex-1 rounded-md bg-emerald-500 hover:bg-emerald-400 px-2 py-1 text-[10px] font-mono font-bold text-black transition" type="button">PLAY</button><button class="home-add rounded-md border border-white/10 hover:border-emerald-500/40 px-2 py-1 text-[10px] font-mono text-neutral-300 transition" type="button">+ QUEUE</button></div>
+      </article>`;
+    }
+
+    function bindHomeCards(container, tracks) {
+      container.querySelectorAll('.home-track-card').forEach((card, index) => {
+        const track = tracks[index];
+        if (!track) return;
+        card.querySelector('.home-play')?.addEventListener('click', () => playTrackAndStartRadio(track));
+        card.querySelector('.home-add')?.addEventListener('click', () => {
+          const added = addTrackToQueue(track);
+          const btn = card.querySelector('.home-add');
+          if (btn && added) {
+            btn.textContent = 'ADDED';
+            btn.classList.add('text-emerald-400', 'border-emerald-500/40');
+            setTimeout(() => {
+              btn.textContent = '+ QUEUE';
+              btn.classList.remove('text-emerald-400', 'border-emerald-500/40');
+            }, 1200);
+          }
+        });
+      });
+    }
+
+    function renderHomeDiscovery() {
+      if (!playlistBox || isSearchMode) return;
+      const home = window.homeDiscovery || { recent: [], recommended: [], moreLike: [], loading: false };
+      const groups = [
+        ['RECENTLY PLAYED', home.recent],
+        ['RECOMMENDED FOR YOU', home.recommended],
+        ['MORE LIKE WHAT YOU LISTEN TO', home.moreLike]
+      ].filter(([, tracks]) => tracks.length > 0);
+      playlistBox.innerHTML = home.loading && groups.length === 0
+        ? '<div class="p-6 text-center text-xs font-mono text-neutral-500 animate-pulse">// BUILDING YOUR DISCOVERY FEED...</div>'
+        : (groups.length ? groups.map(([title, tracks]) => `<section class="mb-5"><h3 class="mb-2 text-[10px] font-mono tracking-widest text-emerald-400">// ${title}</h3><div class="grid grid-cols-1 gap-2">${tracks.map(track => homeCardMarkup(track)).join('')}</div></section>`).join('') : '<div class="p-6 text-center text-xs font-mono text-neutral-500">// LISTEN TO A TRACK TO PERSONALIZE YOUR FEED</div>');
+      bindHomeCards(playlistBox, groups.flatMap(([, tracks]) => tracks));
+      if (trackCountEl) trackCountEl.textContent = 'DISCOVERY';
+    }
+    window.renderHomeDiscovery = renderHomeDiscovery;
 
     function updatePlaylistActiveState(activeIdx) {
       const rows = playlistBox?.querySelectorAll('.playlist-track-row');
@@ -1868,7 +2151,13 @@
       }
 
       updatePlaylistActiveState(window.currentTrackIndex);
-      await resolveAndPlayStream(track);
+      const started = await resolveAndPlayStream(track);
+      if (started) {
+        recordListeningStart(track);
+        if (!isSearchMode && typeof renderHomeDiscovery === 'function') {
+          renderHomeDiscovery();
+        }
+      }
     }
     window.playSelectedTrack = playTrackDirect;
     const playSelectedTrack = playTrackDirect;
@@ -1883,9 +2172,14 @@
       if (track.id === '1' || track.id === '01' || track.title === 'CYBER_DRIFT_808' || track.isLocal) {
         player.src = track.src || 'music.mp3';
         player.currentTime = 0;
-        await player.play().catch(console.error);
-        updateButtonVisual(true);
-        return;
+        try {
+          await player.play();
+          updateButtonVisual(true);
+          return true;
+        } catch (e) {
+          console.error(e);
+          return false;
+        }
       }
 
       try {
@@ -1947,7 +2241,7 @@
 
         if (!streamUrl) throw new Error("No playable stream");
 
-        if (thisToken !== audioResolverToken) return;
+        if (thisToken !== audioResolverToken) return false;
 
         // Force clean audio element refresh
         player.pause();
@@ -1974,6 +2268,7 @@
         await player.play();
         console.log("// AUDIO PLAYING AT VOLUME:", player.volume, "MUTED:", player.muted, "SRC:", player.src);
         updateButtonVisual(true);
+        return true;
 
       } catch (err) {
         console.error("// STREAM ERROR:", err);
@@ -1985,8 +2280,10 @@
           await player.play();
           console.log("// AUDIO PLAYING (no-cors fallback)");
           updateButtonVisual(true);
+          return true;
         } catch(e2) {
           updateButtonVisual(false);
+          return false;
         }
       }
     }
@@ -2059,8 +2356,11 @@
       playBtn.onclick = (e) => {
         e.stopPropagation();
         if (!player.src) {
-          if (typeof TRACKS !== 'undefined' && TRACKS.length > 0) {
-            playTrackDirect(TRACKS[currentIndex || 0]);
+          const candidate = (window.playQueue && window.playQueue[window.currentQueueIndex || 0])
+            || (window.homeDiscovery?.recent?.[0])
+            || (window.homeDiscovery?.recommended?.[0]);
+          if (candidate) {
+            playTrackAndStartRadio(candidate);
           }
           return;
         }
@@ -2129,6 +2429,9 @@
 
         playSelectedTrack(nextSong);
         if (typeof renderQueueView === 'function') renderQueueView();
+        if (window.currentQueueIndex + 1 >= window.playQueue.length) {
+          ensureUpcomingQueueTracks(nextSong);
+        }
       } else if (window.playQueue.length > 0) {
         const lastSong = window.playQueue[window.playQueue.length - 1];
         if (lastSong) {
@@ -2263,6 +2566,11 @@
     // SEARCH & FILTER INPUT HANDLING
     // ─────────────────────────────────────────────────────────────
     if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        if (searchInput.value.trim().length === 0 && isSearchMode) {
+          exitSearchMode();
+        }
+      });
       searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           const q = searchInput.value.trim();
@@ -2281,25 +2589,15 @@
 
     function exitSearchMode() {
       isSearchMode = false;
-      TRACKS = [...LOCAL_TRACKS];
-      filterAndRenderLocal();
+      if (searchInput) searchInput.value = '';
+      if (typeof renderHomeDiscovery === 'function') {
+        renderHomeDiscovery();
+      }
     }
-
-    function filterAndRenderLocal() {
-      const filtered = activeFilter === 'all'
-        ? LOCAL_TRACKS
-        : LOCAL_TRACKS.filter(t => t.channel === activeFilter);
-      TRACKS = filtered;
-      currentIndex = 0;
-      renderTracksList(TRACKS);
-    }
+    window.exitSearchMode = exitSearchMode;
 
     filterTabs.forEach(tab => {
       tab.addEventListener('click', () => {
-        if (isSearchMode) {
-          isSearchMode = false;
-          if (searchInput) searchInput.value = '';
-        }
         filterTabs.forEach(t => {
           t.classList.remove('bg-white', 'text-black', 'font-semibold');
           t.classList.add('bg-neutral-900', 'border', 'border-neutral-800', 'text-neutral-400');
@@ -2308,7 +2606,11 @@
         tab.classList.remove('bg-neutral-900', 'border', 'border-neutral-800', 'text-neutral-400');
 
         activeFilter = tab.dataset.filter || 'all';
-        filterAndRenderLocal();
+        if (activeFilter === 'all') {
+          exitSearchMode();
+        } else {
+          executeGlobalSearch(activeFilter + ' music');
+        }
       });
     });
 
@@ -2358,48 +2660,29 @@
     // BOOT & INITIAL TRACK LOAD
     // ─────────────────────────────────────────────────────────────
     async function boot() {
-      try {
-        const res = await fetch('assets/data/tracks.json');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        LOCAL_TRACKS = data.map((t, i) => ({
-          id: String(t.id || i),
-          title: t.title || 'Unknown Track',
-          artist: t.artist || 'Unknown Artist',
-          query: t.query || `${t.title} ${t.artist}`,
-          channel: (t.category || 'all').toLowerCase().replace(/[-\s]/g, ''),
-          cover: t.cover || FALLBACK_COVER,
-          duration: t.duration || '03:45',
-          src: t.url || t.src || (t.id === '1' || t.title === 'CYBER_DRIFT_808' ? 'music.mp3' : '')
-        }));
-      } catch (e) {
-        console.warn('[VOID] tracks.json fallback in effect:', e);
-        LOCAL_TRACKS = [
-          { id: '1', title: 'CYBER_DRIFT_808', artist: 'NEO_TOKYO_ARCHIVE', channel: 'lofi', cover: 'assets/images/album-art.png', duration: '03:45', src: 'music.mp3' },
-          { id: '2', title: 'Resonance', artist: 'HOME', channel: 'synthwave', cover: '', duration: '03:32', query: 'Resonance HOME' },
-          { id: '3', title: 'After Dark', artist: 'Mr.Kitty', channel: 'synthwave', cover: '', duration: '04:19', query: 'After Dark Mr Kitty' },
-          { id: '4', title: 'Memory Reboot', artist: 'VØJ & Narvent', channel: 'synthwave', cover: '', duration: '01:43', query: 'Memory Reboot VOJ Narvent' },
-          { id: '5', title: 'Nightcall', artist: 'Kavinsky', channel: 'synthwave', cover: '', duration: '04:19', query: 'Nightcall Kavinsky' },
-          { id: '6', title: 'Metamorphosis', artist: 'INTERWORLD', channel: 'synthwave', cover: '', duration: '02:22', query: 'Metamorphosis INTERWORLD' }
-        ];
+      // 1. Initialize hardware MediaSession handlers and storage state
+      if (typeof initMediaSessionHandlers === 'function') initMediaSessionHandlers();
+      if (typeof loadLikedTracks === 'function') loadLikedTracks();
+      if (typeof loadCustomPlaylists === 'function') loadCustomPlaylists();
+      if (typeof loadListeningHistory === 'function') loadListeningHistory();
+
+      // 2. Populate Home Discovery feed dynamically (never touches active queue)
+      await loadHomeDiscovery();
+
+      // 3. Populate idle deck preview display from first discovery track without autoplaying
+      const seedPreview = (window.homeDiscovery?.recent?.[0]) || (window.homeDiscovery?.recommended?.[0]);
+      if (seedPreview) {
+        window.currentActiveTrack = seedPreview;
+        if (mainTitle) mainTitle.textContent = seedPreview.title;
+        if (mainArtist) mainArtist.textContent = seedPreview.artist;
+        if (mainCover) mainCover.src = seedPreview.cover || FALLBACK_COVER;
+        if (totalTimeEl) totalTimeEl.textContent = seedPreview.duration || '03:30';
+        if (typeof updateLikeUI === 'function') updateLikeUI(seedPreview);
+        if (typeof updateMediaSessionMetadata === 'function') updateMediaSessionMetadata(seedPreview);
       }
 
-      TRACKS = [...LOCAL_TRACKS];
-      window.playQueue = TRACKS;
-      window.currentTrackIndex = 0;
-      currentIndex = 0;
-      renderTracksList(TRACKS);
-
-      // Populate left deck metadata with first track without autoplaying
-      if (TRACKS[0]) {
-        window.currentActiveTrack = TRACKS[0];
-        if (mainTitle) mainTitle.textContent = TRACKS[0].title;
-        if (mainArtist) mainArtist.textContent = TRACKS[0].artist;
-        if (mainCover) mainCover.src = TRACKS[0].cover;
-        if (totalTimeEl) totalTimeEl.textContent = TRACKS[0].duration;
-        if (typeof updateLikeUI === 'function') updateLikeUI(TRACKS[0]);
-        if (typeof updateMediaSessionMetadata === 'function') updateMediaSessionMetadata(TRACKS[0]);
-      }
+      // 4. Update initial queue counter
+      if (typeof updateQueueCounter === 'function') updateQueueCounter();
 
       // Initialize hardware MediaSession handlers and Like/Playlist state
       if (typeof initMediaSessionHandlers === 'function') initMediaSessionHandlers();

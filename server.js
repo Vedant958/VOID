@@ -110,7 +110,7 @@ const server = http.createServer(async (req, res) => {
 
   // 2. Static File Serving
   let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
-  
+
   // Security check: stay within workspace
   if (!filePath.startsWith(__dirname)) {
     res.statusCode = 403;
