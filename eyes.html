@@ -1,579 +1,2411 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EYES OF THE WORLD — VOID Interface</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <title>GOD'S EYE // GLOBAL RECON &amp; SPATIAL FEED — VOID</title>
+  <meta name="description"
+    content="VOID MOD_02 — Photorealistic 3D Globe with Keyless Fallback, Cinematic Kinematics & In-World 3D CCTV Projections">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&display=swap"
+    rel="stylesheet">
+
+  <!-- CesiumJS Base URL & Library (v1.124) -->
+  <script>
+    window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/';
+  </script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
+
+  <!-- HLS.js for Real-Time Live Streaming -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
+
   <style>
-    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-    :root{
-      --bg:#0a0a0a;--surface:#111;--border:#1e1e1e;--border-bright:#2a2a2a;
-      --green:#00dd55;--green-glow:rgba(0,221,85,.35);
-      --red:#ff2244;--red-glow:rgba(255,34,68,.35);
-      --dim:#444;--muted:#666;--text:#ccc;
-      --font-display:'Orbitron',sans-serif;--font-mono:'Share Tech Mono',monospace;
-    }
-    html,body{height:100%;font-family:var(--font-mono);background:var(--bg);color:var(--text);overflow:hidden}
-
-    /* TOP BAR */
-    #top-bar{
-      position:fixed;top:0;left:0;width:100%;z-index:200;
-      display:flex;align-items:center;gap:20px;padding:10px 24px;
-      background:rgba(10,10,10,.97);border-bottom:1px solid var(--border-bright);
-    }
-    .tb-brand{font-family:var(--font-display);font-size:13px;font-weight:900;letter-spacing:5px;color:#fff;margin-right:auto}
-    .tb-brand span{color:var(--green);text-shadow:0 0 12px var(--green-glow)}
-    #top-bar a{font-size:9px;letter-spacing:3px;color:var(--muted);text-decoration:none;transition:color .2s}
-    #top-bar a:hover{color:var(--green)}
-    .rec-badge{display:flex;align-items:center;gap:6px;font-size:9px;letter-spacing:2px;color:var(--red)}
-    .rec-dot{width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red-glow);animation:recBlink 1.1s ease-in-out infinite}
-    @keyframes recBlink{0%,100%{opacity:1}50%{opacity:.3}}
-
-    /* LAYOUT */
-    #layout{display:flex;height:100vh;padding-top:41px}
-
-    /* LEFT PANEL - camera list */
-    #cam-list-panel{
-      width:320px;flex-shrink:0;
-      background:var(--surface);border-right:1px solid var(--border-bright);
-      display:flex;flex-direction:column;overflow:hidden;
-    }
-    #filter-bar{
-      display:flex;flex-wrap:wrap;gap:2px;padding:10px;border-bottom:1px solid var(--border-bright);flex-shrink:0;
-    }
-    .flt{
-      font-size:8px;letter-spacing:2px;padding:5px 10px;border:1px solid var(--border-bright);
-      background:transparent;color:var(--muted);cursor:pointer;border-radius:2px;transition:all .2s;
-    }
-    .flt:hover{border-color:var(--green);color:var(--green)}
-    .flt.active{background:var(--green);border-color:var(--green);color:#000;font-weight:700}
-    #feed-info{
-      padding:8px 12px;font-size:8px;letter-spacing:2px;color:var(--dim);
-      border-bottom:1px solid var(--border);flex-shrink:0;
-    }
-    #feed-info span{color:var(--green)}
-    #cam-list{flex:1;overflow-y:auto;padding:8px}
-    #cam-list::-webkit-scrollbar{width:3px}
-    #cam-list::-webkit-scrollbar-thumb{background:var(--green);border-radius:2px}
-
-    /* CAMERA CARD */
-    .cam-card{
-      margin-bottom:6px;border:1px solid var(--border-bright);
-      background:#0d0d0d;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;
-    }
-    .cam-card:hover{border-color:var(--green);box-shadow:0 0 12px rgba(0,221,85,.1)}
-    .cam-card.active{border-color:var(--green);box-shadow:0 0 16px rgba(0,221,85,.2)}
-    .cam-card.active .cc-name{color:var(--green)}
-
-    /* Camera preview (CSS-animated fake feed) */
-    .cc-preview{
-      position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;
-    }
-    .cc-scanlines{
-      position:absolute;inset:0;
-      background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,.015) 2px,rgba(255,255,255,.015) 4px);
-      pointer-events:none;z-index:3;
-    }
-    .cc-noise{
-      position:absolute;inset:0;z-index:2;
-      background:radial-gradient(ellipse at center,rgba(0,221,85,.04) 0%,transparent 70%);
-      animation:noiseShift 3s ease-in-out infinite alternate;
-    }
-    @keyframes noiseShift{from{opacity:.4}to{opacity:1}}
-    .cc-scan-line{
-      position:absolute;left:0;width:100%;height:2px;
-      background:linear-gradient(90deg,transparent,rgba(0,221,85,.3),transparent);
-      animation:scanLine 3s linear infinite;z-index:4;
-    }
-    @keyframes scanLine{from{top:-2px}to{top:100%}}
-    .cc-static{
-      position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;
-      flex-direction:column;gap:6px;
-    }
-    .cc-static-icon{font-size:18px;opacity:.25}
-    .cc-static-txt{
-      font-size:7px;letter-spacing:2px;color:rgba(0,221,85,.4);
-      animation:txtBlink .8s step-end infinite;
-    }
-    @keyframes txtBlink{0%,100%{opacity:1}50%{opacity:0}}
-
-    /* when card is active — shows green glow */
-    .cam-card.active .cc-noise{background:radial-gradient(ellipse at center,rgba(0,221,85,.12) 0%,transparent 60%)}
-
-    .cc-overlay{
-      position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;
-      justify-content:space-between;padding:6px 8px;pointer-events:none;
-    }
-    .cc-top{display:flex;justify-content:space-between;align-items:center}
-    .cc-id{font-size:7px;letter-spacing:1.5px;color:rgba(0,221,85,.6)}
-    .cc-live{display:flex;align-items:center;gap:4px;font-size:7px;letter-spacing:1px;color:var(--red)}
-    .cc-live-dot{width:4px;height:4px;border-radius:50%;background:var(--red);animation:recBlink 1.1s ease-in-out infinite}
-
-    .cc-name{font-family:var(--font-display);font-size:8px;font-weight:700;letter-spacing:1px;color:#fff;margin-bottom:2px}
-    .cc-loc{font-size:7px;letter-spacing:1px;color:var(--dim)}
-    .cc-cat{
-      position:absolute;top:6px;right:8px;font-size:6px;letter-spacing:1.5px;
-      border:1px solid rgba(0,221,85,.3);padding:2px 5px;color:rgba(0,221,85,.5);z-index:6;
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    /* main viewer - right */
-    #viewer-panel{
-      flex:1;display:flex;flex-direction:column;background:#000;overflow:hidden;
+    :root {
+      --bg: #020408;
+      --panel-bg: rgba(8, 12, 18, 0.92);
+      --border: rgba(0, 240, 255, 0.35);
+      --border-bright: rgba(0, 240, 255, 0.65);
+      --green: #00ff88;
+      --green-glow: rgba(0, 255, 136, 0.5);
+      --cyan: #00f0ff;
+      --cyan-glow: rgba(0, 240, 255, 0.5);
+      --amber: #ffb700;
+      --amber-glow: rgba(255, 183, 0, 0.5);
+      --red: #ff2244;
+      --red-glow: rgba(255, 34, 68, 0.6);
+      --muted: #8899aa;
+      --text: #d1d7e0;
+      --text-bright: #ffffff;
+      --font-mono: 'Share Tech Mono', monospace;
+      --font-display: 'Orbitron', sans-serif;
     }
 
-    /* viewer header */
-    #viewer-header{
-      display:flex;align-items:center;justify-content:space-between;
-      padding:10px 16px;background:#0a0a0a;border-bottom:1px solid var(--border-bright);flex-shrink:0;
-    }
-    #viewer-title{font-family:var(--font-display);font-size:11px;font-weight:700;letter-spacing:2px;color:#fff}
-    #viewer-meta{font-size:8px;letter-spacing:2px;color:var(--dim)}
-    #viewer-ts{font-size:9px;letter-spacing:1px;color:rgba(0,221,85,.6)}
-    #viewer-actions{display:flex;gap:8px}
-    .vbtn{
-      font-size:8px;letter-spacing:1px;padding:5px 10px;border:1px solid var(--border-bright);
-      background:transparent;color:var(--muted);cursor:pointer;border-radius:2px;transition:all .2s;
-    }
-    .vbtn:hover{border-color:var(--green);color:var(--green)}
-
-    /* viewer screen */
-    #viewer-screen{flex:1;position:relative;background:#000;overflow:hidden}
-
-    /* idle state */
-    #viewer-idle{
-      position:absolute;inset:0;display:flex;flex-direction:column;
-      align-items:center;justify-content:center;gap:16px;z-index:10;
-    }
-    .idle-grid{
-      display:grid;grid-template-columns:repeat(3,1fr);gap:2px;opacity:.15;margin-bottom:8px;
-    }
-    .idle-cell{width:60px;height:40px;background:#111;border:1px solid #1a1a1a;
-      display:flex;align-items:center;justify-content:center;font-size:8px;color:#333}
-    .idle-title{font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:4px;color:var(--dim)}
-    .idle-sub{font-size:9px;letter-spacing:3px;color:#333}
-
-    /* viewer iframe */
-    #viewer-frame{
-      position:absolute;inset:0;width:100%;height:100%;border:none;
-      opacity:0;transition:opacity .5s;z-index:5;
-    }
-    #viewer-frame.loaded{opacity:1}
-
-    /* Loading overlay */
-    #viewer-loading{
-      position:absolute;inset:0;background:#000;display:none;
-      flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:8;
-    }
-    .vl-spinner{
-      width:36px;height:36px;border:2px solid #1a1a1a;
-      border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;
-    }
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .vl-text{font-size:9px;letter-spacing:3px;color:var(--dim)}
-    .vl-bar{width:180px;height:2px;background:#1a1a1a;border-radius:2px;overflow:hidden;margin-top:4px}
-    .vl-bar-fill{height:100%;width:0%;background:var(--green);border-radius:2px;animation:loadBar 8s linear forwards}
-    @keyframes loadBar{to{width:100%}}
-
-    /* Signal lost overlay */
-    #viewer-lost{
-      position:absolute;inset:0;background:rgba(0,0,0,.92);display:none;
-      flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:9;
-    }
-    .vl-lost-icon{font-size:36px;opacity:.5}
-    .vl-lost-title{
-      font-family:var(--font-display);font-size:16px;font-weight:900;letter-spacing:4px;
-      color:var(--red);text-shadow:0 0 20px var(--red-glow);
-      animation:glitch 2s step-end infinite;
-    }
-    @keyframes glitch{
-      0%,100%{transform:none;opacity:1}
-      92%{transform:none;opacity:1}
-      93%{transform:translateX(-3px);opacity:.8}
-      94%{transform:translateX(3px);opacity:.9}
-      95%{transform:none;opacity:1}
-    }
-    .vl-lost-sub{font-size:9px;letter-spacing:3px;color:var(--dim)}
-    .vl-lost-actions{display:flex;gap:10px;margin-top:8px}
-    .vl-lost-btn{
-      font-size:9px;letter-spacing:2px;padding:8px 16px;cursor:pointer;border-radius:2px;
-      border:1px solid;transition:all .2s;background:transparent;
-    }
-    .vl-lost-btn.primary{border-color:var(--green);color:var(--green)}
-    .vl-lost-btn.primary:hover{background:var(--green);color:#000}
-    .vl-lost-btn.secondary{border-color:var(--border-bright);color:var(--dim)}
-    .vl-lost-btn.secondary:hover{border-color:var(--muted);color:var(--text)}
-
-    /* Viewer scanlines */
-    #viewer-scanlines{
-      position:absolute;inset:0;pointer-events:none;z-index:6;
-      background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.08) 3px,rgba(0,0,0,.08) 6px);
-    }
-    /* Corner brackets */
-    .vbracket{position:absolute;width:22px;height:22px;pointer-events:none;z-index:7}
-    .vbracket.tl{top:12px;left:12px;border-top:1.5px solid rgba(0,221,85,.4);border-left:1.5px solid rgba(0,221,85,.4)}
-    .vbracket.tr{top:12px;right:12px;border-top:1.5px solid rgba(0,221,85,.4);border-right:1.5px solid rgba(0,221,85,.4)}
-    .vbracket.bl{bottom:12px;left:12px;border-bottom:1.5px solid rgba(0,221,85,.4);border-left:1.5px solid rgba(0,221,85,.4)}
-    .vbracket.br{bottom:12px;right:12px;border-bottom:1.5px solid rgba(0,221,85,.4);border-right:1.5px solid rgba(0,221,85,.4)}
-
-    /* Viewer timestamp overlay */
-    #viewer-ts-overlay{
-      position:absolute;bottom:14px;left:16px;z-index:8;font-size:9px;
-      letter-spacing:1px;color:rgba(0,221,85,.6);pointer-events:none;
-      text-shadow:0 0 8px rgba(0,221,85,.4);display:none;
+    html,
+    body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: var(--font-mono);
+      background: var(--bg);
+      color: var(--text);
+      user-select: none;
     }
 
-    @media(max-width:700px){
-      #layout{flex-direction:column}
-      #cam-list-panel{width:100%;height:220px;border-right:none;border-bottom:1px solid var(--border-bright)}
-      #cam-list{display:flex;overflow-x:auto;overflow-y:hidden;gap:8px;padding:8px;flex-direction:row}
-      .cam-card{min-width:180px;margin-bottom:0}
+    /* ── SCANLINES ── */
+    #global-scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg,
+          transparent,
+          transparent 3px,
+          rgba(0, 0, 0, 0.08) 3px,
+          rgba(0, 0, 0, 0.08) 4px);
+    }
+
+    /* ── LAYOUT ── */
+    #layout {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── TOP TELEMETRY DOCK ── */
+    #top-bar {
+      flex-shrink: 0;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 18px;
+      background: rgba(8, 12, 18, 0.92) !important;
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.35);
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(0, 240, 255, 0.05);
+      position: relative;
+      z-index: 200;
+    }
+
+    .tb-back {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #00f0ff;
+      text-decoration: none;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tb-back:hover {
+      color: #ffffff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+    }
+
+    .tb-sep {
+      width: 1px;
+      height: 22px;
+      background: rgba(0, 240, 255, 0.35);
+    }
+
+    .tb-id {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    }
+
+    .tb-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: #ffffff;
+    }
+
+    .tb-title span {
+      color: #00f0ff;
+      font-weight: 600;
+    }
+
+    /* Target Selector Pill Dock */
+    #target-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 10px;
+    }
+
+    .nav-pill {
+      background: rgba(15, 23, 36, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #b0bccb;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      padding: 5px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .nav-pill:hover {
+      border-color: #00f0ff;
+      color: #00f0ff;
+      background: rgba(0, 240, 255, 0.14);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
+    }
+
+    .nav-pill.active {
+      border-color: #00f0ff !important;
+      color: #ffffff !important;
+      background: rgba(0, 240, 255, 0.2) !important;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.45) !important;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.6) !important;
+      font-weight: 700;
+    }
+
+    .nav-pill.orbit-toggle {
+      border-color: rgba(255, 183, 0, 0.5);
+      color: #ffb700;
+      background: rgba(255, 183, 0, 0.1);
+      font-weight: 700;
+    }
+
+    .nav-pill.orbit-toggle:hover {
+      border-color: #ffb700;
+      background: rgba(255, 183, 0, 0.24);
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(255, 183, 0, 0.5);
+      text-shadow: 0 0 8px rgba(255, 183, 0, 0.6);
+    }
+
+    /* Telemetry Info Right */
+    .tb-status-row {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 9px;
+      letter-spacing: 2px;
+    }
+
+    .tb-tag {
+      padding: 4px 9px;
+      border-radius: 3px;
+      border: 1px solid;
+      font-weight: 700;
+    }
+
+    .tb-tag.green {
+      border-color: rgba(0, 255, 136, 0.55);
+      color: #00ff88;
+      background: rgba(0, 255, 136, 0.14);
+      box-shadow: 0 0 8px rgba(0, 255, 136, 0.25);
+    }
+
+    .tb-tag.cyan {
+      border-color: rgba(0, 240, 255, 0.55);
+      color: #00f0ff;
+      background: rgba(0, 240, 255, 0.14);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+    }
+
+    .tb-tag.amber {
+      border-color: rgba(255, 183, 0, 0.55);
+      color: #ffb700;
+      background: rgba(255, 183, 0, 0.14);
+      box-shadow: 0 0 8px rgba(255, 183, 0, 0.25);
+    }
+
+    #tb-coords {
+      color: #00f0ff;
+      font-weight: 600;
+      min-width: 250px;
+      text-align: right;
+      letter-spacing: 1.5px;
+      opacity: 1;
+    }
+
+    #tb-clock {
+      color: #ffffff;
+      font-weight: 700;
+      min-width: 85px;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    }
+
+    /* ── CESIUM VIEWPORT ── */
+    #cesium-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #000008;
+    }
+
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Hide standard Cesium UI overlays & watermark defaults cleanly */
+    .cesium-viewer-bottom,
+    .cesium-viewer-toolbar,
+    .cesium-viewer-animationContainer,
+    .cesium-viewer-timelineContainer {
+      display: none !important;
+    }
+
+    .cesium-widget canvas {
+      outline: none;
+    }
+
+    /* ── CESIUM CREDITS CONTAINER ── */
+    #cesium-credits {
+      position: absolute;
+      bottom: 8px;
+      left: 14px;
+      z-index: 10;
+      font-size: 8px;
+      letter-spacing: 1px;
+      color: rgba(153, 170, 187, 0.45);
+      pointer-events: auto;
+      max-width: 480px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #cesium-credits a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+
+    /* ── HUD TACTICAL OVERLAY ── */
+    #hud-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .vbracket {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-color: rgba(0, 200, 255, 0.45);
+      border-style: solid;
+    }
+
+    .vbracket.tl {
+      top: 16px;
+      left: 16px;
+      border-width: 2px 0 0 2px;
+    }
+
+    .vbracket.tr {
+      top: 16px;
+      right: 16px;
+      border-width: 2px 2px 0 0;
+    }
+
+    .vbracket.bl {
+      bottom: 16px;
+      left: 16px;
+      border-width: 0 0 2px 2px;
+    }
+
+    .vbracket.br {
+      bottom: 16px;
+      right: 16px;
+      border-width: 0 2px 2px 0;
+    }
+
+    /* Center Crosshair Reticle */
+    #reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px;
+      height: 140px;
+      pointer-events: none;
+    }
+
+    .rl-ring {
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(0, 200, 255, 0.22);
+      border-radius: 50%;
+      animation: retPulse 4s ease-in-out infinite;
+    }
+
+    .rl-ring.inner {
+      inset: 24px;
+      border-color: rgba(0, 255, 170, 0.25);
+      border-style: dashed;
+      animation: retSpin 28s linear infinite;
+    }
+
+    .rl-h {
+      position: absolute;
+      top: 50%;
+      left: -20px;
+      right: -20px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 200, 255, 0.35) 30%, rgba(0, 200, 255, 0.35) 70%, transparent);
+      transform: translateY(-50%);
+    }
+
+    .rl-v {
+      position: absolute;
+      left: 50%;
+      top: -20px;
+      bottom: -20px;
+      width: 1px;
+      background: linear-gradient(0deg, transparent, rgba(0, 200, 255, 0.35) 30%, rgba(0, 200, 255, 0.35) 70%, transparent);
+      transform: translateX(-50%);
+    }
+
+    .rl-dot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green-glow);
+    }
+
+    @keyframes retSpin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes retPulse {
+
+      0%,
+      100% {
+        opacity: 0.5;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.9;
+        transform: scale(1.03);
+      }
+    }
+
+    /* Left Telemetry Strips */
+    #left-strip {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .ls-bar {
+      width: 4px;
+      height: 20px;
+      background: rgba(0, 200, 255, 0.15);
+      border-radius: 1px;
+      transition: background 0.3s;
+    }
+
+    .ls-bar.active {
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan-glow);
+    }
+
+    /* ── HOVER TOOLTIP ── */
+    #track-tooltip {
+      position: absolute;
+      z-index: 25;
+      pointer-events: none;
+      background: rgba(2, 6, 14, 0.95);
+      border: 1px solid var(--border-bright);
+      padding: 8px 14px;
+      border-radius: 4px;
+      box-shadow: 0 0 24px rgba(0, 200, 255, 0.35);
+      font-size: 8.5px;
+      letter-spacing: 1.5px;
+      color: var(--text);
+      display: none;
+      transform: translate(16px, -16px);
+      backdrop-filter: blur(10px);
+    }
+
+    #track-tooltip .tt-name {
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 11px;
+      margin-bottom: 4px;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    }
+
+    #track-tooltip .tt-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 2px;
+    }
+
+    #track-tooltip .tt-row span:first-child {
+      color: #00f0ff;
+      font-weight: 600;
+    }
+
+    #track-tooltip .tt-val {
+      color: #00ff88;
+      font-weight: 700;
+    }
+
+    #track-tooltip .tt-hint {
+      font-size: 8px;
+      color: #ffb700;
+      font-weight: 600;
+      letter-spacing: 1px;
+      margin-top: 6px;
+      border-top: 1px dashed rgba(0, 240, 255, 0.3);
+      padding-top: 4px;
+    }
+
+    /* ── ACTIVE RECON DOSSIER PANEL ── */
+    #telem-panel {
+      position: absolute;
+      top: 58px;
+      right: 0;
+      width: 320px;
+      max-height: calc(100vh - 80px);
+      background: rgba(8, 12, 18, 0.92) !important;
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      border-right: none;
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: auto;
+      z-index: 20;
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(0, 240, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      border-radius: 4px 0 0 4px;
+    }
+
+    #telem-panel.collapsed {
+      transform: translateX(320px);
+    }
+
+    .telem-toggle {
+      position: absolute;
+      top: 50%;
+      left: -28px;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 84px;
+      background: rgba(8, 12, 18, 0.94);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      border-right: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      writing-mode: vertical-rl;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #00f0ff;
+      transition: all 0.2s;
+      user-select: none;
+      box-shadow: -4px 0 14px rgba(0, 240, 255, 0.25);
+      border-radius: 4px 0 0 4px;
+    }
+
+    .telem-toggle:hover {
+      color: #ffffff;
+      background: rgba(0, 240, 255, 0.25);
+      box-shadow: -4px 0 20px rgba(0, 240, 255, 0.5);
+    }
+
+    .telem-header {
+      padding: 12px 16px 10px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #ffffff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .telem-live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00ff88;
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
+      animation: recBlink 1.2s ease-in-out infinite;
+    }
+
+    @keyframes recBlink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.2;
+      }
+    }
+
+    .telem-body {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      overflow-y: auto;
+    }
+
+    .dossier-title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border-bottom: 1px dashed rgba(0, 240, 255, 0.3);
+      padding-bottom: 9px;
+    }
+
+    .dossier-name {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 1px;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+    }
+
+    .dossier-sub {
+      font-size: 8.5px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      color: #00f0ff;
+    }
+
+    /* Dossier Mini-Monitor HUD Screen */
+    .dossier-mini-monitor {
+      display: flex;
+      flex-direction: column;
+      background: rgba(4, 8, 14, 0.95);
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.15), inset 0 0 12px rgba(0, 0, 0, 0.85);
+      margin: 2px 0 4px;
+    }
+
+    .dmm-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 8px;
+      background: rgba(0, 240, 255, 0.08);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+      font-size: 8px;
+      letter-spacing: 1.2px;
+      font-weight: 700;
+    }
+
+    .dmm-live-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .dmm-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ff2244;
+      box-shadow: 0 0 6px #ff2244;
+      animation: recBlink 1s infinite;
+    }
+
+    .dmm-rec-text {
+      color: #ff4466;
+    }
+
+    .dmm-codec {
+      color: #00f0ff;
+    }
+
+    .dmm-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #02060c;
+      overflow: hidden;
+    }
+
+    #dossier-mini-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .dmm-reticle-overlay {
+      position: absolute;
+      inset: 6px;
+      pointer-events: none;
+      border: 1px solid rgba(0, 240, 255, 0.15);
+    }
+
+    .dmm-reticle-overlay::before,
+    .dmm-reticle-overlay::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-color: #00f0ff;
+      border-style: solid;
+    }
+
+    .dmm-reticle-overlay::before {
+      top: 0;
+      left: 0;
+      border-width: 2px 0 0 2px;
+    }
+
+    .dmm-reticle-overlay::after {
+      bottom: 0;
+      right: 0;
+      border-width: 0 2px 2px 0;
+    }
+
+    .dmm-footer {
+      padding: 4px 8px;
+      background: rgba(2, 6, 12, 0.85);
+      border-top: 1px solid rgba(0, 240, 255, 0.15);
+      font-size: 7.5px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: #00ff88;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .telem-grid-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .telem-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .telem-key {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: #00f0ff;
+      opacity: 1;
+      text-transform: uppercase;
+    }
+
+    .telem-val {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: #d1d7e0;
+    }
+
+    .telem-val.green {
+      color: #00ff88;
+      font-weight: 700;
+      text-shadow: 0 0 8px rgba(0, 255, 136, 0.45);
+    }
+
+    .telem-val.cyan {
+      color: #00f0ff;
+      font-weight: 700;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.45);
+    }
+
+    .telem-val.amber {
+      color: #ffb700;
+      font-weight: 700;
+      text-shadow: 0 0 8px rgba(255, 183, 0, 0.45);
+    }
+
+    .dossier-desc {
+      font-size: 9px;
+      line-height: 1.5;
+      color: #d1d7e0;
+      letter-spacing: 0.8px;
+      background: rgba(0, 240, 255, 0.06);
+      padding: 9px 12px;
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-left: 3px solid #00f0ff;
+      border-radius: 2px;
+    }
+
+    .dossier-action-btn {
+      width: 100%;
+      padding: 9px;
+      margin-top: 6px;
+      background: rgba(0, 240, 255, 0.14);
+      border: 1px solid #00f0ff;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.2s;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+    }
+
+    .dossier-action-btn:hover {
+      background: #00f0ff;
+      color: #020408;
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.6);
+      text-shadow: none;
+    }
+
+    .dossier-stream-btn {
+      width: 100%;
+      padding: 8px 10px;
+      margin-top: 4px;
+      background: rgba(0, 255, 136, 0.14);
+      border: 1px solid #00ff88;
+      color: #00ff88;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.2s;
+      text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+      text-align: center;
+    }
+
+    .dossier-stream-btn:hover {
+      background: #00ff88;
+      color: #020408;
+      box-shadow: 0 0 16px rgba(0, 255, 136, 0.6);
+      text-shadow: none;
+    }
+
+    .dossier-stream-btn.live-mode {
+      background: rgba(255, 34, 68, 0.16);
+      border-color: #ff2244;
+      color: #ff4466;
+      text-shadow: 0 0 8px rgba(255, 34, 68, 0.5);
+    }
+
+    .dossier-stream-btn.live-mode:hover {
+      background: #ff2244;
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(255, 34, 68, 0.7);
+    }
+
+    .dossier-stream-btn.direct-mode {
+      background: rgba(0, 240, 255, 0.16);
+      border-color: #00f0ff;
+      color: #00f0ff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    }
+
+    .dossier-stream-btn.direct-mode:hover {
+      background: #00f0ff;
+      color: #020408;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.7);
+    }
+
+    /* ── LOADING SCREEN OVERLAY ── */
+    #loading-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: rgba(2, 4, 8, 0.96);
+      transition: opacity 0.6s ease;
+      pointer-events: none;
+    }
+
+    #loading-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .ld-spinner {
+      width: 48px;
+      height: 48px;
+      border: 2px solid rgba(0, 200, 255, 0.15);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .ld-title {
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: var(--cyan);
+      text-shadow: 0 0 20px var(--cyan-glow);
+    }
+
+    .ld-sub {
+      font-size: 9px;
+      letter-spacing: 2.5px;
+      color: var(--muted);
+    }
+
+    .ld-bar {
+      width: 220px;
+      height: 2px;
+      background: rgba(0, 200, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .ld-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--green));
+      border-radius: 2px;
+      animation: loadBar 2s ease-out forwards;
+    }
+
+    @keyframes loadBar {
+      0% {
+        width: 0%;
+      }
+
+      60% {
+        width: 75%;
+      }
+
+      100% {
+        width: 100%;
+      }
     }
   </style>
 </head>
+
 <body>
+  <div id="global-scanlines"></div>
 
-<div id="top-bar">
-  <span class="tb-brand">VOID<span>.</span>SYS</span>
-  <a href="index.html">← BACK</a>
-  <div class="rec-badge"><span class="rec-dot"></span>REC // LIVE FEEDS</div>
-</div>
+  <div id="layout">
+    <!-- TOP TELEMETRY DOCK -->
+    <div id="top-bar">
+      <a class="tb-back" href="index.html">&#8592; VOID_ROOT</a>
+      <div class="tb-sep"></div>
+      <div class="tb-id">MOD_02</div>
+      <div class="tb-title">GOD'S EYE // <span>CESIUM SPATIAL ENGINE</span></div>
 
-<div id="layout">
-
-  <!-- LEFT: Camera List -->
-  <div id="cam-list-panel">
-    <div id="filter-bar">
-      <button class="flt active" data-f="all">ALL</button>
-      <button class="flt" data-f="city">CITY</button>
-      <button class="flt" data-f="nature">NATURE</button>
-      <button class="flt" data-f="traffic">TRAFFIC</button>
-      <button class="flt" data-f="beach">BEACH</button>
-      <button class="flt" data-f="wildlife">WILDLIFE</button>
-    </div>
-    <div id="feed-info">FEEDS: <span id="feed-count">0</span> // SELECT TO VIEW</div>
-    <div id="cam-list"></div>
-  </div>
-
-  <!-- RIGHT: Main Viewer -->
-  <div id="viewer-panel">
-    <div id="viewer-header">
-      <div>
-        <div id="viewer-title">SELECT A FEED</div>
-        <div id="viewer-meta">AWAITING SIGNAL —</div>
+      <!-- Quick Sector Targets & Orbit View Toggle -->
+      <div id="target-nav">
+        <button class="nav-pill active" id="btn-austin" onclick="focusCamera('recon-austin')">[ AUSTIN ]</button>
+        <button class="nav-pill" id="btn-london" onclick="focusCamera('recon-london')">[ LONDON ]</button>
+        <button class="nav-pill" id="btn-la" onclick="focusCamera('recon-la')">[ LOS ANGELES ]</button>
+        <button class="nav-pill" id="btn-nyc" onclick="focusCamera('recon-nyc')">[ NEW YORK ]</button>
+        <button class="nav-pill" id="btn-tokyo" onclick="focusCamera('recon-tokyo')">[ TOKYO ]</button>
+        <button class="nav-pill" id="btn-sydney" onclick="focusCamera('recon-sydney')">[ SYDNEY ]</button>
+        <button class="nav-pill orbit-toggle" id="btn-orbit" onclick="flyToOrbitView()">[ 🛰️ ORBIT VIEW ]</button>
       </div>
-      <div id="viewer-ts">—</div>
-      <div id="viewer-actions">
-        <button class="vbtn" id="btn-fullscreen">⛶ FULLSCREEN</button>
-        <button class="vbtn" id="btn-newtab">⊕ OPEN SOURCE</button>
-        <button class="vbtn" id="btn-retry">↻ RECONNECT</button>
+
+      <!-- Live Telemetry Status -->
+      <div class="tb-status-row">
+        <span class="tb-tag green" id="tb-status-sys">[SYS_ONLINE]</span>
+        <span class="tb-tag cyan" id="tb-status-map">MAP: ESRI_KEYLESS</span>
+        <span class="tb-tag amber" id="tb-status-cctv">CCTV: ARMED</span>
+        <span id="tb-coords">LAT: 30.2672° N | LON: -97.7431° W | ALT: 25000m</span>
+        <span id="tb-clock">00:00:00 UTC</span>
       </div>
     </div>
-    <div id="viewer-screen">
-      <!-- Idle -->
-      <div id="viewer-idle">
-        <div class="idle-grid">
-          <div class="idle-cell">01</div><div class="idle-cell">02</div><div class="idle-cell">03</div>
-          <div class="idle-cell">04</div><div class="idle-cell">05</div><div class="idle-cell">06</div>
+
+    <!-- CESIUM 3D VIEWPORT CONTAINER -->
+    <div id="cesium-wrapper">
+      <div id="cesiumContainer"></div>
+      <div id="cesium-credits"></div>
+
+      <!-- HUD Overlay -->
+      <div id="hud-overlay">
+        <div class="vbracket tl"></div>
+        <div class="vbracket tr"></div>
+        <div class="vbracket bl"></div>
+        <div class="vbracket br"></div>
+
+        <!-- Center Reticle -->
+        <div id="reticle">
+          <div class="rl-ring"></div>
+          <div class="rl-ring inner"></div>
+          <div class="rl-h"></div>
+          <div class="rl-v"></div>
+          <div class="rl-dot"></div>
         </div>
-        <div class="idle-title">EYES OF THE WORLD</div>
-        <div class="idle-sub">SELECT A FEED FROM THE LEFT TO BEGIN</div>
-      </div>
-      <!-- Loading -->
-      <div id="viewer-loading">
-        <div class="vl-spinner"></div>
-        <div class="vl-text">ESTABLISHING UPLINK…</div>
-        <div class="vl-bar"><div class="vl-bar-fill" id="vl-bar-fill"></div></div>
-      </div>
-      <!-- Signal Lost -->
-      <div id="viewer-lost">
-        <div class="vl-lost-icon">📡</div>
-        <div class="vl-lost-title">SIGNAL LOST</div>
-        <div class="vl-lost-sub">FEED UNAVAILABLE OR BLOCKED BY ORIGIN SERVER</div>
-        <div class="vl-lost-actions">
-          <button class="vl-lost-btn primary" id="btn-search-yt">🔍 SEARCH ON YOUTUBE</button>
-          <button class="vl-lost-btn secondary" id="btn-retry-lost">↻ RETRY CONNECTION</button>
+
+        <!-- Left Bar Strip -->
+        <div id="left-strip">
+          <div class="ls-bar active"></div>
+          <div class="ls-bar active"></div>
+          <div class="ls-bar active"></div>
+          <div class="ls-bar active"></div>
+          <div class="ls-bar"></div>
         </div>
       </div>
-      <!-- Iframe -->
-      <iframe id="viewer-frame" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
-      <!-- Overlays -->
-      <div id="viewer-scanlines"></div>
-      <div class="vbracket tl"></div><div class="vbracket tr"></div>
-      <div class="vbracket bl"></div><div class="vbracket br"></div>
-      <div id="viewer-ts-overlay">—</div>
-    </div>
-  </div>
 
-</div>
+      <!-- Hover Tooltip -->
+      <div id="track-tooltip">
+        <div class="tt-name" id="tt-name">CAM_NODE</div>
+        <div class="tt-row"><span>SECTOR:</span><span class="tt-val" id="tt-sector">--</span></div>
+        <div class="tt-row"><span>STREAM:</span><span class="tt-val" id="tt-stream">1080p // ACTIVE</span></div>
+        <div class="tt-hint">◈ CLICK TO ENGAGE 3D IN-WORLD PROJECTION</div>
+      </div>
 
-<script>
-(() => {
-  'use strict';
+      <!-- Right Recon Dossier Panel -->
+      <div id="telem-panel">
+        <div class="telem-toggle" id="telem-toggle-btn" onclick="toggleTelem()">RECON_INTEL</div>
+        <div class="telem-header">
+          <span>SPATIAL RECON DOSSIER</span>
+          <div class="telem-live-dot"></div>
+        </div>
 
-  // ─────────────────────────────────────────
-  // CAMERA DATABASE
-  // Sources: EarthCam YouTube channel streams,
-  //          explore.org channel live streams,
-  //          verified 24/7 public webcam channels
-  // ─────────────────────────────────────────
-  const CAMS = [
-    // CITY — verified live stream IDs
-    { id:'C001', name:'TIMES SQUARE', loc:'New York, USA', cat:'city',
-      src:'https://www.youtube.com/embed/rnXIjl_Rzy4?autoplay=1&mute=1',
-      search:'times square live webcam 24/7', direct:'https://www.youtube.com/watch?v=rnXIjl_Rzy4' },
-    { id:'C002', name:'SHIBUYA CROSSING', loc:'Tokyo, Japan', cat:'city',
-      src:'https://www.youtube.com/embed/dfVK7ld38Ys?autoplay=1&mute=1',
-      search:'tokyo shibuya crossing live cam', direct:'https://www.youtube.com/watch?v=dfVK7ld38Ys' },
-    { id:'C003', name:'LONDON WALK 24/7', loc:'London, UK', cat:'city',
-      src:'https://www.youtube.com/embed/WKGK_hYnlGE?autoplay=1&mute=1',
-      search:'london live webcam 24/7', direct:'https://www.youtube.com/watch?v=WKGK_hYnlGE' },
-    { id:'C004', name:'PARIS — EIFFEL TOWER', loc:'Paris, France', cat:'city',
-      src:'https://www.youtube.com/embed/OzYp4NRZlwQ?autoplay=1&mute=1',
-      search:'paris eiffel tower live cam', direct:'https://www.youtube.com/watch?v=OzYp4NRZlwQ' },
-    { id:'C005', name:'DUBAI MULTICAM', loc:'Dubai, UAE', cat:'city',
-      src:'https://www.youtube.com/embed/oxT5R6I0N6E?autoplay=1&mute=1',
-      search:'dubai live webcam 24/7', direct:'https://www.youtube.com/watch?v=oxT5R6I0N6E' },
-    { id:'C006', name:'NYC SKYLINE', loc:'New York, USA', cat:'city',
-      src:'https://www.youtube.com/embed/_-Qg5jD-PfA?autoplay=1&mute=1',
-      search:'new york city live skyline cam', direct:'https://www.youtube.com/watch?v=_-Qg5jD-PfA' },
-    // NATURE — verified live stream IDs
-    { id:'N001', name:'NIAGARA FALLS', loc:'Ontario, Canada', cat:'nature',
-      src:'https://www.youtube.com/embed/cf4YkyGk6Tk?autoplay=1&mute=1',
-      search:'niagara falls live webcam 24/7', direct:'https://www.youtube.com/watch?v=cf4YkyGk6Tk' },
-    { id:'N002', name:'MPALA WATERING HOLE', loc:'Kenya, Africa', cat:'nature',
-      src:'https://www.youtube.com/embed/oORXfTviuCs?autoplay=1&mute=1',
-      search:'mpala watering hole kenya live', direct:'https://www.youtube.com/watch?v=oORXfTviuCs' },
-    { id:'N003', name:'NAMIBIA DESERT', loc:'Namib Desert, Namibia', cat:'nature',
-      src:'https://www.youtube.com/embed/ydYDqZQpim8?autoplay=1&mute=1',
-      search:'namibia desert live cam wildlife', direct:'https://www.youtube.com/watch?v=ydYDqZQpim8' },
-    { id:'N004', name:'EXPLORE.ORG REEF', loc:'Tropical Ocean', cat:'nature',
-      src:'https://www.youtube.com/embed/DHUnz4dyb54?autoplay=1&mute=1',
-      search:'explore org coral reef live cam', direct:'https://www.youtube.com/watch?v=DHUnz4dyb54' },
-    // WILDLIFE — verified live IDs
-    { id:'W001', name:'WILD AFRICA SAFARI', loc:'Africa (Multiple Cams)', cat:'wildlife',
-      src:'https://www.youtube.com/embed/qpukdDslCjk?autoplay=1&mute=1',
-      search:'africa safari live wildlife cam 24/7', direct:'https://www.youtube.com/watch?v=qpukdDslCjk' },
-    { id:'W002', name:'POLAR BEAR CAM', loc:'Kansas City Zoo, USA', cat:'wildlife',
-      src:'https://www.youtube.com/embed/BSUnBPvX9K4?autoplay=1&mute=1',
-      search:'polar bear live cam zoo 24/7', direct:'https://www.youtube.com/watch?v=BSUnBPvX9K4' },
-    // TRAFFIC
-    { id:'T001', name:'NYC LIVE CAMS', loc:'New York, USA', cat:'traffic',
-      src:'https://www.youtube.com/embed/rnXIjl_Rzy4?autoplay=1&mute=1&start=10',
-      search:'nyc traffic live cam 24/7', direct:'https://www.youtube.com/results?search_query=nyc+traffic+live+cam' },
-    { id:'T002', name:'TOKYO STREETS', loc:'Tokyo, Japan', cat:'traffic',
-      src:'https://www.youtube.com/embed/dfVK7ld38Ys?autoplay=1&mute=1&start=5',
-      search:'tokyo live traffic cam 24/7', direct:'https://www.youtube.com/results?search_query=tokyo+traffic+live' },
-    // BEACH
-    { id:'B001', name:'BONDI BEACH', loc:'Sydney, Australia', cat:'beach',
-      src:'https://www.youtube.com/embed/hm9iAviOZ20?autoplay=1&mute=1',
-      search:'bondi beach live webcam 24/7', direct:'https://www.youtube.com/watch?v=hm9iAviOZ20' },
-    { id:'B002', name:'MIAMI SOUTH BEACH', loc:'Miami, USA', cat:'beach',
-      src:'https://www.youtube.com/embed/IKbsdBomCsI?autoplay=1&mute=1',
-      search:'miami south beach live webcam 24/7', direct:'https://www.youtube.com/watch?v=IKbsdBomCsI' },
-  ];
-
-  // ─────────────────────────────────────────
-  // STATE
-  // ─────────────────────────────────────────
-  let activeCam = null;
-  let loadTimer = null;
-  let lostTimer = null;
-  let tsInterval = null;
-
-  const elList      = document.getElementById('cam-list');
-  const elCount     = document.getElementById('feed-count');
-  const elIdle      = document.getElementById('viewer-idle');
-  const elLoading   = document.getElementById('viewer-loading');
-  const elLost      = document.getElementById('viewer-lost');
-  const elFrame     = document.getElementById('viewer-frame');
-  const elTitle     = document.getElementById('viewer-title');
-  const elMeta      = document.getElementById('viewer-meta');
-  const elTs        = document.getElementById('viewer-ts');
-  const elTsOvl     = document.getElementById('viewer-ts-overlay');
-  const elBar       = document.getElementById('vl-bar-fill');
-
-  // ─────────────────────────────────────────
-  // RENDER CAMERA LIST
-  // ─────────────────────────────────────────
-  function renderList(cams) {
-    elList.innerHTML = '';
-    elCount.textContent = cams.length;
-    cams.forEach(cam => {
-      const card = document.createElement('div');
-      card.className = 'cam-card';
-      card.dataset.id = cam.id;
-      card.dataset.cat = cam.cat;
-      card.innerHTML = `
-        <div class="cc-preview">
-          <div class="cc-static">
-            <div class="cc-static-icon">📷</div>
-            <div class="cc-static-txt">SCANNING…</div>
+        <div class="telem-body">
+          <div class="dossier-title-block">
+            <div class="dossier-name" id="d-name">CAM_01 // CONGRESS AVE</div>
+            <div class="dossier-sub" id="d-sector">SECTOR: AUSTIN, TEXAS // ATX_MOBILITY</div>
           </div>
-          <div class="cc-noise"></div>
-          <div class="cc-scan-line"></div>
-          <div class="cc-scanlines"></div>
-          <div class="cc-overlay">
-            <div class="cc-top">
-              <span class="cc-id">${cam.id}</span>
-              <span class="cc-live"><span class="cc-live-dot"></span>LIVE</span>
+
+          <!-- DOSSIER MINI-MONITOR HUD -->
+          <div class="dossier-mini-monitor">
+            <div class="dmm-header">
+              <div class="dmm-live-indicator">
+                <span class="dmm-dot"></span>
+                <span class="dmm-rec-text">REC ● [LIVE] 30 FPS</span>
+              </div>
+              <span class="dmm-codec">1080p // STREAM</span>
             </div>
-            <div class="cc-bottom">
-              <div class="cc-name">${cam.name}</div>
-              <div class="cc-loc">${cam.loc}</div>
+            <div class="dmm-viewport">
+              <canvas id="dossier-mini-canvas" width="640" height="360"></canvas>
+              <div class="dmm-reticle-overlay"></div>
+            </div>
+            <div class="dmm-footer">
+              <span id="dmm-sector-label">SECTOR: CONGRESS AVE // FEED: OPTICAL_RECON_ACTIVE</span>
             </div>
           </div>
-          <div class="cc-cat">${cam.cat.toUpperCase()}</div>
+
+          <div class="telem-row">
+            <span class="telem-key">NETWORK PROVIDER</span>
+            <span class="telem-val cyan" id="d-provider">City of Austin Open Mobility Network</span>
+          </div>
+
+          <div class="telem-grid-row">
+            <div class="telem-row">
+              <span class="telem-key">CODEC / PROTOCOL</span>
+              <span class="telem-val green" id="d-codec">MJPEG // REST S3</span>
+            </div>
+            <div class="telem-row">
+              <span class="telem-key">3D FRUSTUM RANGE</span>
+              <span class="telem-val amber" id="d-range">350m // 74° FOV</span>
+            </div>
+          </div>
+
+          <div class="telem-grid-row">
+            <div class="telem-row">
+              <span class="telem-key">BEARING / HEADING</span>
+              <span class="telem-val" id="d-heading">015° NNE</span>
+            </div>
+            <div class="telem-row">
+              <span class="telem-key">LINE-OF-SIGHT PITCH</span>
+              <span class="telem-val" id="d-pitch">-16° DOWNTILT</span>
+            </div>
+          </div>
+
+          <div class="dossier-desc" id="d-desc">
+            Live hardware-instanced CCTV node projected directly onto 3D world frustum space via Cesium floating monitor
+            plane.
+          </div>
+
+          <div class="telem-row">
+            <span class="telem-key">IN-WORLD 3D PROJECTION STATUS</span>
+            <span class="telem-val green" id="d-proj-status">ACTIVE // TEXTURE MESH BOUND</span>
+          </div>
+
+          <div class="telem-row">
+            <span class="telem-key">PROJECTION STREAM ENGINE</span>
+            <button class="dossier-stream-btn" id="dossier-stream-toggle" onclick="toggleStreamMode()">
+              [ 🟢 MODE: CYBER SURVEILLANCE SIM ]
+            </button>
+          </div>
+
+          <button class="dossier-action-btn" onclick="flyToOrbitView()">[ RESET TO ORBITAL VIEW ]</button>
         </div>
-      `;
-      card.addEventListener('click', () => loadCam(cam, card));
-      elList.appendChild(card);
-    });
-  }
+      </div>
 
-  // ─────────────────────────────────────────
-  // LOAD CAMERA IN VIEWER
-  // ─────────────────────────────────────────
-  function loadCam(cam, card) {
-    // Deactivate all cards
-    document.querySelectorAll('.cam-card').forEach(c => c.classList.remove('active'));
-    card.classList.add('active');
-    activeCam = cam;
+      <!-- Startup Loading Screen -->
+      <div id="loading-screen">
+        <div class="ld-spinner"></div>
+        <div class="ld-title">INITIALIZING GOD'S EYE VIEW</div>
+        <div class="ld-sub" id="ld-status">DEPLOYING CESIUM SPATIAL ENGINE &amp; SATELLITE TILES...</div>
+        <div class="ld-bar">
+          <div class="ld-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    // Reset viewer
-    clearTimers();
-    elIdle.style.display = 'none';
-    showLoading(true);
-    hideLost();
-    elFrame.classList.remove('loaded');
-    elTsOvl.style.display = 'none';
+  <script>
+    (function () {
+      'use strict';
 
-    // Update header
-    elTitle.textContent = cam.name;
-    elMeta.textContent = `${cam.loc} // ${cam.cat.toUpperCase()} // ${cam.id}`;
+      /* ============================================================
+         CCTV CAMERA REGISTRY ACROSS MAJOR SECTORS
+      ============================================================ */
+      const CCTV_CAMERAS = [
+        {
+          id: 'recon-austin',
+          name: 'CAM_01 // CONGRESS AVE',
+          city: 'AUSTIN, TEXAS',
+          sector: 'ATX_MOBILITY // CONGRESS AVE CORRIDOR',
+          lat: 30.2672,
+          lon: -97.7431,
+          mountHeightM: 24,
+          headingDeg: 15,
+          pitchDeg: -16,
+          rangeM: 350,
+          provider: 'City of Austin Open Mobility Network',
+          feedUrl: 'https://cctv.austinmobility.io/image/1.jpg',
+          feedType: 'image',
+          color: '#00d4ff',
+          desc: 'Austin downtown traffic corridor camera overlooking Congress Avenue & Capitol line of sight.'
+        },
+        {
+          id: 'recon-london',
+          name: 'TFL-CAM-07355 // WESTMINSTER',
+          city: 'LONDON',
+          sector: 'TFL_SEC_01 // PICCADILLY & WESTMINSTER',
+          lat: 51.5074,
+          lon: -0.1278,
+          mountHeightM: 22,
+          headingDeg: 45,
+          pitchDeg: -15,
+          rangeM: 320,
+          provider: 'TfL (Transport for London) Open Data',
+          feedUrl: 'https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.07355.jpg',
+          feedType: 'image',
+          color: '#ffb700',
+          desc: 'Transport for London JamCam public feed monitoring Piccadilly circus and Westminster arterial link.'
+        },
+        {
+          id: 'recon-la',
+          name: 'CT-LA-101NB // DOWNTOWN PASS',
+          city: 'LOS ANGELES',
+          sector: 'CALTRANS_D7 // US-101 DOWNTOWN PASS',
+          lat: 34.0537,
+          lon: -118.2428,
+          mountHeightM: 28,
+          headingDeg: 310,
+          pitchDeg: -18,
+          rangeM: 400,
+          provider: 'Caltrans District 7 CCTV Network',
+          feedUrl: 'https://cwwp2.dot.ca.gov/data/d7/cctv/image/101nbatdtp/101nbatdtp.jpg',
+          feedType: 'image',
+          color: '#00ffaa',
+          desc: 'Caltrans District 7 live surveillance node monitoring US-101 Northbound through the downtown interchange.'
+        },
+        {
+          id: 'recon-nyc',
+          name: 'NYCDOT-TSQ-042 // TIMES SQUARE',
+          city: 'NEW YORK',
+          sector: 'NYC_DOT // TIMES SQUARE & BROADWAY',
+          lat: 40.7580,
+          lon: -73.9855,
+          mountHeightM: 30,
+          headingDeg: 200,
+          pitchDeg: -16,
+          rangeM: 360,
+          provider: 'NYC DOT Traffic Network',
+          feedUrl: 'https://images.unsplash.com/photo-1534430480872-3498386e7856?auto=format&fit=crop&w=1280&q=80',
+          streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+          feedType: 'hls',
+          color: '#00d4ff',
+          desc: 'High-density urban reconnaissance camera monitoring Broadway and 7th Avenue pedestrian concourses.'
+        },
+        {
+          id: 'recon-tokyo',
+          name: 'TKY-SHIB-01 // SHIBUYA CROSSING',
+          city: 'TOKYO',
+          sector: 'SHIBUYA // DOWNTOWN CORE',
+          lat: 35.6595,
+          lon: 139.7005,
+          mountHeightM: 32,
+          headingDeg: 30,
+          pitchDeg: -15,
+          rangeM: 340,
+          provider: 'Metropolitan Police / Tokyo Traffic',
+          feedUrl: 'https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=1280&q=80',
+          feedType: 'image',
+          color: '#ff2244',
+          desc: 'High-angle optical surveillance node framing the Shibuya Scramble crossing and Hachiko concourse.'
+        },
+        {
+          id: 'recon-sydney',
+          name: 'NSW-CAM-SHB-01 // HARBOUR BRIDGE',
+          city: 'SYDNEY',
+          sector: 'NSW_TFC // HARBOUR BRIDGE & CBD',
+          lat: -33.8688,
+          lon: 151.2093,
+          mountHeightM: 26,
+          headingDeg: 180,
+          pitchDeg: -18,
+          rangeM: 380,
+          provider: 'Live Traffic NSW Open Cameras',
+          feedUrl: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&w=1280&q=80',
+          feedType: 'image',
+          color: '#00ffaa',
+          desc: 'Maritime and roadway corridor camera monitoring the southern approach to Sydney Harbour Bridge.'
+        }
+      ];
 
-    // Load iframe
-    elFrame.src = '';
-    elFrame.src = cam.src;
+      /* UI and DOM elements */
+      const coordsEl = document.getElementById('tb-coords');
+      const clockEl = document.getElementById('tb-clock');
+      const tooltipEl = document.getElementById('track-tooltip');
+      const ttName = document.getElementById('tt-name');
+      const ttSector = document.getElementById('tt-sector');
+      const mapStatusTag = document.getElementById('tb-status-map');
+      const loadingScreen = document.getElementById('loading-screen');
+      const loadingStatus = document.getElementById('ld-status');
+      let telemCollapsed = false;
 
-    // On load success
-    elFrame.onload = () => {
-      clearTimers();
-      showLoading(false);
-      elFrame.classList.add('loaded');
-      elTsOvl.style.display = 'block';
-      startTimestamp();
-      localStorage.setItem('void_mood', 'cctv_on');
-    };
+      /* ============================================================
+         1. GLOBE & MAP ENGINE (CESIUMJS WITH AUTO-FALLBACK STACK)
+      ============================================================ */
+      const creditContainer = document.getElementById('cesium-credits');
 
-    // Timeout → signal lost after 12s
-    lostTimer = setTimeout(() => {
-      showLoading(false);
-      showLost();
-    }, 12000);
-  }
+      // Initialize CesiumJS viewer cleanly without default UI widgets
+      const viewer = new Cesium.Viewer('cesiumContainer', {
+        timeline: false,
+        animation: false,
+        baseLayerPicker: false,
+        geocoder: false,
+        homeButton: false,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        fullscreenButton: false,
+        vrButton: false,
+        selectionIndicator: false,
+        infoBox: false,
+        baseLayer: false, // We control the fallback stack explicitly
+        creditContainer: creditContainer,
+        msaaSamples: 4,
+        contextOptions: {
+          webgl: {
+            preserveDrawingBuffer: true
+          }
+        }
+      });
 
-  // ─────────────────────────────────────────
-  // UI STATE HELPERS
-  // ─────────────────────────────────────────
-  function showLoading(show) {
-    elLoading.style.display = show ? 'flex' : 'none';
-    if (show) {
-      // Restart progress bar animation
-      elBar.style.animation = 'none';
-      elBar.offsetHeight; // reflow
-      elBar.style.animation = 'loadBar 12s linear forwards';
-    }
-  }
-  function showLost() {
-    elLost.style.display = 'flex';
-    elFrame.classList.remove('loaded');
-    elTsOvl.style.display = 'none';
-  }
-  function hideLost() {
-    elLost.style.display = 'none';
-  }
-  function clearTimers() {
-    if (lostTimer) clearTimeout(lostTimer);
-    if (tsInterval) clearInterval(tsInterval);
-  }
-  function startTimestamp() {
-    const tick = () => {
-      const now = new Date();
-      const s = d => String(d).padStart(2,'0');
-      const str = `${s(now.getUTCHours())}:${s(now.getUTCMinutes())}:${s(now.getUTCSeconds())} UTC`;
-      elTs.textContent = str;
-      elTsOvl.textContent = `[${activeCam?.id}] ${str}`;
-    };
-    tick();
-    tsInterval = setInterval(tick, 1000);
-  }
+      // Optimize atmosphere and rendering parameters
+      viewer.scene.globe.show = true;
+      if (viewer.scene.skyAtmosphere) {
+        viewer.scene.skyAtmosphere.show = true;
+        viewer.scene.skyAtmosphere.atmosphereLightIntensity = 18;
+        viewer.scene.skyAtmosphere.saturationShift = -0.12;
+        viewer.scene.skyAtmosphere.brightnessShift = -0.08;
+      }
+      viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
 
-  // ─────────────────────────────────────────
-  // FILTERS
-  // ─────────────────────────────────────────
-  document.querySelectorAll('.flt').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.flt').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const f = btn.dataset.f;
-      const filtered = f === 'all' ? CAMS : CAMS.filter(c => c.cat === f);
-      renderList(filtered);
-    });
-  });
+      // Intercept Cesium render errors to prevent texture glitches from crashing the render loop
+      viewer.scene.renderError.addEventListener((scene, error) => {
+        console.warn('[Cesium Render Warning Intercepted]:', error);
+      });
 
-  // ─────────────────────────────────────────
-  // ACTION BUTTONS
-  // ─────────────────────────────────────────
-  document.getElementById('btn-fullscreen').addEventListener('click', () => {
-    if (elFrame.requestFullscreen) elFrame.requestFullscreen();
-  });
-  document.getElementById('btn-newtab').addEventListener('click', () => {
-    if (activeCam) window.open(activeCam.direct, '_blank', 'noopener');
-  });
-  document.getElementById('btn-retry').addEventListener('click', () => {
-    if (activeCam) {
-      const card = document.querySelector(`.cam-card[data-id="${activeCam.id}"]`);
-      if (card) loadCam(activeCam, card);
-    }
-  });
-  document.getElementById('btn-search-yt').addEventListener('click', () => {
-    if (activeCam) {
-      const q = encodeURIComponent(activeCam.search);
-      // Filter by Live only on YouTube
-      window.open(`https://www.youtube.com/results?search_query=${q}&sp=EgJAAQ%3D%3D`, '_blank', 'noopener');
-    }
-  });
-  document.getElementById('btn-retry-lost').addEventListener('click', () => {
-    hideLost();
-    if (activeCam) {
-      const card = document.querySelector(`.cam-card[data-id="${activeCam.id}"]`);
-      if (card) loadCam(activeCam, card);
-    }
-  });
+      /**
+       * Keyless fallback stack from bundle:
+       * If Google 3D Tiles token is absent or fails, seamlessly fall back to Esri World Imagery.
+       */
+      async function setupMapFallbackStack() {
+        const googleKey = (window.__GOOGLE_MAPS_API_KEY__ || '').trim();
+        const ionToken = (window.__CESIUM_ION_TOKEN__ || Cesium.Ion.defaultAccessToken || '').trim();
+        let googleTileset = null;
 
-  // ─────────────────────────────────────────
-  // INIT
-  // ─────────────────────────────────────────
-  renderList(CAMS);
+        if (googleKey || ionToken) {
+          try {
+            if (googleKey) {
+              googleTileset = await Cesium.createGooglePhotorealistic3DTileset({
+                key: googleKey,
+                onlyUsingWithGoogleGeocoder: true
+              });
+            } else if (ionToken) {
+              const resource = await Cesium.IonResource.fromAssetId(2275207, { accessToken: ionToken });
+              googleTileset = await Cesium.Cesium3DTileset.fromUrl(resource, {
+                cacheBytes: 1536 * 1024 * 1024,
+                enableCollision: true
+              });
+            }
+          } catch (err) {
+            console.warn('[MapStack] Google 3D Tiles unavailable, falling back to Esri Satellite:', err);
+            googleTileset = null;
+          }
+        }
 
-  // Initial clock
-  (() => {
-    const tick = () => {
-      const n = new Date();
-      const s = d => String(d).padStart(2,'0');
-      elTs.textContent = `${s(n.getUTCHours())}:${s(n.getUTCMinutes())}:${s(n.getUTCSeconds())} UTC`;
-    };
-    tick();
-    setInterval(tick, 1000);
-  })();
+        if (googleTileset) {
+          viewer.scene.primitives.add(googleTileset);
+          viewer.scene.globe.show = false;
+          mapStatusTag.textContent = 'MAP: GOOGLE_3D';
+          console.info('[MapStack] Google 3D Tiles loaded successfully.');
+        } else {
+          // Keyless Esri World Imagery fallback
+          try {
+            const esriProvider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(
+              'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
+              {
+                credit: 'Powered by Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+                enablePickFeatures: false
+              }
+            );
+            viewer.imageryLayers.removeAll();
+            viewer.imageryLayers.addImageryProvider(esriProvider);
+            viewer.scene.globe.show = true;
+            mapStatusTag.textContent = 'MAP: ESRI_KEYLESS';
+            console.info('[MapStack] Keyless Esri World Imagery loaded globally.');
+          } catch (esriError) {
+            console.warn('[MapStack] Esri failed, applying OSM fallback:', esriError);
+            const osmProvider = new Cesium.OpenStreetMapImageryProvider({
+              url: 'https://tile.openstreetmap.org/',
+              credit: '© OpenStreetMap contributors'
+            });
+            viewer.imageryLayers.removeAll();
+            viewer.imageryLayers.addImageryProvider(osmProvider);
+            viewer.scene.globe.show = true;
+            mapStatusTag.textContent = 'MAP: OSM_FALLBACK';
+          }
+        }
+      }
 
-  // Reset mood strictly when page unloads
-  window.addEventListener('beforeunload', () => {
-    localStorage.setItem('void_mood', 'idle');
-  });
+      /* ============================================================
+         2. HARDWARE-INSTANCED CCTV MARKERS (BILLBOARDCOLLECTION)
+      ============================================================ */
+      const billboardCollection = viewer.scene.primitives.add(new Cesium.BillboardCollection());
+      const cameraRecords = new Map();
 
-})();
-</script>
+      function generateCameraIconSvg(color = '#00d4ff') {
+        const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="21" fill="rgba(2,6,14,0.85)" stroke="${color}" stroke-width="2.5" stroke-dasharray="6 3"/>
+        <circle cx="24" cy="24" r="9" fill="${color}" fill-opacity="0.25"/>
+        <path d="M16 19 L19 16 L29 16 L32 19 L35 19 A2 2 0 0 1 37 21 L37 31 A2 2 0 0 1 35 33 L13 33 A2 2 0 0 1 11 31 L11 21 A2 2 0 0 1 13 19 Z" fill="${color}" stroke="#02060e" stroke-width="1.5"/>
+        <circle cx="24" cy="26" r="4.5" fill="#02060e" stroke="${color}" stroke-width="1.5"/>
+        <circle cx="24" cy="26" r="2" fill="${color}"/>
+        <circle cx="34" cy="21" r="1.5" fill="#ff2244"/>
+      </svg>`;
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      }
+
+      function initCameraMarkers() {
+        CCTV_CAMERAS.forEach((cam) => {
+          const position = Cesium.Cartesian3.fromDegrees(cam.lon, cam.lat, cam.mountHeightM || 25);
+          const icon = generateCameraIconSvg(cam.color || '#00d4ff');
+
+          const billboard = billboardCollection.add({
+            id: cam.id,
+            image: icon,
+            position: position,
+            color: Cesium.Color.fromCssColorString(cam.color || '#00d4ff').withAlpha(0.95),
+            width: 32,
+            height: 32,
+            // Always-on-top so terrain elevation mesh does not submerge markers
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            scaleByDistance: new Cesium.NearFarScalar(300, 1.25, 40_000_000, 0.45)
+          });
+
+          cameraRecords.set(cam.id, {
+            camera: cam,
+            position: position,
+            billboard: billboard,
+            projection: null
+          });
+        });
+      }
+
+      /* ScreenSpaceEventHandler for mouse clicks and hovers on markers */
+      const clickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+      // Left click on camera pin
+      clickHandler.setInputAction((click) => {
+        const picked = viewer.scene.pick(click.position);
+        if (picked && picked.primitive instanceof Cesium.Billboard) {
+          const cameraId = picked.primitive.id;
+          if (cameraRecords.has(cameraId)) {
+            focusCamera(cameraId, true);
+          }
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      // Hover detection for tactical tooltip
+      clickHandler.setInputAction((movement) => {
+        const picked = viewer.scene.pick(movement.endPosition);
+        if (picked && picked.primitive instanceof Cesium.Billboard && cameraRecords.has(picked.primitive.id)) {
+          const record = cameraRecords.get(picked.primitive.id);
+          viewer.scene.canvas.style.cursor = 'pointer';
+          tooltipEl.style.display = 'block';
+          tooltipEl.style.left = movement.endPosition.x + 'px';
+          tooltipEl.style.top = movement.endPosition.y + 'px';
+          ttName.textContent = record.camera.name;
+          ttSector.textContent = record.camera.city;
+        } else {
+          viewer.scene.canvas.style.cursor = 'default';
+          tooltipEl.style.display = 'none';
+        }
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+      /* ============================================================
+         3. 3D FRUSTUM GEOMETRY & IN-WORLD VIDEO PROJECTION PLANES
+      ============================================================ */
+      function projectSpherical(latDeg, lonDeg, bearingDeg, distanceM) {
+        const R = 6378137.0; // WGS84 earth radius
+        const dByR = distanceM / R;
+        const latRad = Cesium.Math.toRadians(latDeg);
+        const lonRad = Cesium.Math.toRadians(lonDeg);
+        const brgRad = Cesium.Math.toRadians(bearingDeg);
+
+        const latOut = Math.asin(
+          Math.sin(latRad) * Math.cos(dByR) +
+          Math.cos(latRad) * Math.sin(dByR) * Math.cos(brgRad)
+        );
+        const lonOut = lonRad + Math.atan2(
+          Math.sin(brgRad) * Math.sin(dByR) * Math.cos(latRad),
+          Math.cos(dByR) - Math.sin(latRad) * Math.sin(latOut)
+        );
+
+        return {
+          lat: Cesium.Math.toDegrees(latOut),
+          lon: Cesium.Math.toDegrees(lonOut)
+        };
+      }
+
+      function computeFrustumGeometry(camera, groundAltM = 0) {
+        const R = camera.rangeM || 350;
+        const pitchDeg = camera.pitchDeg !== undefined ? camera.pitchDeg : -16;
+        const fovDeg = 74;
+        const heading = camera.headingDeg || 0;
+        const mountAlt = groundAltM + (camera.mountHeightM || 24);
+
+        const pitchRad = Cesium.Math.toRadians(pitchDeg);
+        const hFovRad = Cesium.Math.toRadians(fovDeg);
+        const vFovRad = 2 * Math.atan(Math.tan(hFovRad / 2) / (16 / 9));
+
+        const horizDist = R * Math.cos(pitchRad);
+        const vertDist = R * Math.sin(pitchRad);
+
+        const halfW = R * Math.tan(hFovRad / 2);
+        const halfH = R * Math.tan(vFovRad / 2);
+
+        const capLL = projectSpherical(camera.lat, camera.lon, heading, horizDist);
+        const capAlt = Math.max(10, mountAlt + vertDist);
+
+        return {
+          mount: { lat: camera.lat, lon: camera.lon, alt: mountAlt },
+          capCenter: { lat: capLL.lat, lon: capLL.lon, alt: capAlt },
+          halfW,
+          halfH,
+          rangeM: R,
+          heading,
+          pitchDeg
+        };
+      }
+
+      /* ============================================================
+         3.5 STREAM CONTROLLER & PROCEDURAL SURVEILLANCE ENGINE
+      ============================================================ */
+      let streamMode = 'sim'; // 'sim' | 'live' | 'direct'
+
+      function toggleStreamMode() {
+        if (streamMode === 'sim') streamMode = 'live';
+        else if (streamMode === 'live') streamMode = 'direct';
+        else streamMode = 'sim';
+        updateStreamModeButton();
+      }
+      window.toggleStreamMode = toggleStreamMode;
+
+      function updateStreamModeButton() {
+        const btn = document.getElementById('dossier-stream-toggle');
+        if (!btn) return;
+        btn.classList.remove('live-mode', 'direct-mode');
+        if (streamMode === 'sim') {
+          btn.textContent = '[ 🟢 MODE: CYBER SURVEILLANCE SIM ]';
+        } else if (streamMode === 'live') {
+          btn.textContent = '[ 🔴 MODE: LIVE AUSTIN SNAPSHOT ]';
+          btn.classList.add('live-mode');
+        } else {
+          btn.textContent = '[ ⚡ MODE: DIRECT CESIUM MATERIAL ]';
+          btn.classList.add('direct-mode');
+        }
+      }
+
+      // Simulated traffic vehicles for Congress Ave roadway corridor
+      const simVehicles = [
+        { xRatio: -0.32, z: 0.12, speed: 0.0034, color: '#00f0ff', id: 'TGT-01' },
+        { xRatio: -0.12, z: 0.48, speed: 0.0027, color: '#00ff88', id: 'TGT-02' },
+        { xRatio: 0.12, z: 0.28, speed: -0.0031, color: '#ffb700', id: 'TGT-03' },
+        { xRatio: 0.32, z: 0.72, speed: -0.0039, color: '#00f0ff', id: 'TGT-04' },
+        { xRatio: -0.16, z: 0.88, speed: 0.0029, color: '#00ffaa', id: 'TGT-05' },
+        { xRatio: 0.16, z: 0.94, speed: -0.0024, color: '#ffcc00', id: 'TGT-06' }
+      ];
+
+      /**
+       * High-Aesthetic Surveillance Synthetic Video Simulation (Instant Demo Win):
+       * Generates an animated procedural cyberpunk surveillance monitor on the canvas:
+       * - Animated green/cyan night-vision CRT scanlines moving vertically.
+       * - Active live telemetry overlay: CAM_01 // CONGRESS AVE // LIVE LINK [30 FPS].
+       * - Dynamic digital noise / military HUD crosshairs & millisecond timestamp counting in real-time.
+       * - Moving tactical radar sweep and simulated traffic wireframe with headlight cones.
+       */
+      function drawProceduralSurveillance(ctx, w, h, cam) {
+        try {
+          const now = Date.now();
+          const t = now * 0.001;
+
+          // 1. DARK CYBER GRID BACKGROUND (#05080e)
+          ctx.fillStyle = '#05080e';
+          ctx.fillRect(0, 0, w, h);
+
+          // Cyber Tactical Grid
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
+          ctx.lineWidth = 1;
+          const gridGap = 40;
+          ctx.beginPath();
+          for (let x = 0; x <= w; x += gridGap) {
+            ctx.moveTo(x, 0); ctx.lineTo(x, h);
+          }
+          for (let y = 0; y <= h; y += gridGap) {
+            ctx.moveTo(0, y); ctx.lineTo(w, y);
+          }
+          ctx.stroke();
+
+          // Corner Tactical Brackets
+          const brk = 28;
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 2.5;
+          // TL
+          ctx.beginPath(); ctx.moveTo(22, 22 + brk); ctx.lineTo(22, 22); ctx.lineTo(22 + brk, 22); ctx.stroke();
+          // TR
+          ctx.beginPath(); ctx.moveTo(w - 22 - brk, 22); ctx.lineTo(w - 22, 22); ctx.lineTo(w - 22, 22 + brk); ctx.stroke();
+          // BL
+          ctx.beginPath(); ctx.moveTo(22, h - 22 - brk); ctx.lineTo(22, h - 22); ctx.lineTo(22 + brk, h - 22); ctx.stroke();
+          // BR
+          ctx.beginPath(); ctx.moveTo(w - 22 - brk, h - 22); ctx.lineTo(w - 22, h - 22); ctx.lineTo(w - 22, h - 22 - brk); ctx.stroke();
+
+          // Downtown Corridor Vanishing Point
+          const vpX = w * 0.5;
+          const vpY = h * 0.36;
+          const roadBottomW = w * 0.84;
+          const roadTopW = w * 0.08;
+
+          // Roadway Surface Fill
+          ctx.beginPath();
+          ctx.moveTo(vpX - roadTopW / 2, vpY);
+          ctx.lineTo(vpX + roadTopW / 2, vpY);
+          ctx.lineTo(vpX + roadBottomW / 2, h - 45);
+          ctx.lineTo(vpX - roadBottomW / 2, h - 45);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(0, 30, 24, 0.78)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Moving Perspective Lane Dividers
+          const lanes = [-0.25, 0, 0.25];
+          lanes.forEach((laneOffset) => {
+            ctx.strokeStyle = 'rgba(0, 255, 170, 0.38)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([16, 12]);
+            ctx.lineDashOffset = -t * 85;
+            ctx.beginPath();
+            const topX = vpX + laneOffset * roadTopW;
+            const botX = vpX + laneOffset * roadBottomW;
+            ctx.moveTo(topX, vpY);
+            ctx.lineTo(botX, h - 45);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          });
+
+          // Perspective Road Cross-Rungs (Depth Grid)
+          ctx.strokeStyle = 'rgba(0, 200, 255, 0.12)';
+          ctx.lineWidth = 1;
+          const rungs = 12;
+          for (let i = 1; i <= rungs; i++) {
+            const progress = Math.pow(i / rungs, 2.2);
+            const y = vpY + (h - 45 - vpY) * progress;
+            const span = roadTopW + (roadBottomW - roadTopW) * progress;
+            ctx.beginPath();
+            ctx.moveTo(vpX - span / 2, y);
+            ctx.lineTo(vpX + span / 2, y);
+            ctx.stroke();
+          }
+
+          // Background Downtown Wireframe Skyline
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
+          ctx.lineWidth = 1;
+          const buildings = [
+            { x: 30, w: 90, h: 170 }, { x: 130, w: 75, h: 220 }, { x: 215, w: 110, h: 150 },
+            { x: 335, w: 85, h: 190 }, { x: w - 430, w: 90, h: 200 }, { x: w - 330, w: 120, h: 245 },
+            { x: w - 200, w: 85, h: 160 }, { x: w - 105, w: 75, h: 185 }
+          ];
+          buildings.forEach((b) => {
+            const bY = vpY - b.h * 0.6;
+            ctx.strokeRect(b.x, bY, b.w, vpY - bY);
+            ctx.beginPath();
+            for (let wy = bY + 16; wy < vpY - 10; wy += 22) {
+              ctx.moveTo(b.x + 8, wy);
+              ctx.lineTo(b.x + b.w - 8, wy);
+            }
+            ctx.stroke();
+          });
+
+          // 2. SIMULATED VEHICLES IN 3D PERSPECTIVE (WIREFRAME CARS + HEADLIGHT CONES)
+          simVehicles.forEach((veh) => {
+            veh.z += veh.speed;
+            if (veh.z > 1) veh.z = 0.05;
+            if (veh.z < 0.05) veh.z = 1;
+
+            const scale = Math.pow(veh.z, 1.8);
+            const curRoadW = roadTopW + (roadBottomW - roadTopW) * scale;
+            const curY = vpY + (h - 45 - vpY) * scale;
+            const curX = vpX + veh.xRatio * curRoadW;
+
+            const carW = 46 * (0.3 + 0.7 * scale);
+            const carH = 28 * (0.3 + 0.7 * scale);
+
+            // Headlight Beam Projection
+            const isApproaching = veh.speed > 0;
+            const coneDir = isApproaching ? 1 : -1;
+            const coneLength = 75 * scale;
+            const coneGrad = ctx.createLinearGradient(curX, curY, curX, curY + coneDir * coneLength);
+            coneGrad.addColorStop(0, 'rgba(255, 240, 180, 0.45)');
+            coneGrad.addColorStop(1, 'rgba(255, 240, 180, 0.0)');
+            ctx.fillStyle = coneGrad;
+            ctx.beginPath();
+            ctx.moveTo(curX - carW * 0.35, curY);
+            ctx.lineTo(curX - carW * 0.95, curY + coneDir * coneLength);
+            ctx.lineTo(curX + carW * 0.95, curY + coneDir * coneLength);
+            ctx.lineTo(curX + carW * 0.35, curY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Wireframe Car Body
+            ctx.fillStyle = 'rgba(2, 20, 18, 0.88)';
+            ctx.fillRect(curX - carW / 2, curY - carH / 2, carW, carH);
+            ctx.strokeStyle = veh.color;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(curX - carW / 2, curY - carH / 2, carW, carH);
+
+            // Headlights / Taillights
+            ctx.fillStyle = isApproaching ? '#fffb91' : '#ff2244';
+            ctx.fillRect(curX - carW * 0.4, curY + (isApproaching ? carH * 0.28 : -carH * 0.38), 6 * scale, 3 * scale);
+            ctx.fillRect(curX + carW * 0.4 - 6 * scale, curY + (isApproaching ? carH * 0.28 : -carH * 0.38), 6 * scale, 3 * scale);
+
+            // Vehicle Tactical Tag & Corner Targeting Brackets
+            if (scale > 0.32) {
+              ctx.fillStyle = '#00ff88';
+              ctx.font = 'bold 9px "Share Tech Mono", monospace';
+              const speedMph = Math.round(28 + Math.abs(veh.speed) * 3600);
+              const distM = Math.round((1 - veh.z) * 280 + 30);
+              ctx.fillText(`${veh.id} [${speedMph} MPH // ${distM}m]`, curX - carW * 0.75, curY - carH / 2 - 6);
+
+              ctx.strokeStyle = 'rgba(0, 240, 255, 0.85)';
+              ctx.lineWidth = 1;
+              const bSize = 5;
+              // TL bracket
+              ctx.beginPath();
+              ctx.moveTo(curX - carW / 2 - 3, curY - carH / 2 - 3 + bSize);
+              ctx.lineTo(curX - carW / 2 - 3, curY - carH / 2 - 3);
+              ctx.lineTo(curX - carW / 2 - 3 + bSize, curY - carH / 2 - 3);
+              ctx.stroke();
+              // BR bracket
+              ctx.beginPath();
+              ctx.moveTo(curX + carW / 2 + 3, curY + carH / 2 + 3 - bSize);
+              ctx.lineTo(curX + carW / 2 + 3, curY + carH / 2 + 3);
+              ctx.lineTo(curX + carW / 2 + 3 - bSize, curY + carH / 2 + 3);
+              ctx.stroke();
+            }
+          });
+
+          // 3. TACTICAL RADAR SWEEP (UPPER RIGHT QUADRANT)
+          const rX = w - 120;
+          const rY = 135;
+          const rR = 68;
+
+          ctx.fillStyle = 'rgba(1, 15, 12, 0.88)';
+          ctx.beginPath();
+          ctx.arc(rX, rY, rR, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          [0.33, 0.66, 1.0].forEach((factor) => {
+            ctx.strokeStyle = 'rgba(0, 255, 170, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(rX, rY, rR * factor, 0, Math.PI * 2);
+            ctx.stroke();
+          });
+
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+          ctx.beginPath();
+          ctx.moveTo(rX - rR, rY); ctx.lineTo(rX + rR, rY);
+          ctx.moveTo(rX, rY - rR); ctx.lineTo(rX, rY + rR);
+          ctx.stroke();
+
+          const sweepAngle = (t * 2.4) % (Math.PI * 2);
+          const fanGrad = ctx.createRadialGradient(rX, rY, 0, rX, rY, rR);
+          fanGrad.addColorStop(0, 'rgba(0, 255, 170, 0.45)');
+          fanGrad.addColorStop(1, 'rgba(0, 255, 170, 0.05)');
+          ctx.fillStyle = fanGrad;
+          ctx.beginPath();
+          ctx.moveTo(rX, rY);
+          ctx.arc(rX, rY, rR, sweepAngle - 0.5, sweepAngle);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.strokeStyle = '#00ffaa';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(rX, rY);
+          ctx.lineTo(rX + Math.cos(sweepAngle) * rR, rY + Math.sin(sweepAngle) * rR);
+          ctx.stroke();
+
+          const blips = [
+            { dist: 0.35, angle: 1.2 }, { dist: 0.65, angle: 3.4 }, { dist: 0.8, angle: 5.1 }, { dist: 0.5, angle: 2.1 }
+          ];
+          blips.forEach((b) => {
+            const bX = rX + Math.cos(b.angle) * (rR * b.dist);
+            const bY = rY + Math.sin(b.angle) * (rR * b.dist);
+            const diff = Math.abs(sweepAngle - b.angle);
+            const intensity = diff < 0.8 ? 1.0 : Math.max(0.2, 1.0 - diff * 0.4);
+            ctx.fillStyle = `rgba(0, 255, 136, ${intensity})`;
+            ctx.beginPath();
+            ctx.arc(bX, bY, 3, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.font = '8px "Share Tech Mono", monospace';
+          ctx.fillText('RADAR: 350m SWEEP', rX - 38, rY + rR + 12);
+
+          // 4. VERTICAL CRT NIGHT-VISION SCANLINES & ROLLING PHOSPHOR BAR
+          const scanlineSpacing = 4;
+          ctx.fillStyle = 'rgba(0, 255, 170, 0.04)';
+          for (let y = 0; y < h; y += scanlineSpacing) {
+            ctx.fillRect(0, y, w, 1.5);
+          }
+          const beamY = (now * 0.15) % h;
+          const beamGrad = ctx.createLinearGradient(0, beamY - 45, 0, beamY);
+          beamGrad.addColorStop(0, 'rgba(0, 255, 170, 0.0)');
+          beamGrad.addColorStop(0.8, 'rgba(0, 255, 170, 0.08)');
+          beamGrad.addColorStop(1, 'rgba(0, 255, 200, 0.18)');
+          ctx.fillStyle = beamGrad;
+          ctx.fillRect(0, beamY - 45, w, 45);
+
+          // 5. RANDOM CORNER DIGITAL TELEMETRY NOISE
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
+          for (let i = 0; i < 26; i++) {
+            const rx = Math.random() < 0.5 ? Math.random() * 140 : w - Math.random() * 140;
+            const ry = 60 + Math.random() * (h - 120);
+            ctx.fillRect(rx, ry, 2, 2);
+          }
+
+          // 6. CENTER MILITARY HUD CROSSHAIR & LOCK RETICLE
+          const chX = w / 2;
+          const chY = h / 2 + 10;
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(chX - 45, chY - 35, 90, 70);
+
+          ctx.fillStyle = '#00ff88';
+          ctx.beginPath();
+          ctx.arc(chX, chY, 3, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.moveTo(chX - 65, chY); ctx.lineTo(chX - 48, chY);
+          ctx.moveTo(chX + 48, chY); ctx.lineTo(chX + 65, chY);
+          ctx.moveTo(chX, chY - 55); ctx.lineTo(chX, chY - 38);
+          ctx.moveTo(chX, chY + 38); ctx.lineTo(chX, chY + 55);
+          ctx.stroke();
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.font = '10px "Share Tech Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('TARGET LOCK // OPTICAL CORRIDOR // ATX-01', chX, chY + 52);
+          ctx.textAlign = 'left';
+
+          // Real-time timestamp counter: REC ● [LIVE] 30 FPS // UTC YYYY-MM-DD HH:MM:SS.mmm
+          const p2 = n => String(n).padStart(2, '0');
+          const p3 = n => String(n).padStart(3, '0');
+          const d = new Date();
+          const ymd = `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())}`;
+          const hmsMs = `${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())}.${p3(d.getUTCMilliseconds())}`;
+          const isBlink = Math.floor(now / 500) % 2 === 0;
+
+          // Glowing REC Pip
+          ctx.fillStyle = isBlink ? '#ff2244' : 'rgba(255, 34, 68, 0.3)';
+          ctx.beginPath(); ctx.arc(42, 42, 7, 0, Math.PI * 2); ctx.fill();
+
+          ctx.fillStyle = '#ff4466';
+          ctx.font = 'bold 15px "Share Tech Mono", monospace';
+          ctx.fillText(`REC ● [LIVE] 30 FPS // UTC ${ymd} ${hmsMs}`, 58, 48);
+
+          // Text readout: SECTOR: CONGRESS AVE // FEED: OPTICAL_RECON_ACTIVE
+          ctx.fillStyle = '#00ff88';
+          ctx.font = 'bold 14px "Share Tech Mono", monospace';
+          const secName = cam?.name ? cam.name.replace(/.*?\/\/\s*/, '') : 'CONGRESS AVE';
+          ctx.fillText(`SECTOR: ${secName.toUpperCase()} // FEED: OPTICAL_RECON_ACTIVE`, 36, h - 30);
+        } catch (err) {
+          console.warn('[drawProceduralSurveillance error]:', err);
+        }
+      }
+
+      /**
+       * Helper to start auto-refreshing snapshot polling with cache-busting timestamp
+       * routed through local CORS proxy /api/cctv-proxy?url=...
+       */
+      function startSnapshotPolling(runtime, cam) {
+        if (runtime.timer) {
+          clearInterval(runtime.timer);
+          runtime.timer = null;
+        }
+        const poll = () => {
+          const liveEndpoint = cam.feedUrl || 'https://cctv.austinmobility.io/image/1.jpg';
+          const sep = liveEndpoint.includes('?') ? '&' : '?';
+          const cacheBustUrl = `${liveEndpoint}${sep}t=${Date.now()}`;
+          const proxyUrl = `/api/cctv-proxy?url=${encodeURIComponent(cacheBustUrl)}`;
+          runtime.currentLiveUrl = proxyUrl;
+
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            if (img.complete && img.naturalWidth !== 0) {
+              runtime.lastSnapshot = img;
+              runtime.hasValidSnapshot = true;
+              runtime.lastSnapshotStamp = Date.now();
+            }
+          };
+          img.onerror = () => {
+            runtime.hasValidSnapshot = false;
+          };
+          img.src = proxyUrl;
+        };
+        poll();
+        runtime.timer = setInterval(poll, 3500); // Poll every 3.5s
+      }
+
+      let activeProjectionRecord = null;
+
+      /**
+       * Construct a 3D Projection Plane (Cesium.Plane entity with ImageMaterialProperty)
+       * positioned directly at the camera's line-of-sight frustum cap in 3D world space.
+       */
+      function create3DProjectionPlane(record) {
+        const cam = record.camera;
+
+        // Realistic monitor dimensions (16:9 ratio, clamped to 48m x 27m)
+        const planeWidth = 48;
+        const planeHeight = 27;
+
+        // Position: floating at slight offset above camera origin so it never obstructs street view
+        const mountAlt = cam.mountHeightM || 24;
+        const planeAlt = mountAlt + 32; // hovering 32m above mount
+        const forwardM = 25; // 25m forward along viewing heading
+        const planeLL = projectSpherical(cam.lat, cam.lon, cam.headingDeg || 0, forwardM);
+        const planePos = Cesium.Cartesian3.fromDegrees(planeLL.lon, planeLL.lat, planeAlt);
+        const mountPos = Cesium.Cartesian3.fromDegrees(cam.lon, cam.lat, mountAlt);
+
+        // Orientation: pitch tilted downward (-18°) facing directly toward camera viewing direction / street
+        const viewHeading = Cesium.Math.toRadians((cam.headingDeg || 0) + 180);
+        const tiltPitch = Cesium.Math.toRadians(-18);
+        const hpr = new Cesium.HeadingPitchRoll(viewHeading, tiltPitch, 0);
+        const orientation = Cesium.Transforms.headingPitchRollQuaternion(planePos, hpr);
+
+        // Dynamic 16:9 texture canvas with cyberpunk live stream render loop
+        const canvas = document.createElement('canvas');
+        canvas.width = 1280;
+        canvas.height = 720;
+        const ctx = canvas.getContext('2d');
+
+        const runtime = {
+          canvas,
+          ctx,
+          video: null,
+          hls: null,
+          planeEntity: null,
+          frustumLinesEntity: null,
+          timer: null,
+          lastSnapshot: null,
+          hasValidSnapshot: false,
+          currentLiveUrl: null,
+          planeWidth,
+          planeHeight,
+          planePos
+        };
+
+        // Pre-paint initial procedural surveillance simulation so texture is immediately valid
+        drawProceduralSurveillance(ctx, canvas.width, canvas.height, cam);
+
+        // Handle HLS stream or auto-refreshing snapshot
+        if (cam.feedType === 'hls' && window.Hls && Hls.isSupported() && cam.streamUrl) {
+          const video = document.createElement('video');
+          video.muted = true;
+          video.playsInline = true;
+          video.crossOrigin = 'anonymous';
+          video.autoplay = true;
+          video.loop = true;
+
+          const hls = new Hls({ enableWorker: true, liveSyncDurationCount: 3 });
+          hls.attachMedia(video);
+          hls.loadSource(cam.streamUrl);
+          video.play().catch(() => { });
+
+          runtime.video = video;
+          runtime.hls = hls;
+        } else {
+          startSnapshotPolling(runtime, cam);
+        }
+
+        // Material bound to dynamic stream canvas via ImageMaterialProperty
+        runtime.planeMaterial = new Cesium.ImageMaterialProperty({
+          image: runtime.canvas,
+          transparent: true
+        });
+
+        // 1. Add 3D Cesium.Plane entity with sharp cyberpunk holographic bezel
+        runtime.planeEntity = viewer.entities.add({
+          id: `cctv-${cam.id}-plane`,
+          position: planePos,
+          orientation: orientation,
+          plane: {
+            plane: new Cesium.Plane(Cesium.Cartesian3.UNIT_Y, 0.0),
+            dimensions: new Cesium.Cartesian2(planeWidth, planeHeight),
+            material: runtime.planeMaterial,
+            outline: true,
+            outlineColor: Cesium.Color.fromCssColorString('#00f0ff'),
+            outlineWidth: 2
+          }
+        });
+
+        // 2. Add holographic laser guide tether rays connecting camera post to floating monitor corners
+        const rotMatrix = Cesium.Matrix3.fromQuaternion(orientation, new Cesium.Matrix3());
+        function getCorner(dx, dz) {
+          const local = new Cesium.Cartesian3(dx, 0, dz);
+          const world = Cesium.Matrix3.multiplyByVector(rotMatrix, local, new Cesium.Cartesian3());
+          return Cesium.Cartesian3.add(planePos, world, new Cesium.Cartesian3());
+        }
+        const halfW = planeWidth / 2;
+        const halfH = planeHeight / 2;
+        const tl = getCorner(-halfW, halfH);
+        const tr = getCorner(halfW, halfH);
+        const br = getCorner(halfW, -halfH);
+        const bl = getCorner(-halfW, -halfH);
+
+        runtime.frustumLinesEntity = viewer.entities.add({
+          id: `cctv-${cam.id}-frustum`,
+          polyline: {
+            positions: [mountPos, bl, br, mountPos, tl, tr, mountPos],
+            width: 1.5,
+            material: new Cesium.PolylineDashMaterialProperty({
+              color: Cesium.Color.fromCssColorString('#00f0ff').withAlpha(0.6),
+              dashLength: 8
+            })
+          }
+        });
+
+        record.projection = runtime;
+        return runtime;
+      }
+
+      /* Live 60fps HUD Canvas Painter for in-world 3D monitor plane */
+      function updateProjectionCanvas(runtime, cam) {
+        try {
+          const ctx = runtime.ctx;
+          const w = runtime.canvas.width;
+          const h = runtime.canvas.height;
+
+          let sourceDrawn = false;
+
+          // Handle HLS video stream
+          if (runtime.video && runtime.video.readyState >= 2) {
+            try {
+              ctx.drawImage(runtime.video, 0, 0, w, h);
+              sourceDrawn = true;
+            } catch (err) {
+              sourceDrawn = false;
+            }
+          }
+          // Handle Live Snapshot mode
+          else if (
+            streamMode === 'live' &&
+            runtime.hasValidSnapshot &&
+            runtime.lastSnapshot &&
+            runtime.lastSnapshot.complete &&
+            runtime.lastSnapshot.naturalWidth !== 0
+          ) {
+            try {
+              ctx.drawImage(runtime.lastSnapshot, 0, 0, w, h);
+              sourceDrawn = true;
+            } catch (err) {
+              runtime.hasValidSnapshot = false;
+              sourceDrawn = false;
+            }
+          }
+
+          // If source not drawn (simulation mode, or live snapshot pending/offline/throttled):
+          // Run the High-Aesthetic Procedural Cyberpunk Surveillance Simulation!
+          if (!sourceDrawn) {
+            drawProceduralSurveillance(ctx, w, h, cam);
+          }
+
+          // Tactical Cyberpunk Overlay Bands
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+          ctx.fillRect(0, 0, w, 52);
+          ctx.fillRect(0, h - 48, w, 48);
+
+          // Live REC Blinking Indicator
+          const isBlink = Math.floor(Date.now() / 500) % 2 === 0;
+          ctx.fillStyle = isBlink ? '#ff2244' : 'rgba(255, 34, 68, 0.35)';
+          ctx.beginPath();
+          ctx.arc(28, 26, 8, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Active live telemetry overlay: CAM_01 // CONGRESS AVE // LIVE LINK [30 FPS]
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 16px "Share Tech Mono", monospace';
+          const activeTitle = cam.name || 'CAM_01 // CONGRESS AVE';
+          ctx.fillText(`[REC] ${activeTitle} // LIVE LINK [30 FPS]`, 48, 32);
+
+          // Millisecond Timestamp counting up in real-time ([REC] YYYY-MM-DD HH:MM:SS.ms UTC)
+          const now = new Date();
+          const p2 = n => String(n).padStart(2, '0');
+          const p3 = n => String(n).padStart(3, '0');
+          const ymd = `${now.getUTCFullYear()}-${p2(now.getUTCMonth() + 1)}-${p2(now.getUTCDate())}`;
+          const hmsMs = `${p2(now.getUTCHours())}:${p2(now.getUTCMinutes())}:${p2(now.getUTCSeconds())}.${p3(now.getUTCMilliseconds())}`;
+          const liveTimeStr = `${ymd} ${hmsMs} UTC`;
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.font = '14px "Share Tech Mono", monospace';
+          ctx.fillText(`FEED: ${sourceDrawn ? 'LIVE_STREAM' : 'CYBER_SIM'} // ${liveTimeStr}`, w - 460, 32);
+
+          // Bottom Telemetry Info
+          ctx.fillStyle = '#d1d7e0';
+          ctx.font = '13px "Share Tech Mono", monospace';
+          ctx.fillText(`SECTOR: ${cam.sector} // ${cam.lat.toFixed(4)}° N, ${Math.abs(cam.lon).toFixed(4)}° W // ELEV 24m`, 20, h - 20);
+
+          // Audio/Telemetry Equalizer Bars
+          const eqBars = 12;
+          const eqX = w - 400;
+          const eqY = h - 22;
+          for (let bi = 0; bi < eqBars; bi++) {
+            const bh = 4 + Math.abs(Math.sin((Date.now() * 0.005) + bi * 0.8)) * 14;
+            ctx.fillStyle = bi > 9 ? '#ff4466' : '#00ff88';
+            ctx.fillRect(eqX + bi * 6, eqY - bh, 4, bh);
+          }
+
+          ctx.fillStyle = '#ffb700';
+          ctx.font = '13px "Share Tech Mono", monospace';
+          ctx.fillText(`ENCRYPT: AES-256 GCM // MESH_OK`, w - 310, h - 20);
+
+          // Dossier Panel Mini-Monitor Blit: Mirror live surveillance feed to HUD
+          const miniCanvas = document.getElementById('dossier-mini-canvas');
+          if (miniCanvas) {
+            const mctx = miniCanvas.getContext('2d');
+            if (mctx) {
+              mctx.drawImage(runtime.canvas, 0, 0, miniCanvas.width, miniCanvas.height);
+            }
+          }
+
+          // Ensure 3D scene requests render for updated texture
+          if (viewer.scene.requestRenderMode) {
+            viewer.scene.requestRender();
+          }
+        } catch (renderErr) {
+          console.warn('[updateProjectionCanvas error intercepted]:', renderErr);
+        }
+      }
+
+      /* Orbital HUD Surveillance painter for dossier mini-monitor when in high orbit */
+      function drawOrbitalMiniMonitor() {
+        try {
+          const miniCanvas = document.getElementById('dossier-mini-canvas');
+          if (!miniCanvas) return;
+          const ctx = miniCanvas.getContext('2d');
+          if (!ctx) return;
+          const w = miniCanvas.width;
+          const h = miniCanvas.height;
+          const now = Date.now();
+          const t = now * 0.001;
+
+          // Dark cyber grid background (#05080e)
+          ctx.fillStyle = '#05080e';
+          ctx.fillRect(0, 0, w, h);
+
+          // Cyber tactical grid
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
+          ctx.lineWidth = 1;
+          for (let x = 0; x <= w; x += 32) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+          }
+          for (let y = 0; y <= h; y += 32) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+          }
+
+          // Corner brackets
+          const brk = 18;
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(12, 12 + brk); ctx.lineTo(12, 12); ctx.lineTo(12 + brk, 12); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(w - 12 - brk, 12); ctx.lineTo(w - 12, 12); ctx.lineTo(w - 12, 12 + brk); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(12, h - 12 - brk); ctx.lineTo(12, h - 12); ctx.lineTo(12 + brk, h - 12); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(w - 12 - brk, h - 12); ctx.lineTo(w - 12, h - 12); ctx.lineTo(w - 12, h - 12 - brk); ctx.stroke();
+
+          // Rotating orbital radar reticle in center
+          const cx = w / 2;
+          const cy = h / 2;
+          const rad = 70;
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(cx, cy, rad * 0.5, 0, Math.PI * 2); ctx.stroke();
+
+          const angle = (t * 1.8) % (Math.PI * 2);
+          ctx.strokeStyle = '#00ffaa';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + Math.cos(angle) * rad, cy + Math.sin(angle) * rad);
+          ctx.stroke();
+
+          // Scanline sweep
+          const sy = (now * 0.12) % h;
+          ctx.fillStyle = 'rgba(0, 255, 170, 0.08)';
+          ctx.fillRect(0, sy, w, 24);
+
+          // REC status
+          const p2 = n => String(n).padStart(2, '0');
+          const p3 = n => String(n).padStart(3, '0');
+          const d = new Date();
+          const ymd = `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())}`;
+          const hmsMs = `${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())}.${p3(d.getUTCMilliseconds())}`;
+          const isBlink = Math.floor(now / 500) % 2 === 0;
+
+          ctx.fillStyle = isBlink ? '#ff2244' : 'rgba(255, 34, 68, 0.3)';
+          ctx.beginPath(); ctx.arc(24, 24, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ff4466';
+          ctx.font = 'bold 12px "Share Tech Mono", monospace';
+          ctx.fillText(`REC ● [LIVE] 30 FPS // UTC ${ymd} ${hmsMs}`, 36, 28);
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.font = '11px "Share Tech Mono", monospace';
+          ctx.fillText(`ORBITAL SURVEILLANCE // SATELLITE_SCAN_STANDBY`, 20, h - 20);
+        } catch (e) {
+          console.warn('[drawOrbitalMiniMonitor error]:', e);
+        }
+      }
+
+      // PreRender listener to keep active 3D monitor plane texture animated
+      viewer.scene.preRender.addEventListener(() => {
+        try {
+          if (activeProjectionRecord && activeProjectionRecord.projection) {
+            updateProjectionCanvas(activeProjectionRecord.projection, activeProjectionRecord.camera);
+          } else {
+            drawOrbitalMiniMonitor();
+          }
+        } catch (preRenderErr) {
+          console.warn('[preRender error intercepted]:', preRenderErr);
+        }
+      });
+
+      function closeActiveProjection() {
+        if (activeProjectionRecord) {
+          const p = activeProjectionRecord.projection;
+          if (p) {
+            if (p.planeEntity) p.planeEntity.show = false;
+            if (p.frustumLinesEntity) p.frustumLinesEntity.show = false;
+            if (p.timer) {
+              clearInterval(p.timer);
+              p.timer = null;
+            }
+            if (p.video) {
+              p.video.pause();
+            }
+          }
+          if (activeProjectionRecord.billboard) {
+            activeProjectionRecord.billboard.scale = 1.0;
+          }
+          activeProjectionRecord = null;
+        }
+      }
+
+      /* ============================================================
+         4. CINEMATIC KINEMATICS & CAMERA FLIGHT VERBS
+      ============================================================ */
+      /**
+       * On initial launch:
+       * 1. Set camera to high orbit (lat: 30.2672, lon: -97.7431, alt: 25000, pitch: -90°).
+       * 2. Smooth cubic fly-in swooping down to street level (alt: 600m, pitch: -30°, heading: 15°).
+       */
+      function launchCinematicKinematics() {
+        // 1. Set camera to high orbit
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(-97.7431, 30.2672, 25000),
+          orientation: {
+            heading: Cesium.Math.toRadians(0),
+            pitch: Cesium.Math.toRadians(-90),
+            roll: 0.0
+          }
+        });
+
+        // Hide loading screen
+        setTimeout(() => {
+          loadingScreen.classList.add('hidden');
+        }, 400);
+
+        // 2. Cinematic cubic swoop down to street level
+        setTimeout(() => {
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(-97.7431, 30.2672, 600),
+            orientation: {
+              heading: Cesium.Math.toRadians(15),
+              pitch: Cesium.Math.toRadians(-30),
+              roll: 0.0
+            },
+            duration: 3.8,
+            easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+            complete: () => {
+              // Engage Austin 3D in-world projection automatically
+              focusCamera('recon-austin', false);
+            }
+          });
+        }, 700);
+      }
+
+      /**
+       * Smoothly fly the camera to frame the CCTV camera (flyToBoundingSphere),
+       * and project the 3D floating monitor plane directly in-world.
+       */
+      function focusCamera(cameraId, animated = true) {
+        const record = cameraRecords.get(cameraId);
+        if (!record) return;
+
+        closeActiveProjection();
+        activeProjectionRecord = record;
+
+        // Update active pill button in top dock
+        document.querySelectorAll('.nav-pill').forEach(btn => btn.classList.remove('active'));
+        const btn = document.getElementById(`btn-${cameraId.replace('recon-', '')}`);
+        if (btn) btn.classList.add('active');
+
+        // Create or show 3D projection plane
+        if (!record.projection) {
+          create3DProjectionPlane(record);
+        } else {
+          record.projection.planeEntity.show = true;
+          record.projection.frustumLinesEntity.show = true;
+          if (record.camera.feedType !== 'hls') {
+            startSnapshotPolling(record.projection, record.camera);
+          } else if (record.projection.video && record.projection.video.paused) {
+            record.projection.video.play().catch(() => { });
+          }
+        }
+
+        // Enlarge pin
+        if (record.billboard) {
+          record.billboard.scale = 1.35;
+        }
+
+        // Update Dossier UI
+        updateDossier(record.camera);
+
+        const cam = record.camera;
+        const range = 240; // Balanced range for framing floating 48m monitor and street
+
+        const boundingSphere = new Cesium.BoundingSphere(
+          record.position,
+          50 // Bounding sphere radius framing camera and screen
+        );
+
+        const offset = new Cesium.HeadingPitchRange(
+          Cesium.Math.toRadians(cam.headingDeg || 0),
+          Cesium.Math.toRadians(-22),
+          range
+        );
+
+        if (animated) {
+          viewer.camera.flyToBoundingSphere(boundingSphere, {
+            offset: offset,
+            duration: 2.2,
+            easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT
+          });
+        } else {
+          viewer.camera.flyToBoundingSphere(boundingSphere, {
+            offset: offset,
+            duration: 0.6,
+            easingFunction: Cesium.EasingFunction.CUBIC_OUT
+          });
+        }
+      }
+      window.focusCamera = focusCamera;
+
+      /**
+       * [ ORBIT VIEW ] Toggle:
+       * Smoothly flies camera back up to high orbital satellite perspective.
+       */
+      function flyToOrbitView() {
+        closeActiveProjection();
+
+        document.querySelectorAll('.nav-pill').forEach(b => b.classList.remove('active'));
+        const orbitBtn = document.getElementById('btn-orbit');
+        if (orbitBtn) orbitBtn.classList.add('active');
+
+        const carto = viewer.camera.positionCartographic;
+        const lon = carto ? Cesium.Math.toDegrees(carto.longitude) : -97.7431;
+        const lat = carto ? Cesium.Math.toDegrees(carto.latitude) : 30.2672;
+
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(lon, lat, 25000),
+          orientation: {
+            heading: Cesium.Math.toRadians(0),
+            pitch: Cesium.Math.toRadians(-90),
+            roll: 0.0
+          },
+          duration: 2.4,
+          easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT
+        });
+
+        document.getElementById('d-name').textContent = 'ORBITAL SATELLITE PERSPECTIVE';
+        document.getElementById('d-sector').textContent = 'GLOBAL HIGH-ALTITUDE RECONNAISSANCE';
+        document.getElementById('d-desc').textContent = 'Camera positioned in orbital observation altitude. Select any tactical sector or camera marker to swoop to street level.';
+        document.getElementById('d-proj-status').textContent = 'STANDBY // ORBIT MONITORING';
+        const dmmLabel = document.getElementById('dmm-sector-label');
+        if (dmmLabel) {
+          dmmLabel.textContent = 'SECTOR: GLOBAL ORBIT // FEED: SATELLITE_RECON_ACTIVE';
+        }
+      }
+      window.flyToOrbitView = flyToOrbitView;
+
+      /* ============================================================
+         5. TELEMETRY DOSSIER & CLOCK LOGIC
+      ============================================================ */
+      function updateDossier(cam) {
+        document.getElementById('d-name').textContent = cam.name;
+        document.getElementById('d-sector').textContent = `SECTOR: ${cam.city} // ${cam.sector}`;
+        document.getElementById('d-provider').textContent = cam.provider;
+        document.getElementById('d-codec').textContent = cam.feedType === 'hls' ? 'HLS.js / H.264 STREAM' : 'REST MJPEG / JPEG SNAPSHOT';
+        document.getElementById('d-range').textContent = `${cam.rangeM}m // 74° H-FOV`;
+        document.getElementById('d-heading').textContent = `${String(cam.headingDeg).padStart(3, '0')}° TRUE HEADING`;
+        document.getElementById('d-pitch').textContent = `${cam.pitchDeg}° DOWNTILT`;
+        document.getElementById('d-desc').textContent = cam.desc;
+        document.getElementById('d-proj-status').textContent = 'ACTIVE // IN-WORLD 3D PLANE BOUND';
+        const dmmLabel = document.getElementById('dmm-sector-label');
+        if (dmmLabel) {
+          dmmLabel.textContent = `SECTOR: ${cam.name.toUpperCase()} // FEED: OPTICAL_RECON_ACTIVE`;
+        }
+      }
+
+      function toggleTelem() {
+        telemCollapsed = !telemCollapsed;
+        document.getElementById('telem-panel').classList.toggle('collapsed', telemCollapsed);
+        document.getElementById('telem-toggle-btn').textContent = telemCollapsed ? 'RECON_INTEL' : 'CLOSE x';
+      }
+      window.toggleTelem = toggleTelem;
+
+      // Live UTC Clock & Camera Telemetry Tracker
+      function startTelemetryTracker() {
+        function tick() {
+          // Clock
+          const now = new Date();
+          const p = n => String(n).padStart(2, '0');
+          clockEl.textContent = `${p(now.getUTCHours())}:${p(now.getUTCMinutes())}:${p(now.getUTCSeconds())} UTC`;
+
+          // Coordinates
+          const carto = viewer.camera.positionCartographic;
+          if (carto) {
+            const lat = Cesium.Math.toDegrees(carto.latitude);
+            const lon = Cesium.Math.toDegrees(carto.longitude);
+            const alt = Math.round(carto.height);
+            const latStr = Math.abs(lat).toFixed(4) + '° ' + (lat >= 0 ? 'N' : 'S');
+            const lonStr = Math.abs(lon).toFixed(4) + '° ' + (lon >= 0 ? 'E' : 'W');
+            const altStr = alt > 10000 ? (alt / 1000).toFixed(1) + 'km' : alt + 'm';
+            coordsEl.textContent = `LAT: ${latStr} | LON: ${lonStr} | ALT: ${altStr}`;
+          }
+        }
+        tick();
+        setInterval(tick, 250);
+      }
+
+      /* ============================================================
+         6. BOOTSTRAP PIPELINE
+      ============================================================ */
+      async function boot() {
+        startTelemetryTracker();
+        initCameraMarkers();
+        await setupMapFallbackStack();
+        launchCinematicKinematics();
+      }
+
+      // Launch when page is loaded
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+      } else {
+        boot();
+      }
+
+    })();
+  </script>
 </body>
+
 </html>
