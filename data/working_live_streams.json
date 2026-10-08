@@ -1,0 +1,202 @@
+[
+  {
+    "description": "I-5 : (25) Meadowdale",
+    "lat": 34.08842,
+    "lon": -118.2369,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-25.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "S"
+  },
+  {
+    "description": "I-10 : (101) Mcclure West",
+    "lat": 34.0115,
+    "lon": -118.4962,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-101.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "E"
+  },
+  {
+    "description": "I-405 : (334) East of Alameda St",
+    "lat": 33.82513,
+    "lon": -118.22541,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-334.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "S"
+  },
+  {
+    "description": "I-405 : (323) I-605",
+    "lat": 33.82523,
+    "lon": -118.21538,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-323.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "S"
+  },
+  {
+    "description": "I-405 : (359) La Tijera",
+    "lat": 33.97392,
+    "lon": -118.38111,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-359.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "N"
+  },
+  {
+    "description": "I-405 : (327) Lakewood Blvd",
+    "lat": 33.80638,
+    "lon": -118.14461,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-327.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "N"
+  },
+  {
+    "description": "I-710 : (285) 3rd St",
+    "lat": 34.03242,
+    "lon": -118.17007,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-285.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "N"
+  },
+  {
+    "description": "I-710 : (263) South of Willow Street",
+    "lat": 33.7977,
+    "lon": -118.20671,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-263.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "N"
+  },
+  {
+    "description": "I-710 : (268) Del Amo Bl",
+    "lat": 33.84841,
+    "lon": -118.20564,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-268.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "S"
+  },
+  {
+    "description": "I-405 : (337) 213th Street",
+    "lat": 33.83696,
+    "lon": -118.26075,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-337.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "N"
+  },
+  {
+    "description": "I-710 : (262)  South of  PCH",
+    "lat": 33.78878,
+    "lon": -118.20753,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-262.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "N"
+  },
+  {
+    "description": "I-405 : (335) Wilmington Ave",
+    "lat": 33.82565,
+    "lon": -118.24335,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-335.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "S"
+  },
+  {
+    "description": "I-710 : (269) Long Beach Blvd",
+    "lat": 33.86191,
+    "lon": -118.20004,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-269.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "S"
+  },
+  {
+    "description": "I-405 : (336) Carson St",
+    "lat": 33.83029,
+    "lon": -118.25489,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-336.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "S"
+  },
+  {
+    "description": "I-710 : (267) North of I-405",
+    "lat": 33.8317,
+    "lon": -118.2089,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-267.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "S"
+  },
+  {
+    "description": "I-710 : (264) North of  Willow St",
+    "lat": 33.80632,
+    "lon": -118.20699,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-264.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "N"
+  },
+  {
+    "description": "I-10 : (420) Grand Ave",
+    "lat": 34.07151,
+    "lon": -117.87362,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-420.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "E"
+  },
+  {
+    "description": "I-210 : (449) Lake Ave",
+    "lat": 34.1515,
+    "lon": -118.13393,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-449.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "E"
+  },
+  {
+    "description": "I-605 : (442) South of  I-210",
+    "lat": 34.13126,
+    "lon": -117.95967,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-442.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "N"
+  },
+  {
+    "description": "I-10 : (422) Via Verde St",
+    "lat": 34.06912,
+    "lon": -117.83984,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-422.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "W"
+  },
+  {
+    "description": "I-10 : (416) West Covina Parkway",
+    "lat": 34.07243,
+    "lon": -117.94383,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-416.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "W"
+  },
+  {
+    "description": "I-10 : (419) Citrus St",
+    "lat": 34.07165,
+    "lon": -117.88919,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-419.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "E"
+  },
+  {
+    "description": "I-10 : (418) Azusa Ave",
+    "lat": 34.07192,
+    "lon": -117.91164,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-418.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "E"
+  },
+  {
+    "description": "I-10 : (431) Indian Hill Blvd",
+    "lat": 34.08198,
+    "lon": -117.71968,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-431.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "W"
+  },
+  {
+    "description": "I-10 : (417) Sunset Ave",
+    "lat": 34.07276,
+    "lon": -117.93515,
+    "url": "https://wzmedia.dot.ca.gov/D7/CCTV-417.stream/playlist.m3u8",
+    "region": "California > Los Angeles",
+    "direction": "W"
+  }
+]

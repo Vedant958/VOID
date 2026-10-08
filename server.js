@@ -37,6 +37,7 @@ const MIME_TYPES = {
 // API Handler Cache
 let recommendHandler = null;
 let ytHandler = null;
+let cctvProxyHandler = null;
 
 async function getApiHandler(apiPath) {
   try {
@@ -53,6 +54,13 @@ async function getApiHandler(apiPath) {
         ytHandler = mod.default;
       }
       return ytHandler;
+    }
+    if (apiPath === '/api/cctv-proxy') {
+      if (!cctvProxyHandler) {
+        const mod = await import('./api/cctv-proxy.js');
+        cctvProxyHandler = mod.default;
+      }
+      return cctvProxyHandler;
     }
   } catch (err) {
     console.error(`[VOID API] Error loading ${apiPath}:`, err);
@@ -109,7 +117,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 2. Static File Serving
-  let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
+  let filePath = path.join(__dirname, 'public', pathname === '/' ? 'index.html' : pathname);
 
   // Security check: stay within workspace
   if (!filePath.startsWith(__dirname)) {
