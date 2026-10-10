@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Track } from '../types';
-import { THEME } from '../constants/theme';
+import { useTheme } from '../store/useThemeStore';
 import { formatDuration } from '../utils/formatDuration';
 import { useLibraryStore } from '../store/useLibraryStore';
 
@@ -13,6 +13,7 @@ interface TrackRowProps {
   isActive?: boolean;
   onPress: () => void;
   onAddToQueue?: () => void;
+  onOptionsPress?: () => void;
   showIndex?: number;
 }
 
@@ -22,19 +23,41 @@ export const TrackRow: React.FC<TrackRowProps> = ({
   isActive,
   onPress,
   onAddToQueue,
+  onOptionsPress,
   showIndex,
 }) => {
   const { isLiked, toggleLike } = useLibraryStore();
+  const { theme, themeId, isDark } = useTheme();
   const liked = isLiked(track.id);
+
+  const getActiveRowStyle = () => {
+    if (!isActive) return null;
+    if (themeId === 'luminous') {
+      return styles.activeLuminousRow;
+    }
+    return {
+      backgroundColor: theme.colors.surfaceSubtle,
+      borderLeftWidth: 3,
+      borderLeftColor: theme.colors.accent,
+    };
+  };
 
   return (
     <TouchableOpacity
-      style={[styles.container, isActive && styles.activeContainer]}
+      style={[
+        styles.container,
+        getActiveRowStyle(),
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
       {showIndex !== undefined && (
-        <Text style={[styles.indexText, isActive && styles.activeText]}>
+        <Text
+          style={[
+            styles.indexText,
+            { color: isActive ? theme.colors.accent : theme.colors.textDim, fontFamily: theme.typography.mono },
+          ]}
+        >
           {showIndex < 10 ? `0${showIndex}` : showIndex}
         </Text>
       )}
@@ -48,16 +71,21 @@ export const TrackRow: React.FC<TrackRowProps> = ({
             transition={200}
           />
         ) : (
-          <View style={[styles.artwork, styles.artworkPlaceholder]}>
-            <Ionicons name="musical-note" size={20} color={THEME.colors.textMuted} />
+          <View style={[styles.artwork, { backgroundColor: theme.colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
+            <Ionicons name="musical-note" size={20} color={theme.colors.textMuted} />
           </View>
         )}
         {isActive && (
-          <View style={styles.activeOverlay}>
+          <View
+            style={[
+              styles.activeOverlay,
+              { backgroundColor: isDark ? 'rgba(5, 5, 8, 0.65)' : 'rgba(255, 255, 255, 0.65)' },
+            ]}
+          >
             <Ionicons
               name={isPlaying ? 'volume-high' : 'pause'}
               size={16}
-              color={THEME.colors.accent}
+              color={theme.colors.accent}
             />
           </View>
         )}
@@ -66,17 +94,46 @@ export const TrackRow: React.FC<TrackRowProps> = ({
       <View style={styles.infoWrapper}>
         <Text
           numberOfLines={1}
-          style={[styles.title, isActive && styles.activeTitle]}
+          style={[
+            styles.title,
+            { color: isActive ? theme.colors.accentBright : theme.colors.text },
+          ]}
         >
           {track.title}
         </Text>
-        <Text numberOfLines={1} style={styles.artist}>
-          {track.artist}
-        </Text>
+        <View style={styles.artistRow}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.artist,
+              { color: theme.colors.textMuted, fontFamily: theme.typography.mono },
+            ]}
+          >
+            {track.artist}
+          </Text>
+          {track.recommendationReason ? (
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.reasonBadge,
+                { color: theme.colors.accent, fontFamily: theme.typography.mono },
+              ]}
+            >
+              {' // ' + track.recommendationReason.toUpperCase()}
+            </Text>
+          ) : null}
+        </View>
       </View>
 
       {track.duration ? (
-        <Text style={styles.duration}>{formatDuration(track.duration)}</Text>
+        <Text
+          style={[
+            styles.duration,
+            { color: theme.colors.textDim, fontFamily: theme.typography.mono },
+          ]}
+        >
+          {formatDuration(track.duration)}
+        </Text>
       ) : null}
 
       {onAddToQueue && (
@@ -91,22 +148,42 @@ export const TrackRow: React.FC<TrackRowProps> = ({
           <Ionicons
             name="add-circle-outline"
             size={20}
-            color={THEME.colors.textMuted}
+            color={theme.colors.textMuted}
           />
         </TouchableOpacity>
       )}
 
       <TouchableOpacity
         style={styles.likeButton}
-        onPress={() => toggleLike(track)}
+        onPress={(e) => {
+          e.stopPropagation();
+          toggleLike(track);
+        }}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         <Ionicons
           name={liked ? 'heart' : 'heart-outline'}
           size={18}
-          color={liked ? THEME.colors.accent : THEME.colors.textDim}
+          color={liked ? theme.colors.accent : theme.colors.textDim}
         />
       </TouchableOpacity>
+
+      {onOptionsPress && (
+        <TouchableOpacity
+          style={styles.moreButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            onOptionsPress();
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="ellipsis-vertical"
+            size={18}
+            color={theme.colors.textMuted}
+          />
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -115,30 +192,20 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: THEME.spacing.sm + 2,
-    paddingHorizontal: THEME.spacing.md,
-    borderRadius: THEME.borderRadius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     marginVertical: 2,
   },
-  activeContainer: {
-    backgroundColor: THEME.colors.surfaceSubtle,
-    borderLeftWidth: 3,
-    borderLeftColor: THEME.colors.accent,
-  },
   indexText: {
-    fontFamily: THEME.typography.mono,
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.textDim,
+    fontSize: 11,
     width: 24,
-    marginRight: THEME.spacing.xs,
-  },
-  activeText: {
-    color: THEME.colors.accent,
+    marginRight: 4,
   },
   imageWrapper: {
     width: 46,
     height: 46,
-    borderRadius: THEME.borderRadius.sm,
+    borderRadius: 4,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -146,41 +213,37 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  artworkPlaceholder: {
-    backgroundColor: THEME.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   activeOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(5, 5, 8, 0.65)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   infoWrapper: {
     flex: 1,
-    marginLeft: THEME.spacing.md,
+    marginLeft: 12,
     justifyContent: 'center',
   },
   title: {
-    color: THEME.colors.text,
-    fontSize: THEME.typography.sizes.sm + 1,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 2,
   },
-  activeTitle: {
-    color: THEME.colors.accentBright,
+  artistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   artist: {
-    color: THEME.colors.textMuted,
-    fontSize: THEME.typography.sizes.xs,
-    fontFamily: THEME.typography.mono,
+    fontSize: 11,
+    flexShrink: 1,
+  },
+  reasonBadge: {
+    fontSize: 9,
+    letterSpacing: 0.5,
+    flexShrink: 1,
   },
   duration: {
-    color: THEME.colors.textDim,
-    fontSize: THEME.typography.sizes.xs,
-    fontFamily: THEME.typography.mono,
-    marginHorizontal: THEME.spacing.sm,
+    fontSize: 11,
+    marginHorizontal: 8,
   },
   actionButton: {
     padding: 6,
@@ -188,5 +251,23 @@ const styles = StyleSheet.create({
   },
   likeButton: {
     padding: 6,
+  },
+  moreButton: {
+    padding: 6,
+    marginLeft: 2,
+  },
+  activeLuminousRow: {
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 117, 0.45)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#00E575',
+    shadowColor: '#00E575',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    elevation: 4,
+    borderRadius: 14,
+    marginHorizontal: 4,
   },
 });

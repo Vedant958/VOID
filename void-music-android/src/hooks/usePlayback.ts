@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
+import { ToastAndroid, Platform } from 'react-native';
 import TrackPlayer, { Event, State, usePlaybackState } from 'react-native-track-player';
 import * as Haptics from 'expo-haptics';
 import { Track } from '../types';
@@ -14,139 +15,347 @@ import { normalizeTrack, findTrackInQueue, deduplicateAgainstQueue } from '../ut
 export { findTrackInQueue, deduplicateAgainstQueue };
 
 let _radioSessionToken = 0;
+let isTransitioning = false;
+let isQueueEndedListenerRegistered = false;
+let lastEndedTrackId: string | null = null;
+let lastEndedTimestamp = 0;
+let lastPlaybackStartTime = 0;
+
+let lastToastMessage = '';
+let lastToastTimestamp = 0;
+
+/**
+ * Displays a brief, non-blocking toast message (debounced to avoid spamming).
+ */
+export function showNonBlockingToast(message: string) {
+  const now = Date.now();
+  if (message === lastToastMessage && now - lastToastTimestamp < 2200) {
+    return;
+  }
+  lastToastMessage = message;
+  lastToastTimestamp = now;
+
+  if (Platform.OS === 'android') {
+    try {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } catch {}
+  }
+  console.log(`[Toast] ${message}`);
+}
+
+/**
+ * Attempts to resolve and play a track via JioSaavn full-track stream.
+ * If genuinely unavailable, displays "Song not available yet" and auto-advances.
+ * If temporary network error, halts gracefully without skipping through the queue.
+ * Guarded against infinite skip loops when all queue tracks are unavailable.
+ */
+export async function playTrackWithAutoAdvance(
+  track: Track,
+  targetIndex: number,
+  visitedTrackIds: Set<string> = new Set()
+): Promise<boolean> {
+  const currentQ = useQueueStore.getState().queue;
+  const playerStore = usePlayerStore.getState();
+  const libraryStore = useLibraryStore.getState();
+  const queueStore = useQueueStore.getState();
+
+  // Loop guard: Stop if track was already visited in this chain or all tracks checked
+  if (visitedTrackIds.has(track.id) || visitedTrackIds.size >= currentQ.length) {
+    console.log('[playTrackWithAutoAdvance] Loop guard triggered: all candidate tracks in queue attempted.');
+    playerStore.setIsBuffering(false);
+    playerStore.setIsPlaying(false);
+    showNonBlockingToast('No playable tracks available in queue');
+    return false;
+  }
+
+  visitedTrackIds.add(track.id);
+
+  try {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  } catch {}
+
+  playerStore.setIsBuffering(true);
+  playerStore.setError(null);
+  playerStore.setCurrentTrack(track);
+
+  // 1. Resolve JioSaavn full-track stream
+  const [resolution, hdArt] = await Promise.all([
+    StreamResolver.resolve(track),
+    ArtworkService.getHDArtwork(track),
+  ]);
+
+  // ── Case A: Success -> Play verified full track ──
+  if (resolution.status === 'success') {
+    console.log('[playTrackWithAutoAdvance] Direct JioSaavn stream resolved:', {
+      title: track.title,
+      duration: resolution.source.duration,
+      streamUrl: resolution.source.streamUrl.substring(0, 60) + '...',
+    });
+
+    const enrichedTrack: Track = {
+      ...track,
+      artwork: hdArt || track.artwork,
+      playbackSourceType: 'direct',
+      streamUrl: resolution.source.streamUrl,
+      isPreview: false,
+      duration: resolution.source.duration || track.duration,
+      bitrate: resolution.source.bitrate,
+    };
+
+    playerStore.setCurrentTrack(enrichedTrack);
+    playerStore.setIsPreview(false);
+
+    await playTrackOnPlayer(enrichedTrack, resolution.source.streamUrl);
+    lastPlaybackStartTime = Date.now();
+    playerStore.setIsPlaying(true);
+    playerStore.setIsBuffering(false);
+    libraryStore.addToHistory(enrichedTrack);
+    return true;
+  }
+
+  // ── Case B: Network Error -> Halt gracefully without skipping ──
+  if (resolution.status === 'network_error') {
+    console.warn(`[playTrackWithAutoAdvance] Network error resolving "${track.title}": ${resolution.error}`);
+    playerStore.setIsBuffering(false);
+    playerStore.setIsPlaying(false);
+    playerStore.setError('Network error: Unable to connect to music servers');
+    showNonBlockingToast('Network error: Check your connection');
+    return false;
+  }
+
+  // ── Case C: Genuine Unavailability -> "Song not available yet" & Auto-Advance ──
+  console.log(`[playTrackWithAutoAdvance] Song not available yet on JioSaavn: "${track.title}" (${resolution.reason})`);
+  showNonBlockingToast('Song not available yet');
+
+  const latestQ = queueStore.queue;
+  const mode = playerStore.playbackMode;
+
+  // Advance to next queue track (keeping the unavailable track in queue for later)
+  if (targetIndex + 1 < latestQ.length) {
+    const nextIdx = targetIndex + 1;
+    const nextTrack = latestQ[nextIdx];
+    queueStore.setCurrentIndex(nextIdx);
+    console.log(
+      `[playTrackWithAutoAdvance] Advancing past unavailable track to: "${nextTrack.title}" (pos ${nextIdx + 1}/${latestQ.length})`
+    );
+    return await playTrackWithAutoAdvance(nextTrack, nextIdx, visitedTrackIds);
+  } else if (latestQ.length > 0) {
+    // End of queue reached
+    if (mode === 'repeat-all') {
+      const nextIdx = 0;
+      const nextTrack = latestQ[0];
+      if (visitedTrackIds.has(nextTrack.id) || visitedTrackIds.size >= latestQ.length) {
+        playerStore.setIsBuffering(false);
+        playerStore.setIsPlaying(false);
+        showNonBlockingToast('No playable tracks available in queue');
+        return false;
+      }
+      queueStore.setCurrentIndex(0);
+      console.log(`[playTrackWithAutoAdvance] Repeat-all: wrapping to pos 1 ("${nextTrack.title}")`);
+      return await playTrackWithAutoAdvance(nextTrack, 0, visitedTrackIds);
+    } else {
+      // Try extending queue with recommendations
+      console.log('[playTrackWithAutoAdvance] Reached end of queue. Attempting recommendations extension...');
+      try {
+        const fresh = await RecommendService.getSimilarTracks(track);
+        const uniqueNew = deduplicateAgainstQueue(fresh, latestQ);
+        if (uniqueNew.length > 0) {
+          queueStore.addTracksToQueue(uniqueNew);
+          const updatedQ = useQueueStore.getState().queue;
+          const nextIdx = targetIndex + 1;
+          if (nextIdx < updatedQ.length) {
+            queueStore.setCurrentIndex(nextIdx);
+            return await playTrackWithAutoAdvance(updatedQ[nextIdx], nextIdx, visitedTrackIds);
+          }
+        }
+      } catch (err) {
+        console.log('[playTrackWithAutoAdvance] Recommendations extension failed:', err);
+      }
+
+      playerStore.setIsBuffering(false);
+      playerStore.setIsPlaying(false);
+      showNonBlockingToast('No playable tracks available in queue');
+      return false;
+    }
+  }
+
+  playerStore.setIsBuffering(false);
+  playerStore.setIsPlaying(false);
+  return false;
+}
+
+/**
+ * Legacy entry point: delegates to playTrackWithAutoAdvance.
+ */
+export async function playTrackAudio(track: Track): Promise<boolean> {
+  const currentIdx = useQueueStore.getState().currentIndex;
+  return await playTrackWithAutoAdvance(track, currentIdx, new Set());
+}
+
+/**
+ * Appends recommendations to the END of the queue without replacing existing tracks.
+ */
+export async function extendQueueWithRecommendations(seedTrack: Track, playNextOnAppend = false) {
+  try {
+    console.log(`[extendQueueWithRecommendations] Fetching recommendations to extend queue from "${seedTrack.title}"`);
+    const fresh = await RecommendService.getSimilarTracks(seedTrack);
+    const queueStore = useQueueStore.getState();
+    const currentQ = queueStore.queue;
+    const currentIdx = queueStore.currentIndex;
+    const uniqueNew = deduplicateAgainstQueue(fresh, currentQ);
+
+    if (uniqueNew.length > 0) {
+      queueStore.addTracksToQueue(uniqueNew);
+      console.log(`[extendQueueWithRecommendations] Appended ${uniqueNew.length} recommendations to the END of queue.`);
+
+      if (playNextOnAppend) {
+        const nextIdx = currentIdx + 1;
+        const updatedQ = useQueueStore.getState().queue;
+        if (nextIdx < updatedQ.length) {
+          queueStore.setCurrentIndex(nextIdx);
+          await playTrackWithAutoAdvance(updatedQ[nextIdx], nextIdx, new Set());
+        }
+      }
+    }
+  } catch (err) {
+    console.log('[extendQueueWithRecommendations] Extend queue skipped:', err);
+  }
+}
+
+/**
+ * Centrally manages queue advancement with concurrency guard, repeat-mode support,
+ * and automatic progression past unavailable tracks.
+ */
+export async function advanceToNextTrack(reason: 'natural_end' | 'user_skip' | 'remote_next') {
+  if (isTransitioning) {
+    console.log(`[PlaybackTransition] Skipped advance request (${reason}): another transition is currently in progress.`);
+    return;
+  }
+
+  const currentQ = useQueueStore.getState().queue;
+  const currentIdx = useQueueStore.getState().currentIndex;
+  const mode = usePlayerStore.getState().playbackMode;
+  const currentTrack = currentQ[currentIdx];
+
+  // Debounce trailing / duplicate EOF events
+  if (reason === 'natural_end') {
+    if (currentTrack && currentTrack.id === lastEndedTrackId && Date.now() - lastEndedTimestamp < 2000) {
+      console.log(`[PlaybackTransition] Debounced duplicate track-end event for "${currentTrack.title}".`);
+      return;
+    }
+    if (Date.now() - lastPlaybackStartTime < 2000) {
+      console.log(`[PlaybackTransition] Debounced spurious EOF event received immediately after track start (${Date.now() - lastPlaybackStartTime}ms).`);
+      return;
+    }
+  }
+
+  isTransitioning = true;
+  if (reason === 'natural_end' && currentTrack) {
+    lastEndedTrackId = currentTrack.id;
+    lastEndedTimestamp = Date.now();
+  }
+
+  try {
+    // 1. Repeat One: replay the same track on natural finish (if available)
+    if (reason === 'natural_end' && mode === 'repeat-one') {
+      console.log(`[PlaybackTransition] Repeating current track: "${currentTrack?.title}" (pos ${currentIdx + 1}/${currentQ.length}). Reason: ${reason}`);
+      if (currentTrack) {
+        await playTrackWithAutoAdvance(currentTrack, currentIdx, new Set());
+      }
+      return;
+    }
+
+    // 2. Linear next track in queue
+    if (currentIdx + 1 < currentQ.length) {
+      const nextIndex = currentIdx + 1;
+      const nextTrack = currentQ[nextIndex];
+      console.log(
+        `[PlaybackTransition] Advancing to next track: "${nextTrack?.title}" (pos ${nextIndex + 1}/${currentQ.length}). Previous: "${currentTrack?.title}" (pos ${currentIdx + 1}). Reason: ${reason}`
+      );
+      useQueueStore.getState().setCurrentIndex(nextIndex);
+      const success = await playTrackWithAutoAdvance(nextTrack, nextIndex, new Set());
+
+      if (success && nextIndex >= currentQ.length - 2) {
+        extendQueueWithRecommendations(nextTrack, false);
+      }
+    } else if (currentQ.length > 0) {
+      // 3. End of queue reached
+      if (mode === 'repeat-all') {
+        console.log(`[PlaybackTransition] Reached end of queue with repeat-all. Looping to start (pos 1). Reason: ${reason}`);
+        useQueueStore.getState().setCurrentIndex(0);
+        await playTrackWithAutoAdvance(currentQ[0], 0, new Set());
+      } else {
+        console.log(`[PlaybackTransition] Reached end of queue. Extending with recommendations. Reason: ${reason}`);
+        const lastTrack = currentQ[currentQ.length - 1];
+        await extendQueueWithRecommendations(lastTrack, true);
+      }
+    }
+  } finally {
+    isTransitioning = false;
+  }
+}
+
+/**
+ * Centrally manages queue retreat with concurrency guard.
+ */
+export async function retreatToPreviousTrack(reason: 'user_prev' | 'remote_prev') {
+  if (isTransitioning) {
+    console.log(`[PlaybackTransition] Skipped retreat request (${reason}): another transition is currently in progress.`);
+    return;
+  }
+  isTransitioning = true;
+
+  try {
+    const currentQ = useQueueStore.getState().queue;
+    const currentIdx = useQueueStore.getState().currentIndex;
+
+    if (currentIdx - 1 >= 0) {
+      const prevIndex = currentIdx - 1;
+      const prevTrack = currentQ[prevIndex];
+      console.log(`[PlaybackTransition] Retreating to previous track: "${prevTrack?.title}" (pos ${prevIndex + 1}/${currentQ.length}). Reason: ${reason}`);
+      useQueueStore.getState().setCurrentIndex(prevIndex);
+      await playTrackWithAutoAdvance(prevTrack, prevIndex, new Set());
+    } else if (currentQ.length > 0) {
+      console.log(`[PlaybackTransition] At first track of queue. Seeking to start. Reason: ${reason}`);
+      await TrackPlayer.seekTo(0);
+    }
+  } finally {
+    isTransitioning = false;
+  }
+}
+
+/**
+ * Global singleton listener registration for natural track completion.
+ */
+export function setupPlaybackEndedListener() {
+  if (isQueueEndedListenerRegistered) return;
+  isQueueEndedListenerRegistered = true;
+  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, () => {
+    console.log('[usePlayback] PlaybackQueueEnded event fired. Transitioning to next track...');
+    advanceToNextTrack('natural_end');
+  });
+}
 
 export function usePlayback() {
   const playbackState = usePlaybackState();
   const {
     currentTrack,
-    isPlaying,
-    isBuffering,
     playbackMode,
-    setCurrentTrack,
-    setIsPlaying,
-    setIsBuffering,
     setPlaybackMode,
-    setError,
-    setIsPreview,
   } = usePlayerStore();
 
   const {
-    queue,
-    currentIndex,
     setQueue,
     setCurrentIndex,
-    getNextTrack,
-    getPreviousTrack,
-    addTracksToQueue,
   } = useQueueStore();
 
-  const { addToHistory } = useLibraryStore();
-  const isAdvancingRef = useRef(false);
+  useEffect(() => {
+    setupPlaybackEndedListener();
+  }, []);
 
-  /**
-   * Internal audio player dispatcher:
-   * Pure native TrackPlayer playback (JioSaavn 320kbps full stream OR Apple iTunes 30s preview fallback).
-   * 100% direct audio. Zero WebViews / YouTube.
-   */
-  const playTrackAudio = useCallback(
-    async (track: Track) => {
-      try {
-        try {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        } catch {}
-
-        setIsBuffering(true);
-        setError(null);
-        setCurrentTrack(track);
-
-        // Concurrent resolution of direct audio stream & HD artwork
-        const [resolution, hdArt] = await Promise.all([
-          StreamResolver.resolve(track),
-          ArtworkService.getHDArtwork(track),
-        ]);
-
-        if (!resolution || !resolution.streamUrl) {
-          setError('Unable to resolve playable audio stream for this track.');
-          setIsBuffering(false);
-          setIsPlaying(false);
-          return;
-        }
-
-        console.log('[usePlayback] Direct audio stream resolved:', {
-          title: track.title,
-          isPreview: resolution.isPreview,
-          duration: resolution.duration,
-          streamUrl: resolution.streamUrl.substring(0, 60) + '...',
-        });
-
-        const enrichedTrack: Track = {
-          ...track,
-          artwork: hdArt || track.artwork,
-          playbackSourceType: 'direct',
-          streamUrl: resolution.streamUrl,
-          isPreview: Boolean(resolution.isPreview),
-          duration: resolution.duration || track.duration,
-        };
-
-        setCurrentTrack(enrichedTrack);
-        setIsPreview(Boolean(resolution.isPreview));
-
-        await playTrackOnPlayer(enrichedTrack, resolution.streamUrl);
-        setIsPlaying(true);
-        setIsBuffering(false);
-        addToHistory(enrichedTrack);
-      } catch (err: any) {
-        console.error('[usePlayback] playTrackAudio error:', err);
-        setError(err?.message || 'Playback error');
-        setIsBuffering(false);
-        setIsPlaying(false);
-      }
-    },
-    [addToHistory, setCurrentTrack, setError, setIsBuffering, setIsPlaying, setIsPreview]
-  );
-
-  /**
-   * Appends recommendations to the END of the queue without replacing existing tracks.
-   */
-  const extendQueueWithRecommendations = useCallback(
-    async (seedTrack: Track, playNextOnAppend = false) => {
-      try {
-        console.log(`[usePlayback] Fetching recommendations to extend queue from "${seedTrack.title}"`);
-        const fresh = await RecommendService.getSimilarTracks(seedTrack);
-        const currentQ = useQueueStore.getState().queue;
-        const currentIdx = useQueueStore.getState().currentIndex;
-        const uniqueNew = deduplicateAgainstQueue(fresh, currentQ);
-
-        if (uniqueNew.length > 0) {
-          addTracksToQueue(uniqueNew);
-          console.log(`[usePlayback] Appended ${uniqueNew.length} recommendations to the END of queue.`);
-
-          if (playNextOnAppend) {
-            const nextIdx = currentIdx + 1;
-            const updatedQ = useQueueStore.getState().queue;
-            if (nextIdx < updatedQ.length) {
-              setCurrentIndex(nextIdx);
-              await playTrackAudio(updatedQ[nextIdx]);
-            }
-          }
-        }
-      } catch (err) {
-        console.log('[usePlayback] Extend queue skipped:', err);
-      }
-    },
-    [addTracksToQueue, playTrackAudio, setCurrentIndex]
-  );
-
-  /**
-   * Primary Playback Dispatcher:
-   * 1. If explicitQueue is passed (e.g. user selected a playlist from Library), plays that queue.
-   * 2. If track is already inside active queue, skips to that index WITHOUT regenerating the queue.
-   * 3. If track is new (e.g. clicked in Search or Discover), creates a new Radio Session:
-   *    [seedTrack] + [Last.fm recommendations]
-   *    (Search results are NEVER used as the queue).
-   */
   const playTrack = useCallback(
     async (track: Track, explicitQueue?: Track[], startIndex?: number) => {
+      isTransitioning = false;
       const normalizedTrack = normalizeTrack(track);
 
       // Case 1: Explicit playlist queue (e.g., custom playlist from Library)
@@ -155,7 +364,7 @@ export function usePlayback() {
         const index = startIndex !== undefined ? startIndex : normalizedQueue.findIndex((t) => t.id === normalizedTrack.id);
         const safeIdx = Math.max(0, index >= 0 ? index : 0);
         setQueue(normalizedQueue, safeIdx);
-        await playTrackAudio(normalizedQueue[safeIdx]);
+        await playTrackWithAutoAdvance(normalizedQueue[safeIdx], safeIdx, new Set());
         return;
       }
 
@@ -166,7 +375,7 @@ export function usePlayback() {
       if (existingIndex >= 0) {
         console.log(`[usePlayback] Track already in queue at index ${existingIndex}. Playing without regenerating.`);
         setCurrentIndex(existingIndex);
-        await playTrackAudio(currentQueue[existingIndex]);
+        await playTrackWithAutoAdvance(currentQueue[existingIndex], existingIndex, new Set());
         return;
       }
 
@@ -179,7 +388,6 @@ export function usePlayback() {
       // Immediately set seed track as current, initialize queue to [seedTrack], start playback
       setQueue([normalizedTrack], 0);
       setCurrentIndex(0);
-      await playTrackAudio(normalizedTrack);
 
       // Pre-fetch Last.fm recommendations in background
       RecommendService.getSimilarTracks(normalizedTrack).then((recommendations) => {
@@ -190,7 +398,8 @@ export function usePlayback() {
 
         const uniqueRecs = deduplicateAgainstQueue(recommendations, [normalizedTrack]);
         if (uniqueRecs.length > 0) {
-          setQueue([normalizedTrack, ...uniqueRecs], 0);
+          const activeIdx = useQueueStore.getState().currentIndex;
+          setQueue([normalizedTrack, ...uniqueRecs], activeIdx);
           console.log(
             `[usePlayback] Radio session active: [${normalizedTrack.title}] + ${uniqueRecs.length} Last.fm recommendations.`
           );
@@ -198,8 +407,10 @@ export function usePlayback() {
           console.log(`[usePlayback] No similar tracks found for "${normalizedTrack.title}". Queue remains single track.`);
         }
       });
+
+      await playTrackWithAutoAdvance(normalizedTrack, 0, new Set());
     },
-    [playTrackAudio, setCurrentIndex, setQueue]
+    [setCurrentIndex, setQueue]
   );
 
   const togglePlayPause = useCallback(async () => {
@@ -211,56 +422,23 @@ export function usePlayback() {
       const state = await TrackPlayer.getState();
       if (state === State.Playing) {
         await TrackPlayer.pause();
-        setIsPlaying(false);
+        usePlayerStore.getState().setIsPlaying(false);
       } else {
         await TrackPlayer.play();
-        setIsPlaying(true);
+        usePlayerStore.getState().setIsPlaying(true);
       }
     } catch (e) {
       console.warn('togglePlayPause error:', e);
     }
-  }, [setIsPlaying]);
+  }, []);
 
   const skipNext = useCallback(async () => {
-    if (isAdvancingRef.current) return;
-    isAdvancingRef.current = true;
-
-    try {
-      const currentQ = useQueueStore.getState().queue;
-      const currentIdx = useQueueStore.getState().currentIndex;
-
-      if (currentIdx + 1 < currentQ.length) {
-        const nextIndex = currentIdx + 1;
-        setCurrentIndex(nextIndex);
-        const nextTrack = currentQ[nextIndex];
-        await playTrackAudio(nextTrack);
-
-        // Pre-extend queue if approaching the end
-        if (nextIndex >= currentQ.length - 2) {
-          extendQueueWithRecommendations(nextTrack, false);
-        }
-      } else if (currentQ.length > 0) {
-        // Reached the end: extend queue by fetching recommendations from last track and APPENDING
-        const lastTrack = currentQ[currentQ.length - 1];
-        await extendQueueWithRecommendations(lastTrack, true);
-      }
-    } finally {
-      isAdvancingRef.current = false;
-    }
-  }, [extendQueueWithRecommendations, playTrackAudio, setCurrentIndex]);
+    await advanceToNextTrack('user_skip');
+  }, []);
 
   const skipPrev = useCallback(async () => {
-    const currentQ = useQueueStore.getState().queue;
-    const currentIdx = useQueueStore.getState().currentIndex;
-
-    if (currentIdx - 1 >= 0) {
-      const prevIndex = currentIdx - 1;
-      setCurrentIndex(prevIndex);
-      await playTrackAudio(currentQ[prevIndex]);
-    } else if (currentQ.length > 0) {
-      await TrackPlayer.seekTo(0);
-    }
-  }, [playTrackAudio, setCurrentIndex]);
+    await retreatToPreviousTrack('user_prev');
+  }, []);
 
   const seekTo = useCallback(async (seconds: number) => {
     try {
@@ -272,17 +450,52 @@ export function usePlayback() {
     }
   }, []);
 
-  // Automatic Queue Advance on Native TrackPlayer Track Finish
-  useEffect(() => {
-    const sub = TrackPlayer.addEventListener(Event.PlaybackQueueEnded, () => {
-      console.log('[usePlayback] PlaybackQueueEnded event fired. Advancing to next track in queue...');
-      skipNext();
-    });
+  const addToQueue = useCallback((track: Track) => {
+    const added = useQueueStore.getState().addToQueue(track);
+    if (added) {
+      showNonBlockingToast(`Added to queue: ${track.title}`);
+    }
+    return added;
+  }, []);
 
-    return () => {
-      sub.remove();
-    };
-  }, [skipNext]);
+  const playNext = useCallback((track: Track) => {
+    const success = useQueueStore.getState().playNext(track);
+    if (success) {
+      showNonBlockingToast(`Playing next: ${track.title}`);
+    }
+    return success;
+  }, []);
+
+  const removeTrackFromQueue = useCallback(async (index: number) => {
+    const queueStore = useQueueStore.getState();
+    const { wasCurrent, removedTrack } = queueStore.removeFromQueue(index);
+    if (!removedTrack) return;
+
+    if (wasCurrent) {
+      const updatedQ = queueStore.queue;
+      const currentIdx = queueStore.currentIndex;
+      if (updatedQ.length === 0) {
+        try {
+          await TrackPlayer.reset();
+        } catch {}
+        usePlayerStore.getState().setIsPlaying(false);
+        usePlayerStore.getState().setCurrentTrack(null);
+      } else {
+        const nextTrack = updatedQ[currentIdx];
+        await playTrackWithAutoAdvance(nextTrack, currentIdx, new Set());
+      }
+    }
+  }, []);
+
+  const clearPlaybackQueue = useCallback(async () => {
+    useQueueStore.getState().clearQueue();
+    try {
+      await TrackPlayer.reset();
+    } catch {}
+    usePlayerStore.getState().setIsPlaying(false);
+    usePlayerStore.getState().setCurrentTrack(null);
+    showNonBlockingToast('Queue cleared');
+  }, []);
 
   const storeIsPlaying = usePlayerStore((s) => s.isPlaying);
   const storeIsBuffering = usePlayerStore((s) => s.isBuffering);
@@ -304,5 +517,9 @@ export function usePlayback() {
     skipPrev,
     seekTo,
     setPlaybackMode,
+    addToQueue,
+    playNext,
+    removeTrackFromQueue,
+    clearPlaybackQueue,
   };
 }

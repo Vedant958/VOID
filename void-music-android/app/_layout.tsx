@@ -5,11 +5,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { setupTrackPlayer } from '../src/services/TrackPlayerService';
-import { THEME } from '../src/constants/theme';
+import { useTheme } from '../src/store/useThemeStore';
 import { BootAnimation } from '../src/components/BootAnimation';
 
 export default function RootLayout() {
   const [isBooting, setIsBooting] = useState(true);
+  const { theme, isDark } = useTheme();
 
   useEffect(() => {
     setupTrackPlayer().catch((err) => {
@@ -19,12 +20,12 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <GestureHandlerRootView style={styles.container}>
-        <StatusBar style="light" backgroundColor={THEME.colors.background} translucent={true} />
+      <GestureHandlerRootView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={theme.colors.background} translucent={true} />
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: THEME.colors.background },
+            contentStyle: { backgroundColor: theme.colors.background },
             animation: 'fade',
           }}
         >
@@ -47,6 +48,5 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.colors.background,
   },
 });

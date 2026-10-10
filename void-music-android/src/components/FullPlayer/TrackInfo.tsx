@@ -1,35 +1,89 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Track } from '../../types';
-import { THEME } from '../../constants/theme';
+import { useTheme } from '../../store/useThemeStore';
 
 interface TrackInfoProps {
   track: Track;
 }
 
 export const TrackInfo: React.FC<TrackInfoProps> = ({ track }) => {
+  const { theme } = useTheme();
   const isPreview = Boolean(track.isPreview);
+
+  const bitrateLabel = React.useMemo(() => {
+    if (isPreview) return 'SOURCE // 30S PREVIEW';
+    if (track.bitrate && track.bitrate !== 'unknown' && track.bitrate !== 'direct') {
+      const clean = track.bitrate.toUpperCase().replace(/\s+/g, '');
+      return `AUDIO // ${clean}`;
+    }
+    return 'AUDIO // STREAM';
+  }, [isPreview, track.bitrate]);
 
   return (
     <View style={styles.container}>
       <View style={styles.badgeRow}>
-        <View style={[styles.badge, isPreview && styles.previewBadge]}>
-          <Text style={[styles.badgeText, isPreview && styles.previewText]}>
-            {isPreview ? 'SOURCE // 30S PREVIEW' : 'AUDIO // 320KBPS'}
+        <View
+          style={[
+            styles.badge,
+            {
+              backgroundColor: theme.colors.surfaceSubtle,
+              borderColor: theme.colors.border,
+            },
+            isPreview && styles.previewBadge,
+          ]}
+        >
+          <Text
+            style={[
+              styles.badgeText,
+              { color: theme.colors.textMuted, fontFamily: theme.typography.mono },
+              isPreview && { color: theme.colors.warning },
+            ]}
+          >
+            {bitrateLabel}
           </Text>
         </View>
-        <View style={[styles.badge, styles.statusBadge, isPreview && styles.previewStatusBadge]}>
-          <View style={[styles.liveDot, isPreview && styles.previewDot]} />
-          <Text style={[styles.badgeText, styles.statusText, isPreview && styles.previewStatusText]}>
+        <View
+          style={[
+            styles.badge,
+            styles.statusBadge,
+            {
+              backgroundColor: theme.colors.surfaceSubtle,
+              borderColor: theme.colors.accentDim,
+            },
+            isPreview && styles.previewStatusBadge,
+          ]}
+        >
+          <View
+            style={[
+              styles.liveDot,
+              { backgroundColor: isPreview ? theme.colors.warning : theme.colors.accent },
+            ]}
+          />
+          <Text
+            style={[
+              styles.badgeText,
+              {
+                color: isPreview ? theme.colors.warning : theme.colors.accentBright,
+                fontFamily: theme.typography.mono,
+              },
+            ]}
+          >
             {isPreview ? 'PREVIEW STREAM' : 'VOID STREAM'}
           </Text>
         </View>
       </View>
 
-      <Text numberOfLines={1} style={styles.title}>
+      <Text numberOfLines={1} style={[styles.title, { color: theme.colors.text }]}>
         {track.title}
       </Text>
-      <Text numberOfLines={1} style={styles.artist}>
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.artist,
+          { color: theme.colors.textMuted, fontFamily: theme.typography.mono },
+        ]}
+      >
         {track.artist}
       </Text>
     </View>
@@ -38,70 +92,49 @@ export const TrackInfo: React.FC<TrackInfoProps> = ({ track }) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: THEME.spacing.sm,
-    paddingHorizontal: THEME.spacing.lg,
+    marginVertical: 8,
+    paddingHorizontal: 24,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: THEME.spacing.sm,
+    marginBottom: 8,
   },
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: THEME.borderRadius.sm,
-    backgroundColor: THEME.colors.surfaceSubtle,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    marginRight: THEME.spacing.sm,
+    marginRight: 8,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: THEME.colors.accentDim,
   },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: THEME.colors.accent,
     marginRight: 6,
   },
   badgeText: {
-    fontFamily: THEME.typography.mono,
     fontSize: 10,
-    color: THEME.colors.textMuted,
     letterSpacing: 1,
-  },
-  statusText: {
-    color: THEME.colors.accentBright,
   },
   previewBadge: {
     borderColor: 'rgba(245, 158, 11, 0.4)',
     backgroundColor: 'rgba(245, 158, 11, 0.08)',
   },
-  previewText: {
-    color: THEME.colors.warning,
-  },
   previewStatusBadge: {
     borderColor: 'rgba(245, 158, 11, 0.3)',
   },
-  previewDot: {
-    backgroundColor: THEME.colors.warning,
-  },
-  previewStatusText: {
-    color: THEME.colors.warning,
-  },
   title: {
-    fontSize: THEME.typography.sizes.xl,
+    fontSize: 22,
     fontWeight: '700',
-    color: THEME.colors.text,
     marginBottom: 4,
   },
   artist: {
-    fontFamily: THEME.typography.mono,
-    fontSize: THEME.typography.sizes.sm,
-    color: THEME.colors.textMuted,
+    fontSize: 13,
     letterSpacing: 0.5,
   },
 });

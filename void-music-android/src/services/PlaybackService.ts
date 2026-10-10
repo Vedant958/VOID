@@ -1,6 +1,13 @@
 import TrackPlayer, { Event } from 'react-native-track-player';
+import {
+  advanceToNextTrack,
+  retreatToPreviousTrack,
+  setupPlaybackEndedListener,
+} from '../hooks/usePlayback';
 
 export async function PlaybackService() {
+  setupPlaybackEndedListener();
+
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     TrackPlayer.play();
   });
@@ -10,11 +17,11 @@ export async function PlaybackService() {
   });
 
   TrackPlayer.addEventListener(Event.RemoteNext, () => {
-    TrackPlayer.skipToNext();
+    advanceToNextTrack('remote_next');
   });
 
   TrackPlayer.addEventListener(Event.RemotePrevious, () => {
-    TrackPlayer.skipToPrevious();
+    retreatToPreviousTrack('remote_prev');
   });
 
   TrackPlayer.addEventListener(Event.RemoteSeek, (event) => {

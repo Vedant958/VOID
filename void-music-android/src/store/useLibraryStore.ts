@@ -16,8 +16,10 @@ interface LibraryState {
   addToHistory: (track: Track) => void;
   clearHistory: () => void;
   createPlaylist: (name: string) => Playlist;
+  renamePlaylist: (id: string, newName: string) => boolean;
   deletePlaylist: (id: string) => void;
   addTrackToPlaylist: (playlistId: string, track: Track) => void;
+  addTracksToPlaylist: (playlistId: string, tracks: Track[]) => void;
   removeTrackFromPlaylist: (playlistId: string, trackId: string) => void;
 }
 
@@ -71,9 +73,30 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   createPlaylist: (name: string): Playlist => {
     const { playlists } = get();
+    let trimmed = name.trim();
+    if (!trimmed) {
+      trimmed = `Vault Mix #${playlists.length + 1}`;
+    }
+
+    // Handle duplicate names gracefully by appending an increment
+    const nameExists = playlists.some(
+      (p) => p.name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (nameExists) {
+      let count = 2;
+      while (
+        playlists.some(
+          (p) => p.name.toLowerCase() === `${trimmed} (${count})`.toLowerCase()
+        )
+      ) {
+        count++;
+      }
+      trimmed = `${trimmed} (${count})`;
+    }
+
     const newPlaylist: Playlist = {
-      id: `pl-${Date.now()}`,
-      name,
+      id: `pl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: trimmed,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       tracks: [],
@@ -82,6 +105,22 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     storage.setJSON(PLAYLISTS_KEY, updated);
     set({ playlists: updated });
     return newPlaylist;
+  },
+
+  renamePlaylist: (id: string, newName: string): boolean => {
+    const trimmed = newName.trim();
+    if (!trimmed) return false;
+
+    const { playlists } = get();
+    const target = playlists.find((p) => p.id === id);
+    if (!target) return false;
+
+    const updated = playlists.map((p) =>
+      p.id === id ? { ...p, name: trimmed, updatedAt: Date.now() } : p
+    );
+    storage.setJSON(PLAYLISTS_KEY, updated);
+    set({ playlists: updated });
+    return true;
   },
 
   deletePlaylist: (id: string) => {
@@ -101,6 +140,25 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           ...p,
           updatedAt: Date.now(),
           tracks: [...p.tracks, track],
+        };
+      }
+      return p;
+    });
+    storage.setJSON(PLAYLISTS_KEY, updated);
+    set({ playlists: updated });
+  },
+
+  addTracksToPlaylist: (playlistId: string, tracks: Track[]) => {
+    const { playlists } = get();
+    const updated = playlists.map((p) => {
+      if (p.id === playlistId) {
+        const existingIds = new Set(p.tracks.map((t) => t.id));
+        const newTracks = tracks.filter((t) => !existingIds.has(t.id));
+        if (newTracks.length === 0) return p;
+        return {
+          ...p,
+          updatedAt: Date.now(),
+          tracks: [...p.tracks, ...newTracks],
         };
       }
       return p;

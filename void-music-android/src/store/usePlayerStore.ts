@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { PlaybackMode, PlaybackSourceType, Track } from '../types';
+import { ColorExtractionService } from '../services/ColorExtractionService';
+import { useThemeStore } from './useThemeStore';
 
 interface PlayerState {
   currentTrack: Track | null;
@@ -33,13 +35,23 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   playbackSourceType: 'direct',
   isPreview: false,
 
-  setCurrentTrack: (currentTrack) =>
+  setCurrentTrack: (currentTrack) => {
     set({
       currentTrack,
       error: null,
       playbackSourceType: 'direct',
       isPreview: Boolean(currentTrack?.isPreview),
-    }),
+    });
+
+    if (currentTrack) {
+      ColorExtractionService.extractAura(
+        currentTrack.artwork,
+        currentTrack.id || currentTrack.title
+      ).then((aura) => {
+        useThemeStore.getState().setArtworkAura(aura);
+      });
+    }
+  },
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setIsBuffering: (isBuffering) => set({ isBuffering }),
   setPlaybackMode: (playbackMode) => set({ playbackMode }),

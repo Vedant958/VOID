@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Playlist } from '../types';
-import { THEME } from '../constants/theme';
+import { useTheme } from '../store/useThemeStore';
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -15,16 +15,33 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
   onPress,
   onDelete,
 }) => {
+  const { theme } = useTheme();
+
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.iconContainer}>
-        <Ionicons name="list" size={24} color={THEME.colors.accent} />
+    <TouchableOpacity
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.iconContainer, { backgroundColor: theme.colors.surfaceSubtle }]}>
+        <Ionicons name="list" size={24} color={theme.colors.accent} />
       </View>
       <View style={styles.info}>
-        <Text numberOfLines={1} style={styles.name}>
+        <Text numberOfLines={1} style={[styles.name, { color: theme.colors.text }]}>
           {playlist.name}
         </Text>
-        <Text style={styles.count}>
+        <Text
+          style={[
+            styles.count,
+            { color: theme.colors.textMuted, fontFamily: theme.typography.mono },
+          ]}
+        >
           {playlist.tracks.length} {playlist.tracks.length === 1 ? 'track' : 'tracks'}
         </Text>
       </View>
@@ -34,7 +51,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={styles.deleteBtn}
         >
-          <Ionicons name="trash-outline" size={18} color={THEME.colors.textDim} />
+          <Ionicons name="trash-outline" size={18} color={theme.colors.textDim} />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -45,34 +62,28 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: THEME.colors.surface,
-    padding: THEME.spacing.md,
-    borderRadius: THEME.borderRadius.md,
-    marginBottom: THEME.spacing.sm,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
   },
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: THEME.borderRadius.sm,
-    backgroundColor: THEME.colors.surfaceSubtle,
+    borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   info: {
     flex: 1,
-    marginLeft: THEME.spacing.md,
+    marginLeft: 12,
   },
   name: {
-    fontSize: THEME.typography.sizes.sm + 1,
+    fontSize: 14,
     fontWeight: '600',
-    color: THEME.colors.text,
   },
   count: {
-    fontFamily: THEME.typography.mono,
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.textMuted,
+    fontSize: 11,
     marginTop: 2,
   },
   deleteBtn: {

@@ -7,6 +7,7 @@ export interface ResolvedSource {
   streamUrl: string;
   isPreview?: boolean;
   duration?: number;
+  bitrate?: string;
 }
 
 export interface Track {
@@ -16,6 +17,7 @@ export interface Track {
   artwork?: string;
   streamUrl?: string;
   duration?: number; // seconds
+  bitrate?: string;
   source?: 'saavn' | 'itunes' | 'local' | 'lastfm' | 'yt';
   playbackSourceType?: PlaybackSourceType;
   isPreview?: boolean;
@@ -23,6 +25,12 @@ export interface Track {
   query?: string;
   previewUrl?: string;
   isLocal?: boolean;
+  queueItemId?: string;
+  category?: string;
+  genre?: string;
+  categories?: string[];
+  recommendationReason?: string;
+  similarityScore?: number;
 }
 
 export type PlaybackMode = 'normal' | 'repeat-all' | 'repeat-one' | 'shuffle';

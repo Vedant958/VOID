@@ -2609,4 +2609,40 @@ body.night-mode #cyber-canvas {
   }
 }
 
+/* VOID LUMINUS - Frosted Bottom Dock */
+.void-luminous .mini-player,
+.void-luminous .bottom-nav,
+.void-luminous footer,
+.void-luminous .nav-container {
+  background: rgba(255, 255, 255, 0.52) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 1px rgba(255, 255, 255, 0.9) !important;
+}
 
+.void-luminous body::before {
+  content: '';
+  position: fixed;
+  top: -10%;
+  left: -10%;
+  width: 50vw;
+  height: 50vw;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(204, 59, 70, 0.16) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.void-luminous body::after {
+  content: '';
+  position: fixed;
+  bottom: 5%;
+  right: -10%;
+  width: 60vw;
+  height: 60vw;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(85, 74, 217, 0.18) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}

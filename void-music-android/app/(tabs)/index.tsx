@@ -1,75 +1,97 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  FlatList,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { THEME } from '../../src/constants/theme';
+import { useTheme } from '../../src/store/useThemeStore';
 import { CategoryChip } from '../../src/components/CategoryChip';
 import { TrackRow } from '../../src/components/TrackRow';
 import { Track } from '../../src/types';
 import { usePlayback } from '../../src/hooks/usePlayback';
 import { useQueueStore } from '../../src/store/useQueueStore';
-import { normalizeTrack } from '../../src/utils/trackUtils';
 import { ArtworkService } from '../../src/services/ArtworkService';
+import { TrackMenuModal } from '../../src/components/TrackMenuModal';
+import { AddToPlaylistModal } from '../../src/components/AddToPlaylistModal';
+import { TransmissionOfTheDay } from '../../src/components/TransmissionOfTheDay';
+import {
+  TransmissionService,
+  DailyTransmission,
+} from '../../src/services/TransmissionService';
+import { RecommendService } from '../../src/services/RecommendService';
+import {
+  CATEGORIES,
+  CURATED_TRACKS,
+  filterTracksByCategory,
+} from '../../src/constants/curatedTracks';
 
-const CATEGORIES = ['ALL', 'CYBERPUNK', 'SYNTHWAVE', 'LO-FI', 'AMBIENT', 'INDUSTRIAL'];
-
-const RAW_CURATED_TRACKS = [
-  {
-    id: 'curated-1',
-    title: 'Resonance',
-    artist: 'HOME',
-    album: 'Odyssey',
-    artwork: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/4f/13/65/4f1365b0-e97c-c469-c438-2f7d8f204355/872133025584_cover.jpg/600x600bb.jpg',
-    duration: 212,
-  },
-  {
-    id: 'curated-2',
-    title: 'Turbo Killer',
-    artist: 'Carpenter Brut',
-    album: 'Trilogy',
-    artwork: 'https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/f3/67/b9/f367b929-406d-ef08-6b62-a4322c62c8da/00602557606782.rgb.jpg/600x600bb.jpg',
-    duration: 208,
-  },
-  {
-    id: 'curated-3',
-    title: 'Nightcall',
-    artist: 'Kavinsky',
-    album: 'OutRun',
-    artwork: 'https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/c1/2d/fe/c12dfe8f-cdf6-e179-d69a-8ec35f760266/00602537248681.rgb.jpg/600x600bb.jpg',
-    duration: 259,
-  },
-  {
-    id: 'curated-4',
-    title: 'Tech Noir',
-    artist: 'GUNSHIP',
-    album: 'GUNSHIP',
-    artwork: 'https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/14/82/82/14828219-fd3d-531f-2f05-8a40083fb07f/889326256694_Cover.jpg/600x600bb.jpg',
-    duration: 297,
-  },
-  {
-    id: 'curated-5',
-    title: 'Venger',
-    artist: 'Perturbator',
-    album: 'The Uncanny Valley',
-    artwork: 'https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/b2/d1/5b/b2d15bd9-6ade-7b4d-6426-2fa0e194a71a/764072823713_cover.jpg/600x600bb.jpg',
-    duration: 308,
-  },
-];
-
-export const CURATED_TRACKS: Track[] = RAW_CURATED_TRACKS.map((t) => normalizeTrack(t, 'saavn'));
+export { CURATED_TRACKS };
 
 export default function DiscoverScreen() {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [tracks, setTracks] = useState<Track[]>(CURATED_TRACKS);
+  const [dailyTransmission, setDailyTransmission] = useState<DailyTransmission | null>(() =>
+    TransmissionService.getCachedTransmission()
+  );
+  const [menuTrack, setMenuTrack] = useState<Track | null>(null);
+  const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<Track | null>(null);
+
+  // Priority Feeds refresh state and mutex lock
+  const [isRefreshingFeeds, setIsRefreshingFeeds] = useState(false);
+  const feedRefreshLockRef = useRef(false);
+  const feedRefreshCounterRef = useRef(0);
+
+  // Smooth rotation animation for the Priority Feeds refresh icon
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (isRefreshingFeeds) {
+      const loop = Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        })
+      );
+      loop.start();
+      return () => loop.stop();
+    } else {
+      spinAnim.setValue(0);
+    }
+  }, [isRefreshingFeeds, spinAnim]);
+
+  const spinFeed = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const { theme } = useTheme();
   const { playTrack, currentTrack, isPlaying } = usePlayback();
   const { addToQueue } = useQueueStore();
+
+  const handleRefreshFeeds = async () => {
+    if (feedRefreshLockRef.current) return;
+    feedRefreshLockRef.current = true;
+    setIsRefreshingFeeds(true);
+    try {
+      feedRefreshCounterRef.current += 1;
+      const freshTracks = await RecommendService.getPriorityFeeds(feedRefreshCounterRef.current);
+      if (freshTracks && freshTracks.length > 0) {
+        setTracks(freshTracks);
+      }
+    } catch (err) {
+      console.warn('[Discover] Priority Feeds refresh error:', err);
+      // Gracefully preserve existing tracks on failure without clearing
+    } finally {
+      setIsRefreshingFeeds(false);
+      feedRefreshLockRef.current = false;
+    }
+  };
+
 
   useEffect(() => {
     // Hydrate any missing artwork on mount
@@ -86,47 +108,81 @@ export default function DiscoverScreen() {
       if (isMounted) setTracks(hydrated);
     });
 
+    // Hydrate Transmission of the Day
+    TransmissionService.getDailyTransmission().then((dt) => {
+      if (isMounted) setDailyTransmission(dt);
+    });
+
     return () => {
       isMounted = false;
     };
   }, []);
 
+  const filteredTracks = useMemo(() => {
+    return filterTracksByCategory(tracks, selectedCategory);
+  }, [tracks, selectedCategory]);
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Terminal Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.terminalPrompt}>VOID // AUDIO TERMINAL</Text>
-            <Text style={styles.headerTitle}>DISCOVERY MATRIX</Text>
+    <View style={styles.outerContainer}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Terminal Header */}
+          <View style={styles.header}>
+            <View style={styles.headerTitleBox}>
+              <Text style={[styles.terminalPrompt, { color: theme.colors.accent, fontFamily: theme.typography.mono }]}>
+                VOID // AUDIO TERMINAL
+              </Text>
+              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+                VOID Music
+              </Text>
           </View>
-          <View style={styles.systemStatus}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>SYS OK</Text>
+
+          {/* Telemetry Status: Clean SYS // OK indicator (Theme badge removed per spec) */}
+          <View
+            style={[
+              styles.systemStatus,
+              {
+                backgroundColor: theme.colors.surfaceSubtle,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <View style={[styles.statusDot, { backgroundColor: theme.colors.accent }]} />
+            <Text
+              style={[
+                styles.statusText,
+                { color: theme.colors.textMuted, fontFamily: theme.typography.mono },
+              ]}
+            >
+              SYS // OK
+            </Text>
           </View>
         </View>
 
-        {/* Featured Broadcast Hero Banner */}
-        <TouchableOpacity
-          style={styles.heroBanner}
-          activeOpacity={0.85}
-          onPress={() => playTrack(tracks[0])}
-        >
-          <View style={styles.heroBadge}>
-            <Ionicons name="radio" size={14} color={THEME.colors.accent} />
-            <Text style={styles.heroBadgeText}>FEATURED SIGNAL</Text>
-          </View>
-          <Text style={styles.heroTitle}>NEURAL SYNTH FREQUENCIES</Text>
-          <Text style={styles.heroSubtitle}>High-fidelity cyberpunk & synthwave transmissions</Text>
-          <View style={styles.playHeroBtn}>
-            <Ionicons name="play" size={18} color="#050508" />
-            <Text style={styles.playHeroText}>TRANSMIT NOW</Text>
-          </View>
-        </TouchableOpacity>
+        {/* Transmission of the Day */}
+        {dailyTransmission && (
+          <TransmissionOfTheDay
+            transmission={dailyTransmission}
+            currentTrackTitle={currentTrack?.title}
+            isPlaying={isPlaying}
+            onPlayTrack={(track, allTracks, index) => {
+              playTrack(track, allTracks, index);
+            }}
+            onPlayAll={(allTracks) => {
+              if (allTracks.length > 0) {
+                playTrack(allTracks[0], allTracks, 0);
+              }
+            }}
+          />
+        )}
 
         {/* Category Filter Chips */}
         <View style={styles.categorySection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryScroll}
+          >
             {CATEGORIES.map((cat) => (
               <CategoryChip
                 key={cat}
@@ -138,158 +194,189 @@ export default function DiscoverScreen() {
           </ScrollView>
         </View>
 
-        {/* Curated Feed */}
+        {/* Priority Feeds Track List */}
         <View style={styles.feedSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>PRIORITY FEEDS</Text>
-            <Text style={styles.sectionMeta}>{tracks.length} SIGNALS</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.textMuted, fontFamily: theme.typography.mono }]}>
+                PRIORITY FEEDS
+              </Text>
+              <TouchableOpacity
+                style={styles.feedRefreshBtn}
+                activeOpacity={0.7}
+                onPress={handleRefreshFeeds}
+                disabled={isRefreshingFeeds}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Refresh Priority Feeds"
+              >
+                <Animated.View style={{ transform: [{ rotate: spinFeed }] }}>
+                  <Ionicons
+                    name="reload-outline"
+                    size={13}
+                    color={isRefreshingFeeds ? theme.colors.accent : theme.colors.textDim}
+                  />
+                </Animated.View>
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.sectionMeta, { color: theme.colors.textDim, fontFamily: theme.typography.mono }]}>
+              {filteredTracks.length} SIGNALS
+            </Text>
           </View>
 
-          {tracks.map((item, idx) => {
-            const isActive = currentTrack?.title === item.title;
-            return (
-              <TrackRow
-                key={item.id}
-                track={item}
-                showIndex={idx + 1}
-                isActive={isActive}
-                isPlaying={isActive && isPlaying}
-                onPress={() => playTrack(item)}
-                onAddToQueue={() => addToQueue(item)}
-              />
-            );
-          })}
+          {filteredTracks.length > 0 ? (
+            filteredTracks.map((track, idx) => {
+              const isActive = currentTrack?.id === track.id;
+              return (
+                <TrackRow
+                  key={`${track.id}-${idx}`}
+                  track={track}
+                  showIndex={idx + 1}
+                  isActive={isActive}
+                  isPlaying={isActive && isPlaying}
+                  onPress={() => playTrack(track, filteredTracks, idx)}
+                  onOptionsPress={() => setMenuTrack(track)}
+                />
+              );
+            })
+          ) : (
+            <View style={[styles.emptyContainer, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceSubtle }]}>
+              <Ionicons name="radio-outline" size={28} color={theme.colors.textDim} />
+              <Text style={[styles.emptyTitle, { color: theme.colors.textMuted, fontFamily: theme.typography.mono }]}>
+                NO SIGNALS DETECTED
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.textDim }]}>
+                No tracks mapped under frequency category "{selectedCategory}"
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+
+      {/* Track Action Menu Modal */}
+      <TrackMenuModal
+        visible={Boolean(menuTrack)}
+        track={menuTrack}
+        onClose={() => setMenuTrack(null)}
+        onOpenAddToPlaylist={(t: Track) => setAddToPlaylistTrack(t)}
+      />
+
+      {/* Add To Playlist Modal */}
+      <AddToPlaylistModal
+        visible={Boolean(addToPlaylistTrack)}
+        track={addToPlaylistTrack}
+        onClose={() => setAddToPlaylistTrack(null)}
+      />
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: THEME.colors.background,
   },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 140,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: THEME.spacing.lg,
-    paddingTop: THEME.spacing.md,
-    paddingBottom: THEME.spacing.sm,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  headerTitleBox: {
+    flex: 1,
+    marginRight: 12,
   },
   terminalPrompt: {
-    fontFamily: THEME.typography.mono,
     fontSize: 10,
-    color: THEME.colors.accent,
     letterSpacing: 2,
   },
   headerTitle: {
-    fontSize: THEME.typography.sizes.xl,
+    fontSize: 24,
     fontWeight: '800',
-    color: THEME.colors.text,
-    letterSpacing: 0.5,
+    letterSpacing: -0.5,
+    marginTop: 2,
   },
   systemStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: THEME.borderRadius.sm,
-    backgroundColor: THEME.colors.surface,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
   },
   statusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: THEME.colors.accent,
     marginRight: 6,
   },
   statusText: {
-    fontFamily: THEME.typography.mono,
     fontSize: 10,
-    color: THEME.colors.accent,
-  },
-  heroBanner: {
-    marginHorizontal: THEME.spacing.lg,
-    marginTop: THEME.spacing.md,
-    padding: THEME.spacing.lg,
-    backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: THEME.colors.borderGlow,
-  },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: THEME.spacing.sm,
-  },
-  heroBadgeText: {
-    fontFamily: THEME.typography.mono,
-    fontSize: 10,
-    color: THEME.colors.accent,
-    marginLeft: 6,
-    letterSpacing: 1.5,
-  },
-  heroTitle: {
-    fontSize: THEME.typography.sizes.lg,
     fontWeight: '700',
-    color: THEME.colors.text,
-    marginBottom: 4,
-  },
-  heroSubtitle: {
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.textMuted,
-    marginBottom: THEME.spacing.md,
-  },
-  playHeroBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: THEME.colors.accent,
-    paddingHorizontal: THEME.spacing.md,
-    paddingVertical: THEME.spacing.sm - 2,
-    borderRadius: THEME.borderRadius.sm,
-  },
-  playHeroText: {
-    fontFamily: THEME.typography.mono,
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#050508',
-    marginLeft: 6,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   categorySection: {
-    marginTop: THEME.spacing.lg,
+    marginTop: 16,
   },
   categoryScroll: {
-    paddingHorizontal: THEME.spacing.lg,
+    paddingHorizontal: 16,
   },
   feedSection: {
-    marginTop: THEME.spacing.lg,
-    paddingHorizontal: THEME.spacing.sm,
+    marginTop: 16,
+    paddingHorizontal: 8,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: THEME.spacing.md,
-    marginBottom: THEME.spacing.xs,
+    paddingHorizontal: 12,
+    marginBottom: 4,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  feedRefreshBtn: {
+    marginLeft: 8,
+    width: 22,
+    height: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionTitle: {
-    fontFamily: THEME.typography.mono,
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.textMuted,
+    fontSize: 11,
     letterSpacing: 1.5,
   },
   sectionMeta: {
-    fontFamily: THEME.typography.mono,
     fontSize: 10,
-    color: THEME.colors.textDim,
+  },
+  emptyContainer: {
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginHorizontal: 8,
+    marginTop: 8,
+  },
+  emptyTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 8,
+    letterSpacing: 1.5,
+  },
+  emptySubtitle: {
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 4,
+    letterSpacing: 0.5,
   },
 });

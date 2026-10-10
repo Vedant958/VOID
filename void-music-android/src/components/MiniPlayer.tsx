@@ -5,12 +5,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayback } from '../hooks/usePlayback';
 import { useProgress } from '../hooks/useProgress';
-import { THEME } from '../constants/theme';
+import { useTheme } from '../store/useThemeStore';
 
 export const MiniPlayer: React.FC = () => {
   const router = useRouter();
   const { currentTrack, isPlaying, isBuffering, togglePlayPause, skipNext } = usePlayback();
   const { position, duration } = useProgress();
+  const { theme, themeId } = useTheme();
 
   if (!currentTrack) {
     return null;
@@ -20,28 +21,54 @@ export const MiniPlayer: React.FC = () => {
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[
+        styles.container,
+        {
+          backgroundColor: 'transparent',
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor:
+            themeId === 'luminous'
+              ? 'rgba(255, 255, 255, 0.40)'
+              : theme.colors.border,
+        },
+      ]}
       activeOpacity={0.9}
       onPress={() => router.push('/player')}
     >
       {/* Top progress indicator line */}
-      <View style={styles.progressBarBackground}>
-        <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+      <View style={[styles.progressBarBackground, { backgroundColor: theme.colors.surfaceSubtle }]}>
+        <View style={[styles.progressBarFill, { width: `${progressPercent}%`, backgroundColor: theme.colors.accent }]} />
       </View>
 
       <View style={styles.content}>
         <Image
           source={{ uri: currentTrack.artwork }}
-          style={styles.artwork}
+          style={[
+            styles.artwork,
+            {
+              backgroundColor: theme.colors.surfaceSubtle,
+              borderColor:
+                themeId === 'luminous'
+                  ? 'rgba(255, 255, 255, 0.85)'
+                  : theme.colors.border,
+              borderWidth: themeId === 'luminous' ? 1 : 0,
+            },
+          ]}
           contentFit="cover"
           transition={200}
         />
 
         <View style={styles.info}>
-          <Text numberOfLines={1} style={styles.title}>
+          <Text numberOfLines={1} style={[styles.title, { color: theme.colors.text }]}>
             {currentTrack.title}
           </Text>
-          <Text numberOfLines={1} style={styles.artist}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.artist,
+              { color: theme.colors.textMuted, fontFamily: theme.typography.mono },
+            ]}
+          >
             {currentTrack.artist}
           </Text>
         </View>
@@ -53,12 +80,12 @@ export const MiniPlayer: React.FC = () => {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             {isBuffering ? (
-              <ActivityIndicator size="small" color={THEME.colors.accent} />
+              <ActivityIndicator size="small" color={theme.colors.accent} />
             ) : (
               <Ionicons
                 name={isPlaying ? 'pause' : 'play'}
                 size={22}
-                color={THEME.colors.accent}
+                color={theme.colors.accent}
               />
             )}
           </TouchableOpacity>
@@ -68,7 +95,7 @@ export const MiniPlayer: React.FC = () => {
             onPress={skipNext}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="play-skip-forward" size={20} color={THEME.colors.text} />
+            <Ionicons name="play-skip-forward" size={20} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -78,56 +105,46 @@ export const MiniPlayer: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: THEME.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: THEME.colors.border,
-    borderBottomWidth: 1,
-    borderBottomColor: THEME.colors.border,
+    width: '100%',
   },
   progressBarBackground: {
     height: 2,
-    backgroundColor: THEME.colors.surfaceSubtle,
     width: '100%',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: THEME.colors.accent,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: THEME.spacing.md,
-    paddingVertical: THEME.spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   artwork: {
     width: 44,
     height: 44,
-    borderRadius: THEME.borderRadius.sm,
-    backgroundColor: THEME.colors.surfaceSubtle,
+    borderRadius: 6,
   },
   info: {
     flex: 1,
-    marginLeft: THEME.spacing.md,
+    marginLeft: 12,
     justifyContent: 'center',
   },
   title: {
-    color: THEME.colors.text,
-    fontSize: THEME.typography.sizes.sm,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 2,
   },
   artist: {
-    fontFamily: THEME.typography.mono,
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.textMuted,
+    fontSize: 11,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: THEME.spacing.sm,
+    marginLeft: 8,
   },
   controlButton: {
     padding: 8,
-    marginLeft: THEME.spacing.xs,
+    marginLeft: 4,
   },
 });

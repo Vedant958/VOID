@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, PanResponder, LayoutChangeEvent } from 'react-native';
-import { THEME } from '../../constants/theme';
+import { useTheme } from '../../store/useThemeStore';
 import { formatDuration } from '../../utils/formatDuration';
 
 interface ProgressBarProps {
@@ -14,6 +14,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   duration,
   onSeek,
 }) => {
+  const { theme } = useTheme();
   const [barWidth, setBarWidth] = useState(0);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubPosition, setScrubPosition] = useState(0);
@@ -58,85 +59,58 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     if (pendingSeek === null) return;
     const timer = setTimeout(() => {
       setPendingSeek(null);
-    }, 1200);
+    }, 4000);
     return () => clearTimeout(timer);
   }, [pendingSeek]);
 
-  const updatePositionFromX = (x: number) => {
-    const width = barWidthRef.current;
-    const dur = durationRef.current;
-    if (width <= 0 || dur <= 0) return;
+  const onLayout = (e: LayoutChangeEvent) => {
+    setBarWidth(e.nativeEvent.layout.width);
+  };
 
-    const clampedX = Math.max(0, Math.min(width, x));
-    const ratio = clampedX / width;
-    const targetSec = ratio * dur;
-
-    setScrubPosition(targetSec);
-    scrubPositionRef.current = targetSec;
+  const calculatePositionFromX = (locationX: number) => {
+    const w = barWidthRef.current;
+    const d = durationRef.current;
+    if (w <= 0 || d <= 0) return 0;
+    const ratio = Math.max(0, Math.min(1, locationX / w));
+    return ratio * d;
   };
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 1 || Math.abs(gestureState.dy) > 1;
-      },
-      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 1;
-      },
-      // Prevent parent scroll views or modals from stealing the dragging gesture
-      onPanResponderTerminationRequest: () => false,
+      onMoveShouldSetPanResponder: () => true,
 
-      onPanResponderGrant: (evt, gestureState) => {
-        if (durationRef.current <= 0 || barWidthRef.current <= 0) return;
-        setIsScrubbing(true);
+      onPanResponderGrant: (evt) => {
         isScrubbingRef.current = true;
-        setPendingSeek(null);
-
-        const locationX = evt.nativeEvent.locationX;
-        const initialX =
-          typeof locationX === 'number' && locationX >= 0
-            ? locationX
-            : Math.max(0, Math.min(barWidthRef.current, gestureState.x0));
-
-        startXRef.current = initialX;
-        updatePositionFromX(initialX);
+        setIsScrubbing(true);
+        startXRef.current = evt.nativeEvent.locationX;
+        const newPos = calculatePositionFromX(evt.nativeEvent.locationX);
+        scrubPositionRef.current = newPos;
+        setScrubPosition(newPos);
       },
 
-      onPanResponderMove: (_evt, gestureState) => {
-        if (!isScrubbingRef.current) return;
-        const currentX = startXRef.current + gestureState.dx;
-        updatePositionFromX(currentX);
+      onPanResponderMove: (evt, gestureState) => {
+        const curX = startXRef.current + gestureState.dx;
+        const newPos = calculatePositionFromX(curX);
+        scrubPositionRef.current = newPos;
+        setScrubPosition(newPos);
       },
 
       onPanResponderRelease: () => {
-        if (!isScrubbingRef.current) return;
-        const target = scrubPositionRef.current;
-        setIsScrubbing(false);
+        const finalPos = scrubPositionRef.current;
         isScrubbingRef.current = false;
-        setPendingSeek(target);
-
-        // Commit single seekTo call to TrackPlayer
-        onSeekRef.current(target);
+        setIsScrubbing(false);
+        setPendingSeek(finalPos);
+        onSeekRef.current(finalPos);
       },
 
       onPanResponderTerminate: () => {
-        setIsScrubbing(false);
         isScrubbingRef.current = false;
+        setIsScrubbing(false);
       },
     })
   ).current;
 
-  const onLayout = (e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    if (w > 0) {
-      setBarWidth(w);
-      barWidthRef.current = w;
-    }
-  };
-
-  // Display priority: active scrub -> optimistic seek -> live TrackPlayer position
   const activePosition = isScrubbing
     ? scrubPosition
     : pendingSeek !== null
@@ -156,21 +130,29 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
         {...panResponder.panHandlers}
       >
-        <View style={styles.track} pointerEvents="none">
-          <View style={[styles.progress, { width: `${progressPercent}%` }]} />
+        <View style={[styles.track, { backgroundColor: theme.colors.surfaceSubtle }]} pointerEvents="none">
+          <View style={[styles.progress, { width: `${progressPercent}%`, backgroundColor: theme.colors.accent }]} />
           <View
             style={[
               styles.thumb,
-              isScrubbing && styles.thumbScrubbing,
-              { left: `${progressPercent}%` },
+              {
+                left: `${progressPercent}%`,
+                backgroundColor: theme.colors.accentBright,
+                shadowColor: theme.colors.accent,
+              },
+              isScrubbing && [styles.thumbScrubbing, { backgroundColor: theme.colors.accentBright }],
             ]}
           />
         </View>
       </View>
 
       <View style={styles.timeRow}>
-        <Text style={styles.timeText}>{formatDuration(activePosition)}</Text>
-        <Text style={styles.timeText}>{formatDuration(safeDuration)}</Text>
+        <Text style={[styles.timeText, { color: theme.colors.textMuted, fontFamily: theme.typography.mono }]}>
+          {formatDuration(activePosition)}
+        </Text>
+        <Text style={[styles.timeText, { color: theme.colors.textMuted, fontFamily: theme.typography.mono }]}>
+          {formatDuration(safeDuration)}
+        </Text>
       </View>
     </View>
   );
@@ -178,8 +160,8 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: THEME.spacing.lg,
-    marginVertical: THEME.spacing.sm,
+    paddingHorizontal: 24,
+    marginVertical: 8,
   },
   touchArea: {
     height: 40,
@@ -187,14 +169,12 @@ const styles = StyleSheet.create({
   },
   track: {
     height: 4,
-    backgroundColor: THEME.colors.surfaceSubtle,
     borderRadius: 2,
     position: 'relative',
     overflow: 'visible',
   },
   progress: {
     height: '100%',
-    backgroundColor: THEME.colors.accent,
     borderRadius: 2,
   },
   thumb: {
@@ -203,9 +183,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: THEME.colors.accentBright,
     marginLeft: -7,
-    shadowColor: THEME.colors.accent,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.8,
     shadowRadius: 4,
@@ -228,8 +206,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   timeText: {
-    fontFamily: THEME.typography.mono,
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.textMuted,
+    fontSize: 11,
   },
 });

@@ -15,7 +15,9 @@ import { Track } from '../../src/types';
 import { TrackRow } from '../../src/components/TrackRow';
 import { usePlayback } from '../../src/hooks/usePlayback';
 import { useQueueStore } from '../../src/store/useQueueStore';
-import { THEME } from '../../src/constants/theme';
+import { useTheme } from '../../src/store/useThemeStore';
+import { TrackMenuModal } from '../../src/components/TrackMenuModal';
+import { AddToPlaylistModal } from '../../src/components/AddToPlaylistModal';
 
 const SUGGESTED_QUERIES = ['Synthwave', 'Cyberpunk 2077', 'Lo-Fi Chill', 'Carpenter Brut', 'Darksynth'];
 
@@ -23,8 +25,11 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [menuTrack, setMenuTrack] = useState<Track | null>(null);
+  const [addToPlaylistTrack, setAddToPlaylistTrack] = useState<Track | null>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
+  const { theme } = useTheme();
   const { playTrack, currentTrack, isPlaying } = usePlayback();
   const { addToQueue } = useQueueStore();
 
@@ -55,19 +60,30 @@ export default function SearchScreen() {
   }, [query]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.outerContainer}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.terminalPrompt}>VOID // SIGNAL INTERCEPT</Text>
-        <Text style={styles.headerTitle}>GLOBAL QUERY</Text>
+        <Text style={[styles.terminalPrompt, { color: theme.colors.accent, fontFamily: theme.typography.mono }]}>
+          VOID // SIGNAL INTERCEPT
+        </Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>GLOBAL QUERY</Text>
       </View>
 
       {/* Search Input Box */}
-      <View style={styles.searchBarWrapper}>
-        <Ionicons name="search" size={18} color={THEME.colors.textMuted} style={styles.searchIcon} />
+      <View
+        style={[
+          styles.searchBarWrapper,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Ionicons name="search" size={18} color={theme.colors.textMuted} style={styles.searchIcon} />
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: theme.colors.text, fontFamily: theme.typography.mono }]}
           placeholder="SEARCH TRACK, ARTIST, TRANSMISSION..."
-          placeholderTextColor={THEME.colors.textDim}
+          placeholderTextColor={theme.colors.textDim}
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
@@ -76,7 +92,7 @@ export default function SearchScreen() {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')} style={styles.clearBtn}>
-            <Ionicons name="close-circle" size={18} color={THEME.colors.textDim} />
+            <Ionicons name="close-circle" size={18} color={theme.colors.textDim} />
           </TouchableOpacity>
         )}
       </View>
@@ -84,16 +100,31 @@ export default function SearchScreen() {
       {/* Suggested Query Chips */}
       {query.length === 0 && (
         <View style={styles.suggestionsContainer}>
-          <Text style={styles.suggestedTitle}>RECOMMENDED FREQUENCIES</Text>
+          <Text style={[styles.suggestedTitle, { color: theme.colors.textDim, fontFamily: theme.typography.mono }]}>
+            RECOMMENDED FREQUENCIES
+          </Text>
           <View style={styles.chipsRow}>
             {SUGGESTED_QUERIES.map((term) => (
               <TouchableOpacity
                 key={term}
-                style={styles.queryChip}
+                style={[
+                  styles.queryChip,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
                 onPress={() => setQuery(term)}
               >
-                <Ionicons name="flash-outline" size={12} color={THEME.colors.accent} />
-                <Text style={styles.chipText}>{term}</Text>
+                <Ionicons name="flash-outline" size={12} color={theme.colors.accent} />
+                <Text
+                  style={[
+                    styles.chipText,
+                    { color: theme.colors.textMuted, fontFamily: theme.typography.mono },
+                  ]}
+                >
+                  {term}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -103,8 +134,10 @@ export default function SearchScreen() {
       {/* Search State / Results */}
       {isSearching ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.accent} />
-          <Text style={styles.loadingText}>SCANNING WAVELENGTHS...</Text>
+          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <Text style={[styles.loadingText, { color: theme.colors.accent, fontFamily: theme.typography.mono }]}>
+            SCANNING WAVELENGTHS...
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -121,79 +154,91 @@ export default function SearchScreen() {
                 isPlaying={isActive && isPlaying}
                 onPress={() => playTrack(item)}
                 onAddToQueue={() => addToQueue(item)}
+                onOptionsPress={() => setMenuTrack(item)}
               />
             );
           }}
           ListEmptyComponent={
             query.trim().length > 0 ? (
               <View style={styles.centerContainer}>
-                <Ionicons name="radio-outline" size={48} color={THEME.colors.textDim} />
-                <Text style={styles.emptyTitle}>NO SIGNAL DETECTED</Text>
-                <Text style={styles.emptySubtitle}>Try searching by artist or full track name</Text>
+                <Ionicons name="radio-outline" size={48} color={theme.colors.textDim} />
+                <Text style={[styles.emptyTitle, { color: theme.colors.textMuted, fontFamily: theme.typography.mono }]}>
+                  NO SIGNAL DETECTED
+                </Text>
+                <Text style={[styles.emptySubtitle, { color: theme.colors.textDim }]}>
+                  Try searching by artist or full track name
+                </Text>
               </View>
             ) : null
           }
         />
       )}
-    </SafeAreaView>
+
+      <TrackMenuModal
+        visible={menuTrack !== null}
+        track={menuTrack}
+        onClose={() => setMenuTrack(null)}
+        onOpenAddToPlaylist={(t) => setAddToPlaylistTrack(t)}
+      />
+
+      <AddToPlaylistModal
+        visible={addToPlaylistTrack !== null}
+        track={addToPlaylistTrack}
+        onClose={() => setAddToPlaylistTrack(null)}
+      />
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: THEME.colors.background,
   },
   header: {
-    paddingHorizontal: THEME.spacing.lg,
-    paddingTop: THEME.spacing.md,
-    paddingBottom: THEME.spacing.sm,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   terminalPrompt: {
-    fontFamily: THEME.typography.mono,
     fontSize: 10,
-    color: THEME.colors.accent,
     letterSpacing: 2,
   },
   headerTitle: {
-    fontSize: THEME.typography.sizes.xl,
+    fontSize: 22,
     fontWeight: '800',
-    color: THEME.colors.text,
   },
   searchBarWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: THEME.colors.surface,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    borderRadius: THEME.borderRadius.md,
-    marginHorizontal: THEME.spacing.lg,
-    marginVertical: THEME.spacing.sm,
-    paddingHorizontal: THEME.spacing.md,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    paddingHorizontal: 12,
     height: 48,
   },
   searchIcon: {
-    marginRight: THEME.spacing.sm,
+    marginRight: 8,
   },
   input: {
     flex: 1,
-    color: THEME.colors.text,
-    fontFamily: THEME.typography.mono,
-    fontSize: THEME.typography.sizes.xs + 1,
+    fontSize: 12,
   },
   clearBtn: {
     padding: 4,
   },
   suggestionsContainer: {
-    paddingHorizontal: THEME.spacing.lg,
-    marginTop: THEME.spacing.md,
+    paddingHorizontal: 16,
+    marginTop: 12,
   },
   suggestedTitle: {
-    fontFamily: THEME.typography.mono,
     fontSize: 10,
-    color: THEME.colors.textDim,
     letterSpacing: 1.5,
-    marginBottom: THEME.spacing.sm,
+    marginBottom: 8,
   },
   chipsRow: {
     flexDirection: 'row',
@@ -203,46 +248,38 @@ const styles = StyleSheet.create({
   queryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: THEME.colors.surface,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: THEME.borderRadius.full,
+    borderRadius: 9999,
   },
   chipText: {
-    fontFamily: THEME.typography.mono,
     fontSize: 11,
-    color: THEME.colors.textMuted,
     marginLeft: 6,
   },
   listContent: {
-    paddingHorizontal: THEME.spacing.sm,
-    paddingVertical: THEME.spacing.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    paddingBottom: 140,
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: THEME.spacing.xl,
+    padding: 24,
   },
   loadingText: {
-    fontFamily: THEME.typography.mono,
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.accent,
-    marginTop: THEME.spacing.md,
+    fontSize: 11,
+    marginTop: 12,
     letterSpacing: 1.5,
   },
   emptyTitle: {
-    fontFamily: THEME.typography.mono,
-    fontSize: THEME.typography.sizes.sm,
-    color: THEME.colors.textMuted,
-    marginTop: THEME.spacing.md,
+    fontSize: 13,
+    marginTop: 12,
     letterSpacing: 1.5,
   },
   emptySubtitle: {
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.textDim,
+    fontSize: 11,
     marginTop: 4,
   },
 });

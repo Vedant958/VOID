@@ -110,6 +110,14 @@ export function normalizeTrack(raw: any, defaultSource?: Track['source']): Track
   const query = raw.query || undefined;
   const source = raw.source || defaultSource || (raw.trackId ? 'itunes' : 'saavn');
   const isPreview = raw.isPreview !== undefined ? Boolean(raw.isPreview) : undefined;
+  const category = raw.category || undefined;
+  const genre = raw.genre || raw.primaryGenreName || undefined;
+  const categories = Array.isArray(raw.categories)
+    ? raw.categories
+    : (raw.category ? [raw.category] : (raw.channelLabel ? [raw.channelLabel] : undefined));
+
+  const recommendationReason = raw.recommendationReason || undefined;
+  const similarityScore = typeof raw.similarityScore === 'number' ? raw.similarityScore : undefined;
 
   return {
     id,
@@ -123,6 +131,11 @@ export function normalizeTrack(raw: any, defaultSource?: Track['source']): Track
     isPreview,
     query,
     source,
+    category,
+    genre,
+    categories,
+    recommendationReason,
+    similarityScore,
   };
 }
 

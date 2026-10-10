@@ -1,12 +1,18 @@
-import { MMKV } from 'react-native-mmkv';
+let MMKVClass: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  MMKVClass = require('react-native-mmkv').MMKV;
+} catch {}
 
-let storageInstance: MMKV | null = null;
+let storageInstance: any = null;
 const memoryFallback = new Map<string, string>();
 
-try {
-  storageInstance = new MMKV({ id: 'void-music-storage' });
-} catch (e) {
-  console.warn('MMKV initialization failed, using memory fallback:', e);
+if (MMKVClass) {
+  try {
+    storageInstance = new MMKVClass({ id: 'void-music-storage' });
+  } catch (e) {
+    console.warn('MMKV initialization failed, using memory fallback:', e);
+  }
 }
 
 export const storage = {
